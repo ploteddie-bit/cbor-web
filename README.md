@@ -13,7 +13,7 @@ CBOR-Web is a binary format standard enabling websites to expose a machine-nativ
 | **CBOR-WEB-DOLEANCE.md** | v1.0 | Draft — internal review |
 | CBOR-WEB-MULTIMEDIA.md | — | Planned |
 | CBOR-WEB-GENERATIVE.md | — | Planned |
-| CBOR-WEB-ECONOMICS.md | — | Planned |
+| **CBOR-WEB-ECONOMICS.md** | v2.1 | Draft — internal review |
 | **CBOR-WEB-REFERENCE.md** | v2.1 | Draft — internal review |
 
 ## What Problem Does This Solve?
