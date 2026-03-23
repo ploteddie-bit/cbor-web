@@ -9,7 +9,7 @@ CBOR-Web is a binary format standard enabling websites to expose a machine-nativ
 | Document | Version | Status |
 |----------|---------|--------|
 | **CBOR-WEB-CORE.md** | v2.1.3 | Draft — internal review |
-| **CBOR-WEB-SECURITY.md** | v1.0 | Draft — internal review |
+| **CBOR-WEB-SECURITY.md** | v2.1.1 | Draft — internal review |
 | **CBOR-WEB-DOLEANCE.md** | v1.0 | Draft — internal review |
 | CBOR-WEB-MULTIMEDIA.md | — | Planned |
 | **CBOR-WEB-GENERATIVE.md** | v2.1 | Draft — internal review |
