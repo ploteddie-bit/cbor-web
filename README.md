@@ -10,6 +10,7 @@ CBOR-Web is a binary format standard enabling websites to expose a machine-nativ
 |----------|---------|--------|
 | **CBOR-WEB-CORE.md** | v2.1.3 | Draft — internal review |
 | **CBOR-WEB-SECURITY.md** | v1.0 | Draft — internal review |
+| **CBOR-WEB-DOLEANCE.md** | v1.0 | Draft — internal review |
 | CBOR-WEB-MULTIMEDIA.md | — | Planned |
 | CBOR-WEB-GENERATIVE.md | — | Planned |
 | CBOR-WEB-ECONOMICS.md | — | Planned |
@@ -30,6 +31,7 @@ For a 25-page site, an AI agent downloads one 50 KB bundle instead of crawling 3
 - **13 content block types** — headings, paragraphs, tables, lists, code, images, CTAs...
 - **Schema.org structured data** — native CBOR, not JSON-LD-inside-script-inside-HTML
 - **Forward compatible** — unknown keys are ignored, not errors
+- **Doléance Protocol** — agents feed back content quality to publishers, enabling co-evolutionary improvement
 
 ## First Deployment
 
