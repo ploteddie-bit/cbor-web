@@ -6,7 +6,7 @@
 Status:   Draft
 Date:     2026-03-24
 Authors:  ExploDev (Eddie Plot, Claude)
-License:  CC BY 4.0
+License:  CC BY-ND 4.0
 Format:   CBOR (RFC 8949)
 ```
 
@@ -466,7 +466,7 @@ Un robot CBOR-Web (`cbor-verify`) crawle les sites déclarés :
 
 ## 12. Économie
 
-Le protocole est gratuit (CC BY 4.0). Le token CBORW (ERC-20) est un badge d'accès T1 permanent. Voir CBOR-WEB-ECONOMICS.md pour le modèle complet.
+Le protocole est gratuit (CC BY-ND 4.0). Le token CBORW (ERC-20) est un badge d'accès T1 permanent. Voir CBOR-WEB-ECONOMICS.md pour le modèle complet.
 
 ---
 

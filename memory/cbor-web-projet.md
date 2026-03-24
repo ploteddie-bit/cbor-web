@@ -54,7 +54,7 @@ Site complet 8 pages genere dans `/home/ubuntu/cbor-web-site/` (336 Ko). HTML/CS
 - 10% reserve strategique
 
 **Licence :**
-- Spec : CC BY 4.0 (ouverte, gratuite)
+- Spec : CC BY-ND 4.0 (ouverte, gratuite)
 - Outils : MIT (open source)
 - L'argent vient de l'ecosysteme (SaaS, tokens, consultance), pas de la licence
 - Marque "CBOR-Web" a deposer INPI + OEPM

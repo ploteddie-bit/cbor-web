@@ -232,7 +232,7 @@ Si le réseau atteint 10 000 sites et 1000 agents actifs : demande estimée ~$10
 
 | Élément | Protection |
 |---------|-----------|
-| Spécification CBOR-Web | CC BY 4.0 (ouverte, attribution requise) |
+| Spécification CBOR-Web | CC BY-ND 4.0 (ouverte, attribution requise) |
 | text2cbor (outil) | MIT License (open source) |
 | Marque "CBOR-Web" | À déposer (INPI France + OEPM Espagne) |
 | Token CBOR-Web | Smart contract publié (blockchain = preuve d'antériorité) |
@@ -249,7 +249,7 @@ Si le réseau atteint 10 000 sites et 1000 agents actifs : demande estimée ~$10
 | Google impose A2A comme standard | Moyenne | Fort | CBOR-Web est ouvert et indépendant — complémentaire, pas concurrent |
 | IOTA disparaît ou change | Faible | Moyen | Fallback did:key + support multi-blockchain |
 | Pas d'adoption | Moyenne | Fort | Les sites Deltopide sont les premiers adopteurs (dog-fooding) |
-| Un concurrent copie l'idée | Moyenne | Faible | CC BY 4.0 = attribution obligatoire + avance de 6-12 mois |
+| Un concurrent copie l'idée | Moyenne | Faible | CC BY-ND 4.0 = attribution obligatoire + avance de 6-12 mois |
 | Réglementation crypto/token | Faible | Moyen | Token utilitaire (pas un security token) = régulation légère |
 | Le marché des agents IA ralentit | Très faible | Fort | Tendance lourde, tous les indicateurs en hausse |
 

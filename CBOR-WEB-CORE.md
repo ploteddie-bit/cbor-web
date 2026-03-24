@@ -9,7 +9,7 @@ Date:         2026-03-21
 Authors:      ExploDev (Eddie Plot, Claude)
 Format:       CBOR (RFC 8949)
 Schema:       CDDL (RFC 8610)
-License:      CC BY 4.0
+License:      CC BY-ND 4.0
 Repository:   https://github.com/explodev/cbor-web
 Document:     1 of 6 — CBOR-WEB-CORE.md
 Companion:    CBOR-WEB-MULTIMEDIA.md, CBOR-WEB-GENERATIVE.md,

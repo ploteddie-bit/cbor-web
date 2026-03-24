@@ -6,7 +6,7 @@
 > Date: 2026-03-21
 > Authors: ExploDev (Eddie Plot, Claude)
 > Format: CBOR (RFC 8949)
-> License: CC BY 4.0
+> License: CC BY-ND 4.0
 
 ---
 

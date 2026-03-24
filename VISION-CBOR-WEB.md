@@ -97,7 +97,7 @@ C'est ici que la plupart des gens s'arrêtent : "c'est un format binaire". Non. 
 | "Un concurrent de llms.txt" | Non. llms.txt = résumé texte. CBOR-Web = contenu complet binaire. Complémentaires. |
 | "Un remplacement des embeddings / RAG" | Non. CBOR-Web fournit le **signal propre** que les embeddings indexent. Il améliore leur qualité, il ne les remplace pas. |
 | "Un format pour humains" | Non. Aujourd'hui le HTML coexiste. Dans 10 ans, le binaire sera le format principal — les humains parleront à des agents, pas à des navigateurs. |
-| "Un SaaS à vendre" | Non. La spec est gratuite (CC BY 4.0). Les outils sont open source (MIT). L'argent vient du token. |
+| "Un SaaS à vendre" | Non. La spec est gratuite (CC BY-ND 4.0). Les outils sont open source (MIT). L'argent vient du token. |
 | "Une base de données / RAG" | Non. C'est un format de fichier binaire. L'indexation est faite par les outils existants (pgvector, Pinecone, etc.) qui reçoivent un meilleur signal. |
 | "Un programme statique" | Non côté consumer. Le crawler est un agent IA vivant qui découvre, lit, comprend et s'améliore. Côté publisher, text2cbor est un convertisseur (mais peut tourner en mode watch). |
 

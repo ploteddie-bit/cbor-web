@@ -11,7 +11,7 @@
 
 This document defines the economic model of CBOR-Web: the CBORW utility token, pricing, allocation, smart contract mechanics, and the self-sustaining adoption loop.
 
-**Core principle:** The protocol is free. The spec is open (CC BY 4.0). The tools are open source (MIT). The money comes from the token ecosystem, not from licensing or SaaS.
+**Core principle:** The protocol is free. The spec is open (CC BY-ND 4.0). The tools are open source (MIT). The money comes from the token ecosystem, not from licensing or SaaS.
 
 ---
 
@@ -303,7 +303,7 @@ The CBORW token is a **utility token**, not a security:
 
 | Component | License |
 |-----------|---------|
-| CBOR-Web Specification | CC BY 4.0 |
+| CBOR-Web Specification | CC BY-ND 4.0 |
 | Reference implementations | MIT |
 | Smart contract source | MIT |
 | Trademark "CBOR-Web" | To be registered (INPI + OEPM) |
