@@ -94,6 +94,7 @@ CBOR-Web supports multiple authentication mechanisms to maximize adoption while 
 | ID | Mechanism | Tier | Standard | Maturity |
 |----|-----------|------|----------|----------|
 | `"eidas2"` | eIDAS 2.0 EUDI Wallet | T0 | EU 2024/1183, OpenID4VC, ISO mDL | Mandatory EU Dec 2026 |
+| `"did"` | W3C Decentralized Identifier | T0 | W3C DID Core 1.0 (2022), Verifiable Credentials | Standard W3C |
 | `"x509"` | X.509 Client Certificate (EV/OV) | T0 | RFC 5280, TLS 1.3 | Mature (30+ years) |
 | `"oauth2_institutional"` | OAuth 2.1 via institutional IdP | T0 | RFC 6749, RFC 9068, OpenID Connect | Mature |
 | `"erc20"` | ERC-20 Token Badge (CBORW) | T1 | EIP-20, EIP-712 | Designed for CBOR-Web |
@@ -245,7 +246,72 @@ Authorization: Bearer cbw_t0_...
 
 **Supported protocols:** OpenID for Verifiable Presentations (OpenID4VP), ISO/IEC 18013-5 (mDL), W3C Verifiable Credentials Data Model 2.0.
 
-### 4.2 X.509 Client Certificates
+### 4.2 W3C DID (Decentralized Identifiers)
+
+DID (W3C Recommendation, juillet 2022) fournit une identité décentralisée vérifiable sans autorité centrale. Un agent ou un publisher est identifié par un DID, et prouve son identité via un Verifiable Credential (VC).
+
+**Méthodes DID supportées pour T0 :**
+
+| Méthode | Format | Résolution | Usage |
+|---------|--------|-----------|-------|
+| `did:web` | `did:web:agent.explodev.dev` | HTTPS (fichier `.well-known/did.json`) | Agents liés à un domaine |
+| `did:ethr` | `did:ethr:0x742d35Cc...` | Ethereum blockchain | Agents avec wallet Ethereum |
+| `did:key` | `did:key:z6Mkf5rG...` | Auto-contenu (clé dans l'identifiant) | Agents autonomes sans domaine |
+
+**Flow d'authentification T0 via DID :**
+
+```
+1. Agent présente son DID : did:web:agent.explodev.dev
+2. Server résout le DID → récupère le DID Document (clé publique)
+3. Agent signe un challenge avec sa clé privée
+4. Server vérifie la signature contre la clé du DID Document
+5. Agent présente un Verifiable Credential (ex: "organisation gouvernementale")
+6. Server vérifie le VC contre l'émetteur de confiance
+7. Si valide → accès T0
+```
+
+**HTTP headers :**
+
+```
+GET /index.cbor HTTP/1.1
+Host: fleurs.com
+Accept: application/cbor
+X-CBOR-Web-Auth: did
+X-CBOR-Web-DID: did:web:agent.explodev.dev
+X-CBOR-Web-DID-Sig: <signature du challenge>
+X-CBOR-Web-VC: <Verifiable Credential JWT>
+```
+
+**Manifest configuration (key 10) :**
+
+```cbor-diag
+"did": {
+  "accepted_methods": ["did:web", "did:ethr", "did:key"],
+  "trusted_issuers": [
+    "did:web:franceconnect.gouv.fr",
+    "did:web:eidas.europa.eu",
+    "did:web:explodev.dev"
+  ],
+  "required_vc_types": ["GovernmentOrganization", "VerifiedAgent"]
+}
+```
+
+**CDDL :**
+
+```cddl
+did-config = {
+  ? "accepted_methods" => [+ tstr],
+  ? "trusted_issuers" => [+ tstr],
+  ? "required_vc_types" => [+ tstr],
+  * tstr => any
+}
+```
+
+**Compatibilité eIDAS 2.0 :** L'EUDI Wallet peut émettre des Verifiable Credentials au format W3C. Un agent authentifié via eIDAS peut aussi présenter son credential en DID — les deux mécanismes sont complémentaires, pas concurrents.
+
+**Avantage DID pour les agents IA :** Un agent IA autonome (sans humain derrière) peut posséder un DID propre (`did:key:...`). Contrairement à eIDAS (conçu pour les humains), DID est nativement compatible avec les identités machines. Un agent peut prouver qu'il est bien "l'agent X de l'organisation Y" sans qu'un humain intervienne dans la boucle d'authentification.
+
+### 4.3 X.509 Client Certificates
 
 For non-EU institutional access, X.509 client certificates (TLS mutual authentication) provide equivalent trust.
 
@@ -841,6 +907,8 @@ An agent MAY read `cbor.txt` before fetching the manifest to quickly determine i
 - **[EU 2024/1183]** European Parliament, "European Digital Identity Framework (eIDAS 2)", April 2024.
 - **[EIP-20]** Vogelsteller, F. and V. Buterin, "ERC-20 Token Standard", November 2015.
 - **[EIP-712]** Steiner, R., et al., "Ethereum typed structured data hashing and signing", September 2017.
+- **[W3C DID]** Sporny, M., et al., "Decentralized Identifiers (DIDs) v1.0", W3C Recommendation, July 2022. https://www.w3.org/TR/did-core/
+- **[W3C VC]** Sporny, M., et al., "Verifiable Credentials Data Model v2.0", W3C Recommendation, 2024. https://www.w3.org/TR/vc-data-model-2.0/
 - **[OpenID4VP]** Terbu, O., et al., "OpenID for Verifiable Presentations", 2023.
 
 ---
