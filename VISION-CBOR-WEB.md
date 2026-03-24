@@ -79,9 +79,9 @@ C'est ici que la plupart des gens s'arrêtent : "c'est un format binaire". Non. 
 
 | Pièce | Rôle | Statut |
 |-------|------|--------|
-| **Spec CBOR-Web** (6 docs) | Définit le format binaire | v2.1 écrite, en review |
-| **text2cbor** | Publisher : convertit HTML → CBOR | Compilé sur MacPro, à adapter |
-| **Crawler CBOR-Web** | Consumer : l'agent IA qui lit le CBOR | **À CONSTRUIRE** — pièce manquante |
+| **Spec CBOR-Web** (6 docs) | Définit le format binaire | v3.0 écrite (index.cbor), sur GitHub |
+| **text2cbor** | Publisher : convertit HTML → CBOR | Compilé sur MacPro, à adapter v3.0 |
+| **cbor-crawl** | Consumer : l'agent IA qui lit le CBOR | v0.1.0 compilé, sur GitHub |
 | **Token ERC-20 (CBORW)** | Badge d'accès permanent, autofinancement | Conçu, pas déployé |
 | **Site cbor-web.org** | Vitrine du standard | Fichiers prêts, pas déployé |
 | **Sites Deltopide** | Premiers adopteurs (preuve de concept) | 80 pages FR/ES/EN prêtes |
@@ -96,7 +96,7 @@ C'est ici que la plupart des gens s'arrêtent : "c'est un format binaire". Non. 
 |-------------------|---------|
 | "Un concurrent de llms.txt" | Non. llms.txt = résumé texte. CBOR-Web = contenu complet binaire. Complémentaires. |
 | "Un remplacement des embeddings / RAG" | Non. CBOR-Web fournit le **signal propre** que les embeddings indexent. Il améliore leur qualité, il ne les remplace pas. |
-| "Un format pour humains" | Non. Le HTML reste pour les humains. CBOR-Web est le canal parallèle pour les machines. |
+| "Un format pour humains" | Non. Aujourd'hui le HTML coexiste. Dans 10 ans, le binaire sera le format principal — les humains parleront à des agents, pas à des navigateurs. |
 | "Un SaaS à vendre" | Non. La spec est gratuite (CC BY 4.0). Les outils sont open source (MIT). L'argent vient du token. |
 | "Une base de données / RAG" | Non. C'est un format de fichier binaire. L'indexation est faite par les outils existants (pgvector, Pinecone, etc.) qui reçoivent un meilleur signal. |
 | "Un programme statique" | Non côté consumer. Le crawler est un agent IA vivant qui découvre, lit, comprend et s'améliore. Côté publisher, text2cbor est un convertisseur (mais peut tourner en mode watch). |
@@ -201,9 +201,9 @@ ExploDev dispose de 7 machines et 6 agents autonomes qui peuvent porter ce proje
 
 ## Ordre des opérations
 
-1. ✅ Spec v2.1 (6 documents) — en cours de review
-2. ⬜ Crawler CBOR-Web en Rust — **priorité absolue**
-3. ⬜ Adapter text2cbor à la spec v2.1 finale
+1. ✅ Spec v3.0 (6 documents + amendements) — sur GitHub
+2. ✅ cbor-crawl v0.1.0 (consumer Rust) — compilé, sur GitHub
+3. ⬜ Adapter text2cbor à la spec v3.0 (index.cbor, tiers T0/T1/T2)
 4. ⬜ Convertir les sites Deltopide en CBOR-Web (premiers adopteurs)
 5. ⬜ Déployer cbor-web.org sur Fram cloud
 6. ⬜ Déployer le token ERC-20 ($50 de gas)
@@ -227,6 +227,36 @@ ExploDev dispose de 7 machines et 6 agents autonomes qui peuvent porter ce proje
 
 ---
 
-*"Le web a deux clients : les humains et les machines. Il est temps de servir les deux."*
+---
 
-*— ExploDev, 2026*
+## La fin du HTML — Horizon 2035
+
+CBOR-Web est présenté aujourd'hui comme un canal **parallèle** au HTML. Mais les chiffres disent autre chose.
+
+**Les faits en 2025-2026 :**
+- 51% du trafic web est déjà automatisé, seulement 47% humain (Imperva Bad Bot Report 2025, Cloudflare Radar 2025)
+- Gartner prévoit -25% de volume sur les moteurs de recherche d'ici fin 2026
+- 69% des recherches Google finissent en zéro-clic (Similarweb, mai 2025)
+- Le trafic Google vers les éditeurs a chuté d'un tiers en un an (Press Gazette, nov 2025)
+- 40% des apps d'entreprise intégreront des agents IA fin 2026 (Gartner)
+
+**La trajectoire est claire :** les machines consomment le web plus que les humains. Le HTML est un format pour une audience minoritaire et en déclin.
+
+**Phase 1 (2026-2028) — Coexistence :**
+Le HTML et le CBOR coexistent. `index.html` pour les navigateurs, `index.cbor` pour les agents. Les deux fichiers sont servis côte à côte. Le publisher maintient les deux.
+
+**Phase 2 (2028-2032) — Inversion :**
+Le trafic machine dépasse 70%. Les publishers investissent plus dans `index.cbor` (qui génère des transactions via les agents) que dans `index.html` (qui génère de moins en moins de visites humaines). Le HTML devient le canal secondaire, comme la version mobile qui a remplacé la version desktop.
+
+**Phase 3 (2032-2035) — Remplacement :**
+Les humains n'utilisent plus de navigateur. Ils demandent à leur agent IA, qui lit le CBOR et leur rend le résultat en langage naturel, en voix, ou en interface adaptative. Le HTML subsiste comme format d'archive, comme le fax subsiste dans les hôpitaux. Mais plus personne ne "navigue" sur le web.
+
+**Le navigateur rejoint le Minitel.** Le HTML rejoint le format fax. Et `index.cbor` devient ce que `index.html` était en 1995 : le fichier que chaque site doit avoir pour exister.
+
+CBOR-Web n'est pas un format d'optimisation. C'est le **format de remplacement** du web.
+
+---
+
+*"Le web a deux clients : les humains et les machines. Dans 10 ans, il n'en aura plus qu'un."*
+
+*— Eddie Plot, ExploDev, 2026*
