@@ -5,6 +5,8 @@
 **Reviewer :** Claude (ingénieur protocole IETF/CBOR)
 **Périmètre :** 6 documents projet
 
+> **Note 24 mars 2026 :** Cet audit porte sur les documents v1.0/v2.0. La plupart des findings ont été corrigés dans v2.1 puis v3.0. En particulier, C-02 (modèles de sécurité incompatibles) est résolu : le modèle final est 3 tiers (T0/T1/T2) avec DID W3C réintégré comme mécanisme T0 aux côtés de eIDAS 2.0, X.509 et OAuth. IOTA et PoW ont été supprimés.
+
 ---
 
 ### Documents analysés

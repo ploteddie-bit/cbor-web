@@ -3735,14 +3735,14 @@ For the token verification protocol HTTP headers, see §12.4.
 **This version consolidates all prior documents and applies corrections.**
 
 **Security model:**
-- REPLACED 8-layer security model (DID/IOTA/PoW/trust score) with token-based access control (ERC-20 on Ethereum)
+- REPLACED 8-layer security model (IOTA/PoW/trust score) with 3-tier access control (T0/T1/T2). DID W3C reinstated as T0 auth mechanism alongside eIDAS 2.0, X.509, and OAuth
 - Added manifest key 10 (security declaration) to CDDL
 - Added `"access"` field to page entries (REQUIRED)
 - Defined two access levels: L0 (storefront) and L1 (token holder)
 
 **Critical fixes (from inter-document review):**
 - C-01: **Regenerated all test vectors** with correct RFC 8949 §4.2.1 deterministic encoding. Cross-validated by Rust (ciborium) and Python (cbor2).
-- C-02: **Unified security model** — token badge ERC-20, no DID/IOTA/PoW
+- C-02: **Unified security model** — 3 tiers (T0 institutional with DID/eIDAS/X.509, T1 token ERC-20/API key, T2 open). IOTA and PoW removed
 - C-03: **Added key 10** (manifest-security) to CDDL
 - C-04: **Corrected document header** references
 - C-05: **Aligned key 6** — signature is always `bstr` wrapping serialized COSE_Sign1
