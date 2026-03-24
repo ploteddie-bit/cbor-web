@@ -307,50 +307,136 @@ L'agent suit `"next"` pour charger les pages suivantes. Le premier `index.cbor` 
 
 ---
 
-## 9. Service de génération
+## 9. Service de génération (cbor-web.com)
 
-Le publisher ne crée pas `index.cbor` à la main. Il utilise le **service CBOR-Web** :
+Le publisher ne crée pas `index.cbor` à la main. Il utilise le **service CBOR-Web** hébergé sur `cbor-web.com`.
 
-### 9.1 Flux
-
-```
-1. Publisher ajoute DNS TXT : _cbor-web.fleurs.com → clé publique
-2. Publisher appelle l'API/MCP : "génère mon index.cbor, T2 sauf /tarifs en T1"
-3. Notre moteur crawle le site (Chrome headless si SPA)
-4. Notre moteur génère index.cbor (signé avec la clé du publisher)
-5. On livre le fichier au publisher
-6. Le publisher le pose à la racine de son site
-7. Les agents IA le trouvent et le consomment
-```
-
-### 9.2 API
+### 9.1 Flux complet
 
 ```
-POST https://api.cbor-web.org/generate
-Authorization: Bearer <api_key>
+1. Publisher crée un compte sur cbor-web.com → reçoit un token API (valide 365 jours max)
+2. Publisher ajoute DNS TXT : _cbor-web.fleurs.com → clé publique
+3. Publisher appelle l'API : "génère mon index.cbor"
+   - Déclare les niveaux : T1 pour /tarifs, T2 pour le reste
+   - Exclut les chemins sensibles : /admin, /backoffice
+4. L'API génère index.cbor (crawl du site + conversion + signature)
+5. Une fenêtre de téléchargement s'ouvre pour 48-72h
+6. Le publisher récupère index.cbor pendant cette fenêtre
+7. Le publisher pose le fichier à la racine de son site
+8. La fenêtre se ferme automatiquement après 72h
+9. Pour re-générer : le publisher réactive le même token → nouvelle fenêtre 48-72h
+10. Au bout de 365 jours : le token expire, le publisher en crée un nouveau
+```
+
+### 9.2 Token publisher
+
+| Propriété | Valeur |
+|-----------|--------|
+| Durée de vie max | **365 jours** |
+| Renouvellement | Nouveau token à l'expiration |
+| Fenêtre de téléchargement | **48-72h** après chaque génération |
+| Réactivation | Le même token rouvre une fenêtre (tant qu'il est valide) |
+| Révocation | Le publisher peut révoquer à tout moment |
+
+Le token publisher est **distinct** du token CBORW (ERC-20). Le token publisher est une API key classique pour accéder au service de génération. Le token CBORW est le badge d'accès T1 pour les agents IA.
+
+### 9.3 API
+
+**Étape 1 — Créer un compte et obtenir un token :**
+
+```
+POST https://api.cbor-web.com/register
 Content-Type: application/json
 
 {
   "domain": "fleurs.com",
+  "email": "contact@fleurs.com"
+}
+```
+
+Réponse :
+```json
+{
+  "token": "cbw_pub_a3f2c442...",
+  "expires_at": "2027-03-24T00:00:00Z",
+  "dns_instructions": {
+    "record": "_cbor-web.fleurs.com",
+    "type": "TXT",
+    "value": "v=3; pk=MCowBQYDK2VwAyEA..."
+  }
+}
+```
+
+**Étape 2 — Configurer et générer :**
+
+```
+POST https://api.cbor-web.com/generate
+Authorization: Bearer cbw_pub_a3f2c442...
+Content-Type: application/json
+
+{
+  "domain": "fleurs.com",
+  "default_access": "T2",
   "pages": [
     {"path": "/", "access": "T2"},
     {"path": "/catalogue", "access": "T2"},
     {"path": "/roses", "access": "T2"},
     {"path": "/livraison/tarifs", "access": "T1"}
+  ],
+  "exclude": [
+    "/admin",
+    "/admin/*",
+    "/backoffice",
+    "/api/*"
   ]
 }
 ```
 
-Réponse : le fichier `index.cbor` binaire.
+Réponse :
+```json
+{
+  "status": "generating",
+  "job_id": "job_7f3a...",
+  "estimated_time_seconds": 120,
+  "download_url": "https://api.cbor-web.com/download/job_7f3a...",
+  "download_expires_at": "2026-03-27T05:00:00Z"
+}
+```
 
-### 9.3 MCP
+**Étape 3 — Télécharger (dans la fenêtre 48-72h) :**
+
+```
+GET https://api.cbor-web.com/download/job_7f3a...
+Authorization: Bearer cbw_pub_a3f2c442...
+```
+
+Réponse : le fichier `index.cbor` binaire (`Content-Type: application/cbor`).
+
+**Après 72h :** le `download_url` retourne `410 Gone`.
+
+**Réactiver :**
+
+```
+POST https://api.cbor-web.com/regenerate
+Authorization: Bearer cbw_pub_a3f2c442...
+
+{
+  "domain": "fleurs.com"
+}
+```
+
+Réutilise la dernière configuration. Ouvre une nouvelle fenêtre 48-72h.
+
+### 9.4 MCP
 
 Le publisher peut aussi utiliser le connecteur MCP CBOR-Web depuis Claude, ChatGPT, ou tout agent compatible :
 
 ```
 "Génère le index.cbor pour fleurs.com avec les pages catalogue et roses en T2,
- les tarifs en T1"
+ les tarifs en T1, exclure /admin et /backoffice"
 ```
+
+Le MCP appelle la même API sous le capot.
 
 ---
 
