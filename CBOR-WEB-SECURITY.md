@@ -1,15 +1,15 @@
-# CBOR-Web Security Specification v2.1
+# CBOR-Web Security Specification v3.0
 
-**Companion to:** CBOR-Web Core Specification v2.1 (CBOR-WEB-CORE.md)
+**Companion to:** CBOR-Web Core Specification v3.0 (CBOR-WEB-SPEC-v3.0.md)
 **Status:** Draft
-**Date:** 2026-03-24
+**Date:** 2026-03-25
 **Authors:** Eddie Plot & Claude — Deltopide
 
 ---
 
 ## 1. Overview
 
-This document defines the security architecture for CBOR-Web: access control, authentication, content integrity, privacy, and threat mitigation. It complements CBOR-WEB-CORE.md and is referenced throughout the core specification.
+This document defines the security architecture for CBOR-Web: access control, authentication, content integrity, privacy, and threat mitigation. It complements CBOR-WEB-SPEC-v3.0.md and is referenced throughout the core specification.
 
 CBOR-Web security follows one principle: **the level of trust required matches the risk of the action**. Reading a product description requires no identity. Buying a product requires verified identity. Accessing government data requires institutional-grade authentication.
 
@@ -30,7 +30,7 @@ CBOR-Web defines three access tiers plus one hardcoded prohibition. Tiers are or
 
 ### 2.2 Tier Declaration
 
-A publisher declares tier requirements per page in the manifest page entry (CBOR-WEB-CORE.md §5.4):
+A publisher declares tier requirements per page entry in key 5 of index.cbor (CBOR-WEB-SPEC-v3.0.md §5.4):
 
 ```cbor-diag
 {
@@ -48,23 +48,19 @@ The `"access"` field accepts:
 | `"T0"` | Institutional | Requires institutional-grade authentication |
 | `"T1"` | Authenticated | Requires token, API key, or M2M OAuth |
 | `"T2"` | Open | No authentication required |
-| `"public"` | Alias for T2 | Backward compatibility with core spec v2.1 |
-| `"token"` | Alias for T1 | Backward compatibility with core spec v2.1 |
-
-**Migration from core spec v2.1:** The values `"public"` and `"token"` remain valid and map to T2 and T1 respectively. New implementations SHOULD use `"T0"`, `"T1"`, `"T2"`.
 
 ### 2.3 Tier Inheritance
 
-If a page entry does not specify `"access"`, the default is determined by the manifest's security configuration (key 10):
+If a page entry does not specify `"access"`, the default is determined by the security configuration (key 3) of index.cbor:
 
 ```cbor-diag
-10: {
+3: {
   "default_access": "T2",
   "...": "..."
 }
 ```
 
-If key 10 is absent or `"default_access"` is not specified, the default is `"T2"` (open).
+If key 3 is absent or `"default_access"` is not specified, the default is `"T2"` (open).
 
 ### 2.4 Tier Interdit — Ethical Prohibition
 
@@ -87,7 +83,7 @@ A conforming agent that detects prohibited content in a CBOR-Web document MUST:
 
 ## 3. Authentication Mechanisms
 
-CBOR-Web supports multiple authentication mechanisms to maximize adoption while maintaining security guarantees. A publisher declares which mechanisms it accepts in the manifest security configuration (key 10).
+CBOR-Web supports multiple authentication mechanisms to maximize adoption while maintaining security guarantees. A publisher declares which mechanisms it accepts in the security configuration (key 3) of index.cbor.
 
 ### 3.1 Mechanism Registry
 
@@ -102,10 +98,10 @@ CBOR-Web supports multiple authentication mechanisms to maximize adoption while 
 | `"apikey"` | API Key (bearer token) | T1 | RFC 6750 | Universal, simple |
 | `"none"` | No authentication | T2 | — | — |
 
-### 3.2 Manifest Security Configuration (Key 10)
+### 3.2 Security Configuration (Key 3 of index.cbor)
 
 ```cbor-diag
-10: {
+3: {
   "auth_mechanisms": ["erc20", "apikey", "oauth2_m2m"],
   "default_access": "T2",
   "erc20": {
@@ -137,7 +133,7 @@ CBOR-Web supports multiple authentication mechanisms to maximize adoption while 
 **CDDL:**
 
 ```cddl
-manifest-security = {
+security = {
   "auth_mechanisms" => [+ auth-mechanism-id],
   ? "default_access" => "T0" / "T1" / "T2",
   ? "erc20" => erc20-config,
@@ -282,7 +278,7 @@ X-CBOR-Web-DID-Sig: <signature du challenge>
 X-CBOR-Web-VC: <Verifiable Credential JWT>
 ```
 
-**Manifest configuration (key 10) :**
+**Security configuration (key 3 of index.cbor) :**
 
 ```cbor-diag
 "did": {
@@ -319,7 +315,7 @@ For non-EU institutional access, X.509 client certificates (TLS mutual authentic
 - Certificate MUST be Extended Validation (EV) or Organization Validation (OV)
 - Domain Validation (DV) certificates are NOT sufficient for T0
 - Certificate MUST chain to a CA trusted by the server
-- Server MAY restrict to specific CAs (declared in key 10 `"x509"."accepted_cas"`)
+- Server MAY restrict to specific CAs (declared in key 3 `"x509"."accepted_cas"`)
 
 **Flow:** Standard TLS client authentication (RFC 8446 §4.4.2). No CBOR-Web-specific logic.
 
@@ -339,9 +335,9 @@ Client                                  Server
   |  TLS Finished (mutual auth OK)       |
   |<─────────────────────────────────────|
   |                                      |
-  |  GET /.well-known/cbor-web/pages/... |
+  |  GET /index.cbor                     |
   |─────────────────────────────────────>|
-  |  200 OK (T0 content)                 |
+  |  200 OK (T0 content unlocked)        |
   |<─────────────────────────────────────|
 ```
 
@@ -351,7 +347,7 @@ For government platforms (France Connect, Itsme, BankID, etc.):
 
 **Flow:** OAuth 2.1 Authorization Code with PKCE (human-in-the-loop for consent), then the resulting token is used for M2M access.
 
-The publisher declares its accepted institutional IdPs in key 10:
+The publisher declares its accepted institutional IdPs in key 3:
 
 ```cbor-diag
 "oauth2_institutional": {
@@ -406,12 +402,12 @@ The agent signs a structured message containing:
   "primaryType": "CBORWebRequest",
   "domain": {
     "name": "CBOR-Web",
-    "version": "2.1",
+    "version": "3.0",
     "chainId": 1
   },
   "message": {
     "domain": "verdetao.com",
-    "path": "/.well-known/cbor-web/pages/products_lions-mane.cbor",
+    "path": "/index.cbor",
     "nonce": 42,
     "timestamp": 1742598400
   }
@@ -423,7 +419,7 @@ The agent signs a structured message containing:
 **Request:**
 
 ```
-GET /.well-known/cbor-web/pages/products_lions-mane.cbor HTTP/1.1
+GET /index.cbor HTTP/1.1
 Host: verdetao.com
 Accept: application/cbor
 X-CBOR-Web-Auth: erc20
@@ -473,13 +469,13 @@ Note: The `"alternative_auth"` field tells the agent that other T1 mechanisms ar
 For developers who prefer simplicity over blockchain:
 
 ```
-GET /.well-known/cbor-web/pages/products_lions-mane.cbor HTTP/1.1
+GET /index.cbor HTTP/1.1
 Host: verdetao.com
 Accept: application/cbor
 Authorization: Bearer cbw_k1_a3f2c442...
 ```
 
-The publisher issues API keys via a registration endpoint (declared in key 10 `"apikey"."registration_url"`). API keys are opaque strings prefixed with `cbw_k1_` for identification.
+The publisher issues API keys via a registration endpoint (declared in key 3 `"apikey"."registration_url"`). API keys are opaque strings prefixed with `cbw_k1_` for identification.
 
 **Validation:** Server checks the key against its database. No blockchain involved.
 
@@ -522,7 +518,7 @@ Response:
 Then:
 
 ```
-GET /.well-known/cbor-web/pages/products_lions-mane.cbor HTTP/1.1
+GET /index.cbor HTTP/1.1
 Authorization: Bearer eyJ...
 ```
 
@@ -535,7 +531,7 @@ This follows the standard OAuth 2.1 Client Credentials flow (RFC 6749 §4.4). It
 T2 requires no authentication. An agent requests content with no special headers:
 
 ```
-GET /.well-known/cbor-web HTTP/1.1
+GET /index.cbor HTTP/1.1
 Host: example.com
 Accept: application/cbor
 User-Agent: cbor-crawl/1.0.0
@@ -543,9 +539,9 @@ User-Agent: cbor-crawl/1.0.0
 
 The server SHOULD include a `User-Agent` for identification and rate limiting purposes, but it is not required.
 
-T2 pages are equivalent to what Google sees when it crawls a site. The manifest, page metadata, and public pages are all T2.
+T2 pages are equivalent to what Google sees when it crawls a site. The index.cbor, page metadata, and public pages are all T2.
 
-**Rate limiting for T2:** Servers SHOULD enforce rate limits for anonymous agents (declared in key 10 `"rate_limits"."T2"`). Default: 10 requests/second per IP.
+**Rate limiting for T2:** Servers SHOULD enforce rate limits for anonymous agents (declared in key 3 `"rate_limits"."T2"`). Default: 10 requests/second per IP.
 
 ---
 
@@ -553,45 +549,42 @@ T2 pages are equivalent to what Google sees when it crawls a site. The manifest,
 
 ### 7.1 Hash Verification
 
-Every page in the manifest includes a SHA-256 hash (CBOR-WEB-CORE.md §10.2). An agent MUST verify the hash after downloading a page:
+Every page in the index.cbor includes a SHA-256 hash (CBOR-WEB-SPEC-v3.0.md §10.2). An agent MUST verify the hash after downloading a page:
 
 ```python
 page_bytes = fetch(page_url)
 assert page_bytes[0:3] == b'\xD9\xD9\xF7'  # self-described CBOR
 computed = sha256(page_bytes)
-assert computed == manifest_entry.hash
+assert computed == page_entry.hash
 ```
 
 If the hash does not match:
 1. Reject the page — do NOT process content from an unverified page
-2. Re-fetch the manifest (it may be stale)
-3. If the manifest hash also fails → treat the site as compromised
+2. Re-fetch index.cbor (it may be stale)
+3. If the index.cbor hash also fails → treat the site as compromised
 
-### 7.2 Manifest Signature (COSE_Sign1)
+### 7.2 Index Signature (COSE_Sign1)
 
-At Full conformance (CBOR-WEB-CORE.md §11.3), the manifest MUST be signed using COSE_Sign1 (RFC 9052).
+At Full conformance (CBOR-WEB-SPEC-v3.0.md §11.3), index.cbor MUST be signed using COSE_Sign1 (RFC 9052).
 
-Manifest key 6 contains a **byte string** wrapping a serialized COSE_Sign1 structure:
+Key 6 of index.cbor contains a **byte string** wrapping a serialized COSE_Sign1 structure:
 
 ```cbor-diag
 6: h'<serialized COSE_Sign1>'
 ```
 
-The signature covers manifest keys 0-5 and 7-10 (everything except key 6 itself).
+The signature in key 6 covers keys 0-5 (everything except key 6 itself).
 
 #### 7.2.1 Signing Algorithm
 
 ```
 payload = canonical_cbor_encode({
-  0: manifest[0],  ; @type
-  1: manifest[1],  ; @version
-  2: manifest[2],  ; site
-  3: manifest[3],  ; pages
-  5: manifest[5],  ; meta
-  7: manifest[7],  ; capabilities (if present)
-  8: manifest[8],  ; channels (if present)
-  9: manifest[9],  ; diff (if present)
-  10: manifest[10] ; security (if present)
+  0: index[0],  ; @type
+  1: index[1],  ; @version
+  2: index[2],  ; site
+  3: index[3],  ; security
+  4: index[4],  ; meta
+  5: index[5],  ; pages
 })
 
 signature = COSE_Sign1(
@@ -600,7 +593,7 @@ signature = COSE_Sign1(
   payload: payload
 )
 
-manifest[6] = serialize(signature)  ; store as bstr
+index[6] = serialize(signature)  ; store as bstr
 ```
 
 **Required algorithm:** ES256 (ECDSA with NIST P-256 curve, SHA-256 hash). This is the most widely supported COSE algorithm, used in WebAuthn, FIDO2, and passkeys.
@@ -617,12 +610,12 @@ The publisher's public key is discoverable via:
 
 2. **DNS TXT record (fallback):**
    ```
-   _cbor-web.example.com TXT "v=2.1; kid=key-2026-03; pk=<base64url-encoded-public-key>"
+   _cbor-web.example.com TXT "v=3.0; kid=key-2026-03; pk=<base64url-encoded-public-key>"
    ```
 
-3. **Key 10 inline (minimal):**
+3. **Key 3 inline (minimal):**
    ```cbor-diag
-   10: {
+   3: {
      "signing_key": h'<COSE_Key bytes>',
      "...": "..."
    }
@@ -634,10 +627,10 @@ A publisher SHOULD rotate signing keys at least annually. The rotation process:
 
 1. Generate new key pair
 2. Add new public key to keys.cbor (alongside old key)
-3. Start signing new manifests with new key
+3. Start signing new index.cbor with new key
 4. After 30 days, remove old key from keys.cbor
 
-Agents SHOULD cache public keys for up to 7 days (the Cache-Control for keys.cbor, see CBOR-WEB-CORE.md §9.6).
+Agents SHOULD cache public keys for up to 7 days (the Cache-Control for keys.cbor, see CBOR-WEB-SPEC-v3.0.md §9.6).
 
 ### 7.3 Content Cross-Validation
 
@@ -645,7 +638,7 @@ At Full conformance, an agent SHOULD periodically compare CBOR-Web content again
 
 1. Fetch the HTML page at the same path
 2. Extract visible text content from HTML
-3. Compare with CBOR-Web page content (key 4 blocks)
+3. Compare with CBOR-Web page content (in key 5 array, content field)
 4. If divergence > 20% by word count → log a warning
 
 This detects:
@@ -670,7 +663,7 @@ Content blocks in CBOR-Web carry implicit or explicit trust levels that determin
 
 ### 8.2 Block Type Trust Assignments
 
-**Core blocks (CBOR-WEB-CORE.md §8):**
+**Core blocks (CBOR-WEB-SPEC-v3.0.md §8):**
 All core blocks are trust level 0 (implicit — no `"trust"` key needed).
 
 **Multimedia blocks (CBOR-WEB-MULTIMEDIA.md):**
@@ -703,6 +696,10 @@ Example policy:
 ```
 
 An agent MUST NOT process a block at a trust level it does not support. Unknown trust levels MUST be treated as level 3 (maximum restriction).
+
+### 8.4 Trust Chain
+
+See also: CBOR-WEB-SPEC-v3.0.md §4.1 — Licence de confiance, the verifiable trust chain from signature → DNS → token → wallet → legal identity.
 
 ---
 
@@ -750,14 +747,14 @@ A publisher SHOULD:
 
 | Threat | Description | Mitigation |
 |--------|------------|------------|
-| **CBOR Bomb** | Malicious manifest declares 10 MB but contains 10 GB of nested data | Agent MUST enforce size limits: manifest ≤ 5 MB, page ≤ 1 MB, bundle ≤ 50 MB. Reject before full parsing. |
-| **Manifest Poisoning** | CDN or MITM serves modified manifest with altered hashes | COSE signature verification (§7.2). HTTPS required (CBOR-WEB-CORE.md §9.1). |
-| **Content Injection** | CBOR-Web serves different content than HTML (SEO cloaking for AI) | Content cross-validation (§7.3). |
+| **CBOR Bomb** | Malicious index.cbor declares 10 MB but contains 10 GB of nested data | Agent MUST enforce size limits: index.cbor ≤ 5 MB (< 500 pages), page ≤ 1 MB. Reject before full parsing. |
+| **Index Poisoning** | CDN or MITM serves modified index.cbor with altered hashes | COSE signature verification (§7.2). HTTPS required (CBOR-WEB-SPEC-v3.0.md §9.1). |
+| **Content Injection** | CBOR-Web serves different content than HTML (cloaking for AI) | Content cross-validation (§7.3). |
 | **Replay Attack** | Attacker replays a valid signed request | Nonce + timestamp window (300 seconds). Server rejects stale nonces. |
 | **Token Theft** | Attacker steals wallet private key | Standard Ethereum key management. Hardware wallets recommended for high-value agents. |
 | **API Key Leak** | API key exposed in logs or code | Keys are revocable. Publishers MUST support key rotation. |
-| **DoS via Manifest** | Giant manifest (millions of pages) exhausts agent memory | Agent MUST reject manifests > 5 MB. Sub-manifest pagination (CBOR-WEB-CORE.md §5.8). |
-| **Malicious Links** | External links in page content point to malicious sites | Agent MUST NOT auto-follow external links without explicit policy (CBOR-WEB-CORE.md §6.7). |
+| **DoS via index.cbor** | Giant index.cbor (millions of pages) exhausts agent memory | Agent MUST reject index.cbor > 5 MB. Pagination via sub-indexes (CBOR-WEB-SPEC-v3.0.md §5.8). |
+| **Malicious Links** | External links in page content point to malicious sites | Agent MUST NOT auto-follow external links without explicit policy (CBOR-WEB-SPEC-v3.0.md §6.7). |
 | **Cross-Site Tracking** | Wallet address used to track agent across sites | Privacy mitigations (§9.2). |
 
 ### 10.2 Size Limits (Enforcement)
@@ -766,10 +763,9 @@ An agent MUST enforce these limits BEFORE parsing:
 
 | Document | Max Size | Action on Exceed |
 |----------|---------|-----------------|
-| Manifest | 5 MB | Reject entirely |
+| index.cbor | 5 MB (< 500 pages) | Reject entirely |
 | Page | 1 MB | Reject page, continue with others |
-| Bundle | 50 MB | Reject, fall back to individual pages |
-| Sub-manifest page | 5 MB | Reject page, try next |
+| Sub-index page | 5 MB | Reject page, try next |
 | Inline image | 10 KB | Skip image block |
 | Content block text | 50,000 chars | Truncate with warning |
 
@@ -779,7 +775,7 @@ An agent MUST enforce these limits BEFORE parsing:
 
 ### 11.1 Policy
 
-Links in page content (key 5) are informational. An agent MUST NOT automatically follow external links without an explicit security policy.
+Links in page content (in key 5 array, content field) are informational. An agent MUST NOT automatically follow external links without an explicit security policy.
 
 ### 11.2 Agent Link Policy
 
@@ -821,7 +817,7 @@ An agent SHOULD NOT strip watermarks from CBOR-Web content. An agent that redist
 
 ### 13.1 Purpose
 
-`cbor.txt` is a plain text file at the root of a website (like `robots.txt`) that declares CBOR-Web access rules. It coexists with `robots.txt` and `/.well-known/cbor-web`.
+`cbor.txt` is a plain text file at the root of a website (like `robots.txt`) that declares CBOR-Web access rules. It coexists with `robots.txt` and `/index.cbor`.
 
 ```
 GET /cbor.txt HTTP/1.1
@@ -832,9 +828,9 @@ Host: example.com
 
 ```
 # cbor.txt — CBOR-Web access rules
-# Version: 2.1
+# Version: 3.0
 
-Manifest: /.well-known/cbor-web
+Index: /index.cbor
 Default-Access: T2
 
 # Pages requiring institutional access
@@ -858,11 +854,11 @@ Rate-Limit-T1: 50/s
 Rate-Limit-T2: 10/s
 ```
 
-### 13.3 Relationship with Manifest
+### 13.3 Relationship with index.cbor
 
-`cbor.txt` is a **human-readable declaration** of access rules. The manifest (key 10) is the **machine-readable implementation**. They SHOULD be consistent. If they conflict, the manifest is authoritative.
+`cbor.txt` is a **human-readable declaration** of access rules. The security configuration (key 3) in index.cbor is the **machine-readable implementation**. They SHOULD be consistent. If they conflict, index.cbor is authoritative.
 
-An agent MAY read `cbor.txt` before fetching the manifest to quickly determine if the site's access model matches its capabilities.
+An agent MAY read `cbor.txt` before fetching index.cbor to quickly determine if the site's access model matches its capabilities.
 
 ### 13.4 Relationship with robots.txt
 
@@ -872,7 +868,7 @@ An agent MAY read `cbor.txt` before fetching the manifest to quickly determine i
 |------|---------|---------|
 | `robots.txt` | Crawl permissions (what paths can be accessed) | All crawlers |
 | `cbor.txt` | CBOR-Web access tiers (what auth is needed) | CBOR-Web agents |
-| `/.well-known/cbor-web` | Actual CBOR-Web content and manifest | CBOR-Web agents |
+| `/index.cbor` | Actual CBOR-Web content and root document | CBOR-Web agents |
 
 ---
 
@@ -883,8 +879,8 @@ An agent MAY read `cbor.txt` before fetching the manifest to quickly determine i
 | Level | Requirements |
 |-------|-------------|
 | **Minimal** | HTTPS. `"access"` field in page entries. T2 by default. |
-| **Standard** | Minimal + key 10 in manifest. SHA-256 hashes. Rate limits declared. At least 2 auth mechanisms for T1. |
-| **Full** | Standard + COSE manifest signature. Key discovery endpoint. Content cross-validation support. T0 mechanisms declared. cbor.txt published. |
+| **Standard** | Minimal + key 3 in index.cbor. SHA-256 hashes. Rate limits declared. At least 2 auth mechanisms for T1. |
+| **Full** | Standard + COSE index.cbor signature. Key discovery endpoint. Content cross-validation support. T0 mechanisms declared. cbor.txt published. |
 
 ### 14.2 Agent Security Conformance
 
@@ -913,6 +909,6 @@ An agent MAY read `cbor.txt` before fetching the manifest to quickly determine i
 
 ---
 
-*CBOR-Web Security Specification v2.1 — Document 2 of 6*
+*CBOR-Web Security Specification v3.0 — Document 2 of 6*
 
 *Deltopide 2026*
