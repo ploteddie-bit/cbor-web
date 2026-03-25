@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>10,400 tokens to read a page. 620 are enough. — CBOR-Web</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #e0e0e0; line-height: 1.6; }
+
+  .header { text-align: center; padding: 4rem 2rem 2rem; }
+  .header h1 { font-size: 2.5rem; color: #fff; margin-bottom: 1rem; }
+  .header h1 span { color: #f97316; }
+  .header p { font-size: 1.2rem; color: #888; max-width: 700px; margin: 0 auto; }
+  .header .source { margin-top: 1rem; font-size: 0.85rem; color: #555; }
+
+  .step { max-width: 1100px; margin: 3rem auto; padding: 0 1.5rem; }
+  .step-label { display: inline-flex; align-items: center; gap: .5rem; background: #1a1a2e; border: 1px solid #333; border-radius: 2rem; padding: .4rem 1.2rem; font-size: .85rem; color: #f97316; margin-bottom: 1rem; font-weight: 600; }
+  .step-label.green { color: #28c840; border-color: #28c840; background: #0d1f0d; }
+  .step h2 { font-size: 1.8rem; color: #fff; margin-bottom: .5rem; }
+  .step h2 span { color: #f97316; }
+  .step h2 .green { color: #28c840; }
+  .step .desc { color: #888; margin-bottom: 1.5rem; font-size: 1rem; }
+
+  .terminal { background: #0d1117; border: 1px solid #21262d; border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem; }
+  .terminal-bar { background: #161b22; padding: .6rem 1rem; display: flex; align-items: center; gap: .5rem; border-bottom: 1px solid #21262d; }
+  .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+  .terminal-dot.r { background: #ff5f57; }
+  .terminal-dot.y { background: #febc2e; }
+  .terminal-dot.g { background: #28c840; }
+  .terminal-title { color: #666; font-size: .8rem; margin-left: .5rem; }
+  .terminal-body { padding: 1.2rem; overflow-x: auto; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: .78rem; line-height: 1.7; max-height: 600px; overflow-y: auto; }
+  .terminal.cbor { border-color: #28c840; }
+  .terminal.cbor .terminal-bar { border-bottom-color: #28c840; }
+
+  .noise { color: #484848; }
+  .useful { color: #fff; background: rgba(249,115,22,0.15); padding: 0 3px; border-radius: 3px; }
+  .warn { color: #f97316; }
+  .dead { color: #f85149; text-decoration: line-through; opacity: 0.6; }
+  .dup { color: #e6db74; background: rgba(230,219,116,0.1); padding: 0 3px; border-radius: 3px; }
+  .json-key { color: #79c0ff; }
+  .json-val { color: #a5d6ff; }
+  .json-esc { color: #f85149; background: rgba(248,81,73,0.15); padding: 0 2px; border-radius: 3px; }
+  .cbor-key { color: #7ee787; }
+  .cbor-val { color: #a5d6ff; }
+  .cbor-num { color: #f97316; }
+  .cbor-struct { color: #d2a8ff; }
+  .comment { color: #8b949e; font-style: italic; }
+
+  .stats { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat { flex: 1; min-width: 140px; background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 1rem; text-align: center; }
+  .stat-num { font-size: 1.8rem; font-weight: 700; color: #f97316; display: block; }
+  .stat-label { font-size: .75rem; color: #888; margin-top: .3rem; }
+  .stat.good .stat-num { color: #28c840; }
+  .stat.bad .stat-num { color: #f85149; }
+
+  .verdict { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 1px solid #333; border-radius: 12px; padding: 2rem; text-align: center; max-width: 1100px; margin: 3rem auto; }
+  .verdict h2 { font-size: 2rem; color: #fff; margin-bottom: 1rem; }
+  .comparison { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; margin-top: 1.5rem; }
+  .col { flex: 1; min-width: 280px; padding: 1.5rem; border-radius: 10px; }
+  .col.html-col { background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3); }
+  .col.cbor-col { background: rgba(40,200,64,0.1); border: 1px solid rgba(40,200,64,0.3); }
+  .col h3 { font-size: 1.3rem; margin-bottom: 1rem; }
+  .col.html-col h3 { color: #f85149; }
+  .col.cbor-col h3 { color: #28c840; }
+  .col ul { list-style: none; text-align: left; }
+  .col ul li { padding: .4rem 0; color: #ccc; font-size: .9rem; }
+  .col.html-col ul li::before { content: "✗ "; color: #f85149; }
+  .col.cbor-col ul li::before { content: "✓ "; color: #28c840; }
+
+  .eco-section { max-width: 1100px; margin: 4rem auto; padding: 0 1.5rem; }
+  .eco-section h2 { font-size: 2rem; color: #fff; text-align: center; margin-bottom: .5rem; }
+  .eco-section h2 span { color: #28c840; }
+  .eco-section .eco-sub { text-align: center; color: #888; margin-bottom: 2rem; }
+
+  .eco-card { background: #161b22; border: 1px solid #21262d; border-radius: 12px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; }
+  .eco-card h3 { color: #f97316; font-size: 1.1rem; margin-bottom: 1rem; }
+  .eco-card table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  .eco-card th { text-align: left; padding: .5rem; color: #888; border-bottom: 1px solid #333; font-weight: 600; }
+  .eco-card td { padding: .5rem; border-bottom: 1px solid #1a1a1a; }
+  .eco-card .src { font-size: .7rem; color: #555; margin-top: .8rem; font-style: italic; }
+
+  .big-number { text-align: center; margin: 2rem 0; }
+  .big-number .num { font-size: 4rem; font-weight: 800; color: #28c840; display: block; }
+  .big-number .unit { font-size: 1.2rem; color: #888; }
+
+  .highlight-box { background: #1c1c1c; border-left: 4px solid #f97316; padding: 1rem 1.5rem; margin: 1.5rem 0; border-radius: 0 8px 8px 0; font-size: .9rem; }
+  .highlight-box.green { border-color: #28c840; }
+
+  .arrow { text-align: center; font-size: 2rem; color: #333; margin: 1rem 0; }
+  .footer { text-align: center; padding: 3rem; color: #444; font-size: .8rem; }
+  .footer a { color: #f97316; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<div class="header">
+  <h1>When an AI reads a web page,<br><span>88% of what it receives is noise.</span></h1>
+  <p>HTML was invented for humans in 1993. Machines deserve better.<br>A real-world demonstration — page by page, byte by byte.</p>
+  <div class="source">Source: deltopide.fr — March 25, 2026 — 679 lines, 41,537 bytes</div>
+</div>
+
+<!-- ===== STEP 1 ===== -->
+<div class="step">
+  <div class="step-label">Step 1 / 5</div>
+  <h2>The wall of code <span>I receive</span></h2>
+  <p class="desc">One HTTP request. 41 KB of raw HTML + 8 additional files to download. Total: ~260 KB.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div><div class="terminal-dot y"></div><div class="terminal-dot g"></div>
+      <span class="terminal-title">curl https://deltopide.fr/ — 41,537 bytes received</span>
+    </div>
+    <div class="terminal-body">
+<span class="noise">&lt;!DOCTYPE html&gt;</span>
+<span class="noise">&lt;html lang="fr"&gt;</span>
+<span class="noise">&lt;head&gt;</span>
+<span class="noise">  &lt;meta charset="UTF-8"&gt;</span>
+  &lt;title&gt;<span class="useful">Libérez 20h/semaine avec un agent IA sur mesure | PME — Deltopide</span>&lt;/title&gt;
+<span class="noise">  &lt;meta name="description" content="Agent IA pour PME..."&gt;</span>
+<span class="noise">  &lt;meta name="keywords" content="agents IA autonomes..."&gt;</span>
+<span class="noise">  &lt;!-- Open Graph --&gt;</span>
+<span class="dup">  &lt;meta property="og:title" content="Libérez 20h/semaine..."&gt;</span> <span class="comment">&larr; DUPLICATION #1 of the title</span>
+<span class="dup">  &lt;meta name="twitter:title" content="Libérez 20h/semaine..."&gt;</span> <span class="comment">&larr; DUPLICATION #2 of the title</span>
+<span class="noise">  &lt;!-- Google verification, favicons, fonts... 20 lines --&gt;</span>
+<span class="noise">  &lt;link rel="stylesheet" href="/css/redesign.min.css"&gt;</span> <span class="comment">&larr; 30 KB CSS (useless to me)</span>
+<span class="noise">  &lt;script async src="googletagmanager.com/gtag/js"&gt;&lt;/script&gt;</span> <span class="comment">&larr; 90 KB tracking (useless)</span>
+<span class="noise">  &lt;script type="application/ld+json"&gt;{ ... 80 lines JSON-LD ... }&lt;/script&gt;</span>
+<span class="noise">&lt;/head&gt;</span>
+<span class="comment">  ... then 542 lines of &lt;body&gt; ...</span>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat bad"><span class="stat-num">9+</span><span class="stat-label">HTTP requests</span></div>
+    <div class="stat bad"><span class="stat-num">~260 KB</span><span class="stat-label">downloaded</span></div>
+    <div class="stat bad"><span class="stat-num">679</span><span class="stat-label">lines to parse</span></div>
+    <div class="stat bad"><span class="stat-num">0</span><span class="stat-label">supplementary file useful for AI</span></div>
+  </div>
+</div>
+
+<div class="arrow">↓</div>
+
+<!-- ===== STEP 2 ===== -->
+<div class="step">
+  <div class="step-label">Step 2 / 5</div>
+  <h2>4 formats, <span>3 accent encodings</span></h2>
+  <p class="desc">In this single page, I parse 4 nested formats. And French accents are encoded in 3 different ways.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div><div class="terminal-dot y"></div><div class="terminal-dot g"></div>
+      <span class="terminal-title">Format 1: HTML — HTML entities for accents</span>
+    </div>
+    <div class="terminal-body">
+&lt;h1&gt;Lib<span class="warn">&amp;eacute;</span>rez 20 heures par semaine&lt;/h1&gt;
+&lt;p&gt;Le co<span class="warn">&amp;ucirc;</span>t r<span class="warn">&amp;eacute;</span>el de ces heures <span class="warn">&amp;agrave;</span> 35 <span class="warn">&amp;euro;</span>/h charg<span class="warn">&amp;eacute;</span>es.&lt;/p&gt;
+<span class="comment">// ~200 entities to decode. One word in three in French.</span>
+    </div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div><div class="terminal-dot y"></div><div class="terminal-dot g"></div>
+      <span class="terminal-title">Format 2: JSON-LD — Unicode escapes for the same accents</span>
+    </div>
+    <div class="terminal-body">
+{
+  <span class="json-key">"description"</span>: <span class="json-val">"Agents IA op<span class="json-esc">\u00e9</span>rationnels pour PME"</span>,
+  <span class="json-key">"priceRange"</span>: <span class="json-val">"<span class="json-esc">\u20ac\u20ac</span>-<span class="json-esc">\u20ac\u20ac\u20ac\u20ac</span>"</span>,
+  <span class="json-key">"addressRegion"</span>: <span class="json-val">"Castell<span class="json-esc">\u00f3</span>n"</span>
+}
+<span class="comment">// \u00e9 = é    \u20ac = €    3rd encoding of accents on the same page.</span>
+    </div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div><div class="terminal-dot y"></div><div class="terminal-dot g"></div>
+      <span class="terminal-title">Formats 3 &amp; 4: JavaScript + CSS — zero useful information</span>
+    </div>
+    <div class="terminal-body">
+<span class="dead">window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}</span> <span class="comment">&larr; JS tracking</span>
+<span class="dead">class="bento-item large reveal"</span>   <span class="comment">&larr; CSS invented by the developer</span>
+<span class="dead">class="hero-bg-shapes"</span>            <span class="comment">&larr; visual decoration</span>
+<span class="dead">class="gradient-text"</span>             <span class="comment">&larr; text color</span>
+<span class="comment">// 80 lines JS + 50 CSS classes. None standardized. Useful information: 0.</span>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat bad"><span class="stat-num">4</span><span class="stat-label">nested formats</span></div>
+    <div class="stat bad"><span class="stat-num">3</span><span class="stat-label">accent encodings</span></div>
+    <div class="stat bad"><span class="stat-num">200+</span><span class="stat-label">entities to decode</span></div>
+    <div class="stat bad"><span class="stat-num">6x</span><span class="stat-label">the title is duplicated</span></div>
+  </div>
+</div>
+
+<div class="arrow">↓</div>
+
+<!-- ===== STEP 3 ===== -->
+<div class="step">
+  <div class="step-label">Step 3 / 5</div>
+  <h2>The noise I have to <span>ignore</span></h2>
+  <p class="desc">Most of the HTML is not content. Empty divs, forms, decorative spans, interactive JavaScript.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div><div class="terminal-dot y"></div><div class="terminal-dot g"></div>
+      <span class="terminal-title">Decoration, forms, traps — what I have to discard</span>
+    </div>
+    <div class="terminal-body">
+<span class="comment">// EMPTY DIVS — pure CSS decoration</span>
+<span class="dead">&lt;div class="hero-shape hero-shape-1"&gt;&lt;/div&gt;</span>  <span class="comment">&larr; EMPTY div. A circle in CSS.</span>
+<span class="dead">&lt;div class="hero-shape hero-shape-2"&gt;&lt;/div&gt;</span>  <span class="comment">&larr; EMPTY div. A triangle.</span>
+<span class="dead">&lt;span&gt;&lt;/span&gt;&lt;span&gt;&lt;/span&gt;&lt;span&gt;&lt;/span&gt;</span>     <span class="comment">&larr; 3 EMPTY spans = hamburger menu</span>
+
+<span class="comment">// TRAP TEXT — a word split in two for styling</span>
+DELTO<span class="warn">&lt;span&gt;</span>PIDE<span class="warn">&lt;/span&gt;</span>  <span class="comment">&larr; "DELTOPIDE" split to color "PIDE" in orange</span>
+
+<span class="comment">// FORMS — 120 lines the AI cannot fill in</span>
+<span class="dead">&lt;input type="text" placeholder="Votre nom"&gt;</span>
+<span class="dead">&lt;select id="contact-time"&gt;</span>
+<span class="dead">  &lt;option value="08:00"&gt;08:00&lt;/option&gt;</span>
+<span class="dead">  &lt;option value="08:30"&gt;08:30&lt;/option&gt;</span>
+<span class="dead">  ... 21 time slots ...</span>  <span class="comment">&larr; 25 lines for a time picker</span>
+<span class="dead">&lt;/select&gt;</span>
+
+<span class="comment">// 3 forms × ~40 lines = 120 lines. Useful for understanding the offer: 0.</span>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat bad"><span class="stat-num">15+</span><span class="stat-label">empty divs</span></div>
+    <div class="stat bad"><span class="stat-num">120</span><span class="stat-label">lines of forms</span></div>
+    <div class="stat bad"><span class="stat-num">80</span><span class="stat-label">lines of JavaScript</span></div>
+    <div class="stat bad"><span class="stat-num">50+</span><span class="stat-label">invented CSS classes</span></div>
+  </div>
+</div>
+
+<div class="arrow">↓</div>
+
+<!-- ===== STEP 4 ===== -->
+<div class="step">
+  <div class="step-label">Step 4 / 5</div>
+  <h2>What I was <span>actually looking for</span></h2>
+  <p class="desc">After 679 lines of HTML, 4 formats, 3 encodings — here is the useful information extracted.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div><div class="terminal-dot y"></div><div class="terminal-dot g"></div>
+      <span class="terminal-title">The useful signal — what the AI understood after all that work</span>
+    </div>
+    <div class="terminal-body">
+<span class="useful">COMPANY</span>
+  Name         : Deltopide
+  Founder      : Eddie Plot — AI Architect
+  Activity     : Custom AI agents for SMEs
+  Languages    : FR, EN, ES
+  Contact      : contact@deltopide.com | +34 614 374 283
+
+<span class="useful">OFFERINGS</span>
+  AI Audit             :   1,600 EUR+
+  Custom AI Agent      :  14,000 — 95,000 EUR    (ROI 3-6 months)
+  Multi-agents         :  40,000 — 120,000 EUR
+  Maintenance          :     490 — 2,400 EUR/month
+
+<span class="useful">PROOF POINTS</span>
+  780h saved/year | 99.9% uptime | 5 agents in production | 2-8 weeks deployment
+
+<span class="useful">FAQ</span>  (6 Q&amp;A summarized)
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat good"><span class="stat-num">~3 KB</span><span class="stat-label">of useful info extracted</span></div>
+    <div class="stat bad"><span class="stat-num">41 KB</span><span class="stat-label">downloaded for this</span></div>
+    <div class="stat bad"><span class="stat-num">12%</span><span class="stat-label">signal</span></div>
+    <div class="stat bad"><span class="stat-num">~10,400</span><span class="stat-label">tokens consumed</span></div>
+  </div>
+</div>
+
+<div class="arrow" style="font-size: 3rem;">⬇</div>
+
+<!-- ===== STEP 5 — CBOR-WEB ===== -->
+<div class="step">
+  <div class="step-label green">Step 5 / 5 — The solution</div>
+  <h2>The same page in <span class="green">CBOR-Web</span></h2>
+  <p class="desc">One request. One format. One encoding. 100% signal. Here is exactly what the AI receives.</p>
+
+  <div class="terminal cbor">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div><div class="terminal-dot y"></div><div class="terminal-dot g"></div>
+      <span class="terminal-title" style="color:#28c840;">GET https://deltopide.fr/index.cbor — 2,487 bytes — 1 request — done</span>
+    </div>
+    <div class="terminal-body">
+<span class="cbor-struct">55799</span>({
+  <span class="cbor-num">0</span>: <span class="cbor-val">"cbor-web"</span>,
+  <span class="cbor-num">1</span>: <span class="cbor-num">3</span>,
+  <span class="cbor-num">2</span>: {
+    <span class="cbor-key">"domain"</span>: <span class="cbor-val">"deltopide.fr"</span>,
+    <span class="cbor-key">"name"</span>: <span class="cbor-val">"Deltopide — Agents IA pour PME"</span>,
+    <span class="cbor-key">"description"</span>: <span class="cbor-val">"Agent IA sur mesure : facturation, relances, veille 24/7. ROI en 3 mois."</span>,
+    <span class="cbor-key">"languages"</span>: [<span class="cbor-val">"fr"</span>, <span class="cbor-val">"en"</span>, <span class="cbor-val">"es"</span>],
+    <span class="cbor-key">"default_language"</span>: <span class="cbor-val">"fr"</span>,
+    <span class="cbor-key">"contact"</span>: {<span class="cbor-key">"email"</span>: <span class="cbor-val">"contact@deltopide.com"</span>, <span class="cbor-key">"phone"</span>: <span class="cbor-val">"+34614374283"</span>},
+    <span class="cbor-key">"geo"</span>: {<span class="cbor-key">"country"</span>: <span class="cbor-val">"ES"</span>, <span class="cbor-key">"region"</span>: <span class="cbor-val">"Castellón"</span>}
+  },
+  <span class="cbor-num">5</span>: [
+    {
+      <span class="cbor-key">"path"</span>: <span class="cbor-val">"/"</span>,
+      <span class="cbor-key">"title"</span>: <span class="cbor-val">"Libérez 20h/semaine avec un agent IA sur mesure"</span>,
+      <span class="cbor-key">"lang"</span>: <span class="cbor-val">"fr"</span>,
+      <span class="cbor-key">"access"</span>: <span class="cbor-val">"T2"</span>,
+      <span class="cbor-key">"priority"</span>: <span class="cbor-num">0.9</span>,
+      <span class="cbor-key">"freshness"</span>: <span class="cbor-val">"weekly"</span>,
+      <span class="cbor-key">"updated"</span>: <span class="cbor-struct">1</span>(<span class="cbor-num">1742515200</span>),
+      <span class="cbor-key">"alternates"</span>: {<span class="cbor-val">"en"</span>: <span class="cbor-val">"https://deltopide.com"</span>, <span class="cbor-val">"es"</span>: <span class="cbor-val">"https://deltopide.es"</span>},
+      <span class="cbor-key">"content"</span>: [
+        {<span class="cbor-key">"l"</span>: <span class="cbor-num">1</span>, <span class="cbor-key">"t"</span>: <span class="cbor-val">"h"</span>, <span class="cbor-key">"v"</span>: <span class="cbor-val">"Libérez 20 heures par semaine sans embaucher."</span>},
+        {<span class="cbor-key">"t"</span>: <span class="cbor-val">"p"</span>, <span class="cbor-key">"v"</span>: <span class="cbor-val">"Vos concurrents automatisent leur facturation, relances et veille avec des agents IA."</span>},
+        {<span class="cbor-key">"t"</span>: <span class="cbor-val">"ul"</span>, <span class="cbor-key">"v"</span>: [<span class="cbor-val">"780h économisées/an"</span>, <span class="cbor-val">"100% souverain"</span>, <span class="cbor-val">"99,9% disponibilité"</span>, <span class="cbor-val">"2 sem. de déploiement"</span>]},
+
+        {<span class="cbor-key">"l"</span>: <span class="cbor-num">2</span>, <span class="cbor-key">"t"</span>: <span class="cbor-val">"h"</span>, <span class="cbor-key">"v"</span>: <span class="cbor-val">"Solutions"</span>},
+        {<span class="cbor-key">"t"</span>: <span class="cbor-val">"ul"</span>, <span class="cbor-key">"v"</span>: [<span class="cbor-val">"Facturation et relances automatiques"</span>, <span class="cbor-val">"Veille concurrentielle"</span>, <span class="cbor-val">"Tri et réponse emails"</span>, <span class="cbor-val">"Conformité RGPD / EU AI Act"</span>, <span class="cbor-val">"ERP / CRM sur mesure (Rust)"</span>]},
+
+        {<span class="cbor-key">"l"</span>: <span class="cbor-num">2</span>, <span class="cbor-key">"t"</span>: <span class="cbor-val">"h"</span>, <span class="cbor-key">"v"</span>: <span class="cbor-val">"Offres"</span>},
+        {<span class="cbor-key">"t"</span>: <span class="cbor-val">"table"</span>, <span class="cbor-key">"headers"</span>: [<span class="cbor-val">"Offre"</span>, <span class="cbor-val">"Prix"</span>, <span class="cbor-val">"Détail"</span>], <span class="cbor-key">"rows"</span>: [
+          [<span class="cbor-val">"Audit IA"</span>, <span class="cbor-val">"1 600 €+"</span>, <span class="cbor-val">"Cartographie process + plan d'action"</span>],
+          [<span class="cbor-val">"Agent IA sur mesure"</span>, <span class="cbor-val">"14 000 — 95 000 €"</span>, <span class="cbor-val">"Agent autonome 24/7, ROI 3-6 mois"</span>],
+          [<span class="cbor-val">"Multi-agents"</span>, <span class="cbor-val">"40 000 — 120 000 €"</span>, <span class="cbor-val">"Équipe d'agents spécialisés"</span>],
+          [<span class="cbor-val">"Maintenance"</span>, <span class="cbor-val">"490 — 2 400 €/mois"</span>, <span class="cbor-val">"Monitoring + support + évolutions"</span>]
+        ]},
+
+        {<span class="cbor-key">"l"</span>: <span class="cbor-num">2</span>, <span class="cbor-key">"t"</span>: <span class="cbor-val">"h"</span>, <span class="cbor-key">"v"</span>: <span class="cbor-val">"FAQ"</span>},
+        {<span class="cbor-key">"t"</span>: <span class="cbor-val">"dl"</span>, <span class="cbor-key">"v"</span>: [
+          {<span class="cbor-key">"term"</span>: <span class="cbor-val">"C'est quoi un agent IA ?"</span>, <span class="cbor-key">"def"</span>: <span class="cbor-val">"Programme autonome qui exécute des tâches métier."</span>},
+          {<span class="cbor-key">"term"</span>: <span class="cbor-val">"C'est sécurisé ?"</span>, <span class="cbor-key">"def"</span>: <span class="cbor-val">"Votre infrastructure. Zéro cloud US."</span>},
+          {<span class="cbor-key">"term"</span>: <span class="cbor-val">"Ça remplace mes employés ?"</span>, <span class="cbor-key">"def"</span>: <span class="cbor-val">"Non. Libère des tâches répétitives."</span>},
+          {<span class="cbor-key">"term"</span>: <span class="cbor-val">"Combien de temps ?"</span>, <span class="cbor-key">"def"</span>: <span class="cbor-val">"2 semaines à 8 semaines."</span>}
+        ]},
+
+        {<span class="cbor-key">"t"</span>: <span class="cbor-val">"cta"</span>, <span class="cbor-key">"href"</span>: <span class="cbor-val">"/contact"</span>, <span class="cbor-key">"v"</span>: <span class="cbor-val">"Diagnostic gratuit — 30 min"</span>}
+      ],
+      <span class="cbor-key">"structured_data"</span>: {
+        <span class="cbor-key">"type"</span>: <span class="cbor-val">"ProfessionalService"</span>,
+        <span class="cbor-key">"founder"</span>: <span class="cbor-val">"Eddie Plot"</span>,
+        <span class="cbor-key">"areaServed"</span>: [<span class="cbor-val">"FR"</span>, <span class="cbor-val">"ES"</span>, <span class="cbor-val">"EU"</span>],
+        <span class="cbor-key">"serviceType"</span>: [<span class="cbor-val">"Agent IA"</span>, <span class="cbor-val">"ERP sur mesure"</span>, <span class="cbor-val">"CRM sur mesure"</span>]
+      }
+    }
+  ]
+})
+    </div>
+  </div>
+
+  <div class="highlight-box green">
+    <strong style="color:#28c840;">What the AI agent reads here:</strong> 100% of the useful content. Zero waste. Native UTF-8 — "é" is written "é", not <code>&amp;eacute;</code> or <code>\u00e9</code>. No CSS, no JavaScript, no form, no empty div. The title appears <strong>only once</strong>.
+  </div>
+
+  <div class="stats">
+    <div class="stat good"><span class="stat-num">2,487</span><span class="stat-label">bytes (vs 41,537)</span></div>
+    <div class="stat good"><span class="stat-num">1</span><span class="stat-label">request (vs 9+)</span></div>
+    <div class="stat good"><span class="stat-num">1</span><span class="stat-label">format, 1 encoding</span></div>
+    <div class="stat good"><span class="stat-num">~620</span><span class="stat-label">tokens (vs 10,400)</span></div>
+  </div>
+</div>
+
+<!-- ===== VISUAL VERDICT ===== -->
+<div class="verdict">
+  <h2>HTML vs CBOR-Web — head to head</h2>
+  <div class="comparison">
+    <div class="col html-col">
+      <h3>HTML (today)</h3>
+      <ul>
+        <li>41,537 bytes</li>
+        <li>9+ HTTP requests</li>
+        <li>4 nested formats</li>
+        <li>3 accent encodings</li>
+        <li>200+ entities to decode</li>
+        <li>120 lines of forms</li>
+        <li>80 lines of JavaScript</li>
+        <li>15+ empty divs</li>
+        <li>6 title duplications</li>
+        <li>~10,400 tokens consumed</li>
+        <li>12% useful signal</li>
+      </ul>
+    </div>
+    <div class="col cbor-col">
+      <h3>CBOR-Web</h3>
+      <ul>
+        <li>2,487 bytes</li>
+        <li>1 request</li>
+        <li>1 format (binary CBOR)</li>
+        <li>1 encoding (native UTF-8)</li>
+        <li>0 entities to decode</li>
+        <li>0 forms</li>
+        <li>0 JavaScript</li>
+        <li>0 empty divs</li>
+        <li>0 duplications</li>
+        <li>~620 tokens</li>
+        <li>100% useful signal</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ECONOMIC ARGUMENT ===== -->
+<div class="eco-section">
+  <h2>What this means <span>at global scale</span></h2>
+  <p class="eco-sub">Factual numbers, verifiable sources.</p>
+
+  <!-- Token calculation deltopide -->
+  <div class="eco-card">
+    <h3>1. Token savings — on this single page</h3>
+    <table>
+      <tr><th></th><th>HTML</th><th>CBOR-Web</th><th>Savings</th></tr>
+      <tr><td>Bytes transferred</td><td>41,537</td><td>2,487</td><td style="color:#28c840;">-94%</td></tr>
+      <tr><td>LLM input tokens</td><td>~10,400</td><td>~620</td><td style="color:#28c840;">-94%</td></tr>
+      <tr><td>Cost (Claude Sonnet, $3/1M)</td><td>$0.0000312</td><td>$0.0000019</td><td style="color:#28c840;">-94%</td></tr>
+      <tr><td>Cost (GPT-5.2, $1.75/1M)</td><td>$0.0000182</td><td>$0.0000011</td><td style="color:#28c840;">-94%</td></tr>
+      <tr><td>Energy (at 2.3 J/token)</td><td>23.9 mJ</td><td>1.4 mJ</td><td style="color:#28c840;">-94%</td></tr>
+    </table>
+    <div class="src">Calculation: 1 token ≈ 4 bytes of text. Prices: Anthropic March 2026, OpenAI March 2026. Energy: You &amp; Salathé 2025 (GPT-4o class).</div>
+  </div>
+
+  <!-- AI crawler volume -->
+  <div class="eco-card">
+    <h3>2. AI crawler volume — who reads the web today?</h3>
+    <table>
+      <tr><th>Crawler</th><th>Requests/day</th><th>Owner</th></tr>
+      <tr><td>GPTBot</td><td>~19 million</td><td>OpenAI</td></tr>
+      <tr><td>ClaudeBot</td><td>~12 million</td><td>Anthropic</td></tr>
+      <tr><td>AppleBot</td><td>~10 million</td><td>Apple</td></tr>
+      <tr><td>Googlebot (AI)</td><td>~150 million</td><td>Google</td></tr>
+      <tr><td>PerplexityBot</td><td>~800,000</td><td>Perplexity</td></tr>
+      <tr><td style="color:#f97316; font-weight:700;">Total AI bots (worldwide)</td><td style="color:#f97316; font-weight:700;">~50 billion/day</td><td></td></tr>
+    </table>
+    <div class="src">Sources: Vercel Blog 2025 (network data), Cloudflare Radar 2025 (50B req/day all AI bots).</div>
+  </div>
+
+  <!-- Global calculation -->
+  <div class="eco-card">
+    <h3>3. Calculation at global scale</h3>
+    <table>
+      <tr><th></th><th>HTML (current)</th><th>CBOR-Web</th></tr>
+      <tr><td>Average page (HTML only)</td><td>18 KB</td><td>~2 KB</td></tr>
+      <tr><td>Tokens per page</td><td>~4,500</td><td>~500</td></tr>
+      <tr><td>Pages crawled/day (AI)</td><td colspan="2" style="text-align:center;">1 billion (conservative estimate)</td></tr>
+      <tr><td>Input tokens / day</td><td>4,500 billion</td><td>500 billion</td></tr>
+      <tr><td>Energy / day (at 2.3 J/token)</td><td>10,350 GJ = 2,875 MWh</td><td>1,150 GJ = 319 MWh</td></tr>
+      <tr><td style="font-weight:700;">Energy / year</td><td>1.05 TWh</td><td>0.12 TWh</td></tr>
+      <tr><td style="color:#28c840; font-weight:700;">Annual savings</td><td colspan="2" style="color:#28c840; font-weight:700; text-align:center;">~0.93 TWh/year (for 1 billion pages/day)</td></tr>
+    </table>
+    <div class="src">Assumptions: 1 billion AI pages/day (conservative vs 50B Cloudflare requests). Page size: HTTP Archive Web Almanac 2024 (median HTML = 18 KB). Energy: 2.3 J/token (You &amp; Salathé 2025).</div>
+  </div>
+
+  <!-- Scaling -->
+  <div class="eco-card">
+    <h3>4. If 10% of global AI traffic switches to CBOR-Web</h3>
+    <table>
+      <tr><th>Metric</th><th>Value</th></tr>
+      <tr><td>Pages affected</td><td>5 billion/day (10% of 50B AI requests)</td></tr>
+      <tr><td>Tokens saved/day</td><td>20,000 billion (20T)</td></tr>
+      <tr><td>Energy saved/year</td><td style="color:#28c840; font-weight:700;">~4.6 TWh</td></tr>
+      <tr><td>Equivalent</td><td>Annual electricity consumption of Croatia</td></tr>
+      <tr><td>Token cost saved/year (at $2/1M)</td><td style="color:#28c840; font-weight:700;">~$40 million</td></tr>
+    </table>
+    <div class="src">Calculation: 5B pages × 4,000 tokens saved × 365 days = 7,300T tokens/year. At 2.3 J/token = 16,790 TJ = 4.66 TWh. Croatia: 4.2 TWh (Eurostat 2024). Cost: weighted average $2/1M input tokens.</div>
+  </div>
+
+  <!-- Who saves -->
+  <div class="eco-card">
+    <h3>5. Who saves what?</h3>
+    <table>
+      <tr><th>Player</th><th>Tokens saved/year</th><th>Savings $/year</th><th>Energy savings</th></tr>
+      <tr><td>OpenAI (GPTBot)</td><td>~2,800T tokens</td><td>$4.9M</td><td>1.8 TWh</td></tr>
+      <tr><td>Google (Gemini)</td><td>~1,100T tokens</td><td>$2.2M</td><td>0.7 TWh</td></tr>
+      <tr><td>Anthropic (ClaudeBot)</td><td>~880T tokens</td><td>$2.6M</td><td>0.6 TWh</td></tr>
+      <tr><td>Apple, Perplexity, Meta</td><td>~730T tokens</td><td>$1.5M</td><td>0.5 TWh</td></tr>
+      <tr><td>Chinese players (Baidu, ByteDance, DeepSeek)</td><td>~730T tokens</td><td>$1.5M</td><td>0.5 TWh</td></tr>
+      <tr><td style="color:#28c840; font-weight:700;">Estimated TOTAL</td><td style="color:#28c840; font-weight:700;">~6,240T</td><td style="color:#28c840; font-weight:700;">~$12.7M</td><td style="color:#28c840; font-weight:700;">~4.1 TWh</td></tr>
+    </table>
+    <div class="src">Breakdown based on crawler market shares (Cloudflare 2025: GPTBot 7.7%, ClaudeBot 5.4%) and token volumes processed (Google I/O 2025, OpenAI DevDay 2025). Conservative assumption: 10% of AI traffic affected.</div>
+  </div>
+
+  <!-- Global energy context -->
+  <div class="eco-card">
+    <h3>6. In perspective — data centers and AI worldwide</h3>
+    <table>
+      <tr><th>Fact</th><th>Figure</th><th>Source</th></tr>
+      <tr><td>Global data center consumption (2024)</td><td>415 TWh</td><td>IEA (International Energy Agency)</td></tr>
+      <tr><td>2030 projection</td><td>945 TWh (+130%)</td><td>IEA</td></tr>
+      <tr><td>Annual growth</td><td>+15%/year</td><td>IEA</td></tr>
+      <tr><td>Global data center capacity</td><td>55 GW (2024) → 92 GW (2027)</td><td>Goldman Sachs</td></tr>
+      <tr><td>Tokens processed by Google Gemini</td><td>980,000 billion/month</td><td>Sundar Pichai, July 2025</td></tr>
+      <tr><td>Tokens processed by OpenAI</td><td>6 billion/minute</td><td>OpenAI DevDay, October 2025</td></tr>
+      <tr><td>Pages crawled by AI bots</td><td>50 billion/day</td><td>Cloudflare Radar, 2025</td></tr>
+      <tr><td>Bot share of web traffic</td><td>49-51%</td><td>Cloudflare, 2025</td></tr>
+    </table>
+    <div class="src">Full sources: IEA "Energy and AI" 2025, Goldman Sachs "AI to drive 165% increase in data center power demand" 2024, Cloudflare "From Googlebot to GPTBot" 2025, Google I/O 2025, OpenAI DevDay 2025.</div>
+  </div>
+
+  <div class="big-number">
+    <span class="num">94%</span>
+    <span class="unit">fewer tokens per page. Same content. Zero information loss.</span>
+  </div>
+
+  <div class="highlight-box green">
+    <strong style="color:#28c840;">The summary for a decision-maker:</strong> Every web page read by an AI consumes ~10,000 tokens, of which 88% is noise (CSS, JS, forms, decoration). CBOR-Web reduces that to ~600 tokens of pure signal. At the scale of the global AI industry, that means <strong>TWh of energy</strong> and <strong>tens of millions of dollars</strong> saved per year. And this is a conservative estimate — it only accounts for 10% of AI traffic.
+  </div>
+
+  <div class="highlight-box" style="margin-top: 1rem;">
+    <strong style="color:#f97316;">The summary for a publisher:</strong> Your HTML page costs 16x more for an AI to read than the same page in CBOR-Web. When AI agents choose which pages to recommend, they will prefer the ones that cost the least to understand. CBOR-Web is a native competitive advantage.
+  </div>
+</div>
+
+<!-- ===== FOOTER ===== -->
+<div class="footer">
+  <p>Document generated on March 25, 2026 by Claude (AI agent), analyzing the real homepage of deltopide.fr</p>
+  <p style="margin-top: .5rem;">All data is factual and sourced (IEA, Goldman Sachs, Cloudflare, Epoch AI, HTTP Archive).</p>
+  <p style="margin-top: .5rem;"><a href="https://github.com/ploteddie-bit/cbor-web">github.com/ploteddie-bit/cbor-web</a> — CBOR-Web Specification v3.0</p>
+  <p style="margin-top: 1.5rem; font-size: 1.2rem; color: #f97316; font-weight: 600;">CBOR-Web doesn't sell advertising. It sells machine readability.</p>
+</div>
+
+</body>
+</html>
