@@ -35,7 +35,9 @@ fleurs.com/index.cbor  →  site entier pour les agents IA
 
 ## 2. Découverte
 
-Un agent découvre CBOR-Web en cherchant `index.cbor` à la racine du domaine :
+Un agent IA dispose de **6 méthodes** pour découvrir qu'un site supporte CBOR-Web. Elles sont classées par priorité — un agent DEVRAIT tenter la méthode 1 en premier, puis les suivantes en fallback.
+
+### 2.1 Méthode 1 — Accès direct (priorité haute)
 
 ```
 GET /index.cbor HTTP/1.1
@@ -46,17 +48,84 @@ Accept: application/cbor
 | Réponse | Signification |
 |---------|---------------|
 | `200 OK` + `application/cbor` | CBOR-Web supporté. Le body est le site entier. |
-| `404 Not Found` | Pas de CBOR-Web. Fallback HTML. |
+| `404 Not Found` | Pas de CBOR-Web via accès direct. Essayer les autres méthodes. |
 
 Validation : les 3 premiers octets DOIVENT être `D9 D9 F7` (tag 55799, self-described CBOR).
 
-**Découverte complémentaire (optionnelle) :**
+**Cas d'usage :** Le publisher héberge son propre serveur et peut poser un fichier à la racine.
+**Exemple en production :** `deltopide.fr/index.cbor`, `crm.laforetnousregale.fr/index.cbor`
 
-| Méthode | Usage |
-|---------|-------|
-| DNS TXT `_cbor-web.example.com` | Découverte à grande échelle sans requête HTTP |
-| HTTP Link header `rel="alternate" type="application/cbor"` | Découverte pendant navigation HTML |
-| `robots.txt` directive `CBOR-Web: /index.cbor` | Compatible crawlers existants |
+### 2.2 Méthode 2 — DNS TXT (priorité haute)
+
+```
+_cbor-web.fleurs.com.  3600  IN  TXT  "v=cbor-web; url=https://cbor.fleurs.com/index.cbor"
+```
+
+L'agent résout `_cbor-web.<domaine>` et obtient l'URL du `index.cbor`. Le fichier peut être hébergé sur un domaine différent du site (CDN, proxy, service tiers).
+
+**Cas d'usage :** Le publisher ne contrôle pas son serveur (Shopify, Lovable, Wix) mais contrôle son DNS.
+**Exemple en production :** `_cbor-web.laforetnousregale.fr`, `_cbor-web.pacific-planet.com`, `_cbor-web.verdetao.com`
+
+### 2.3 Méthode 3 — HTML `<link>` (priorité moyenne)
+
+```html
+<link rel="alternate" type="application/cbor"
+      href="https://cbor.example.com/fleurs.com/index.cbor">
+```
+
+L'agent qui visite la page HTML découvre le lien CBOR-Web dans le `<head>`.
+
+**Cas d'usage :** Le publisher ne contrôle ni le serveur ni le DNS, mais peut modifier le code source du site.
+**Exemple en production :** `eloiseplot-dieteticienne.com`
+
+### 2.4 Méthode 4 — `cbor.txt` (priorité moyenne)
+
+```
+GET /cbor.txt HTTP/1.1
+Host: fleurs.com
+```
+
+Contenu :
+
+```
+# cbor.txt — CBOR-Web discovery
+Version: 3
+Index: https://cbor.fleurs.com/index.cbor
+Default-Access: T2
+```
+
+**Cas d'usage :** Dernier recours quand l'accès direct retourne 404, le DNS TXT n'existe pas, et l'agent ne parse pas le HTML. Fichier texte simple, facile à créer.
+
+### 2.5 Méthode 5 — `robots.txt` (signal complémentaire)
+
+```
+# Dans robots.txt existant
+CBOR-Web: /index.cbor
+```
+
+**Cas d'usage :** Signal additionnel pour les crawlers qui lisent déjà `robots.txt`. Ne remplace pas les méthodes 1-4.
+
+### 2.6 Méthode 6 — `llms.txt` (signal complémentaire)
+
+```markdown
+## CBOR-Web
+- [index.cbor](https://fleurs.com/index.cbor): Site entier au format CBOR-Web v3.0
+```
+
+**Cas d'usage :** Signal pour les agents IA qui commencent par lire `llms.txt`. Complémentaire.
+
+### 2.7 Ordre de découverte recommandé
+
+Un agent DEVRAIT suivre cet ordre :
+
+```
+1. GET /index.cbor           → 200 ? Terminé.
+2. DNS TXT _cbor-web.*       → URL trouvée ? Fetch. Terminé.
+3. HTML <link rel="alternate" type="application/cbor"> → URL trouvée ? Fetch. Terminé.
+4. GET /cbor.txt              → URL trouvée ? Fetch. Terminé.
+5. robots.txt / llms.txt      → Signaux complémentaires.
+6. Aucune découverte          → Le site ne supporte pas CBOR-Web. Fallback HTML.
+```
 
 ---
 
