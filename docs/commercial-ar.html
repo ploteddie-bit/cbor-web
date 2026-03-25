@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CBOR-Web — البروتوكول الأصلي للويب من أجل الذكاء الاصطناعي</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Noto Sans Arabic', 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #e0e0e0; line-height: 1.7; }
+
+  /* Header */
+  .header { text-align: center; padding: 3rem 2rem 1.5rem; }
+  .header h1 { font-size: 2.4rem; color: #fff; }
+  .header h1 span { color: #f97316; }
+  .header .sub { font-size: 1.1rem; color: #888; margin-top: .5rem; max-width: 650px; margin-left: auto; margin-right: auto; }
+  .header .badge { display: inline-block; margin-top: 1rem; background: #1a1a2e; border: 1px solid #333; border-radius: 2rem; padding: .3rem 1rem; font-size: .75rem; color: #f97316; }
+
+  /* Shared 5 steps */
+  .shared { max-width: 1000px; margin: 2rem auto; padding: 0 1.5rem; }
+  .shared h2 { font-size: 1.5rem; color: #fff; text-align: center; margin-bottom: .5rem; }
+  .shared h2 span { color: #f97316; }
+  .shared .intro { text-align: center; color: #888; margin-bottom: 1.5rem; font-size: .9rem; }
+  .steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .step-card { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 1.2rem; }
+  .step-card.solution { border-color: #28c840; background: #0d1f0d; }
+  .step-num { font-size: .7rem; color: #f97316; font-weight: 700; text-transform: uppercase; margin-bottom: .4rem; }
+  .step-card.solution .step-num { color: #28c840; }
+  .step-card h3 { font-size: .95rem; color: #fff; margin-bottom: .5rem; }
+  .step-card p { font-size: .8rem; color: #999; }
+
+  /* Comparison table */
+  .cmp { max-width: 800px; margin: 0 auto 2rem; overflow-x: auto; }
+  .cmp table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  .cmp th { text-align: right; padding: .5rem .6rem; color: #888; border-bottom: 1px solid #333; font-weight: 600; }
+  .cmp td { padding: .45rem .6rem; border-bottom: 1px solid #1a1a1a; }
+  .cmp .good { color: #28c840; font-weight: 600; }
+  .cmp .src { font-size: .65rem; color: #555; margin-top: .5rem; font-style: italic; }
+
+  /* Tabs */
+  .tabs { max-width: 1000px; margin: 0 auto; padding: 0 1.5rem; }
+  .tab-bar { display: flex; gap: 0; border-bottom: 2px solid #222; margin-bottom: 0; flex-wrap: wrap; }
+  .tab-btn { flex: 1; min-width: 140px; padding: .9rem .5rem; text-align: center; background: #111; border: 1px solid #222; border-bottom: none; cursor: pointer; color: #888; font-size: .85rem; font-weight: 600; transition: all .2s; border-radius: 8px 8px 0 0; }
+  .tab-btn:hover { color: #ccc; background: #1a1a1a; }
+  .tab-btn.active { color: #f97316; background: #161b22; border-color: #f97316; border-bottom: 2px solid #161b22; margin-bottom: -2px; }
+  .tab-content { display: none; background: #161b22; border: 1px solid #222; border-top: none; border-radius: 0 0 10px 10px; padding: 2rem; }
+  .tab-content.active { display: block; }
+
+  /* Content styles */
+  .tab-content h2 { font-size: 1.4rem; color: #fff; margin-bottom: .3rem; }
+  .tab-content h2 span { color: #f97316; }
+  .tab-content .tagline { color: #888; font-size: .9rem; margin-bottom: 1.5rem; font-style: italic; }
+  .tab-content h3 { font-size: 1.1rem; color: #f97316; margin: 1.5rem 0 .5rem; }
+  .tab-content p { margin-bottom: .8rem; font-size: .9rem; color: #ccc; }
+  .tab-content ul { margin: .5rem 0 1rem 1.2rem; font-size: .9rem; color: #ccc; }
+  .tab-content ul li { margin-bottom: .3rem; }
+  .tab-content strong { color: #fff; }
+
+  /* Tables in tabs */
+  .tab-content table { width: 100%; border-collapse: collapse; font-size: .82rem; margin: 1rem 0; }
+  .tab-content th { text-align: right; padding: .5rem; color: #888; border-bottom: 1px solid #333; font-weight: 600; }
+  .tab-content td { padding: .45rem .5rem; border-bottom: 1px solid #1a1a1a; color: #ccc; }
+
+  .highlight { background: #1c1c1c; border-right: 4px solid #f97316; padding: 1rem 1.2rem; margin: 1.2rem 0; border-radius: 8px 0 0 8px; font-size: .88rem; }
+  .highlight.green { border-color: #28c840; }
+  .highlight strong { color: #28c840; }
+
+  .adopters { background: #0d1f0d; border: 1px solid #28c840; border-radius: 10px; padding: 1.2rem; margin: 1.5rem 0; }
+  .adopters h4 { color: #28c840; font-size: .9rem; margin-bottom: .5rem; }
+  .adopters p { font-size: .82rem; color: #aaa; margin-bottom: .3rem; }
+
+  .closing { background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #333; border-radius: 10px; padding: 1.5rem; text-align: center; margin-top: 2rem; }
+  .closing p { font-size: 1rem; color: #fff; font-weight: 600; }
+  .closing .sub { font-size: .85rem; color: #888; font-weight: 400; margin-top: .5rem; }
+
+  .footer { text-align: center; padding: 2.5rem; color: #444; font-size: .75rem; }
+  .footer a { color: #f97316; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <h1>CBOR-Web — <span>البروتوكول الأصلي للويب من أجل الذكاء الاصطناعي</span></h1>
+  <p class="sub">ملف واحد. صفر ضوضاء. 100% إشارة مفيدة.</p>
+  <div class="badge">الإصدار 3.0 — مارس 2026 — ExploDev</div>
+</div>
+
+<!-- 5 خطوات مشتركة -->
+<div class="shared">
+  <h2>ما يراه وكيل الذكاء الاصطناعي <span>فعلياً</span></h2>
+  <p class="intro">حالة حقيقية: deltopide.fr — 679 سطراً، 41 537 بايت. تم القياس في 25 مارس 2026.</p>
+
+  <div class="steps-grid">
+    <div class="step-card">
+      <div class="step-num">الخطوة 1 — الجدار</div>
+      <h3>41 كيلوبايت من HTML + 8 ملفات</h3>
+      <p>يستقبل الوكيل ~260 كيلوبايت إجمالاً. CSS (30 كيلوبايت)، JS للتتبع (90 كيلوبايت)، أيقونات، خطوط. لصفحة رئيسية واحدة فقط.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">الخطوة 2 — الفوضى</div>
+      <h3>4 صيغ، 3 ترميزات</h3>
+      <p>HTML + JSON-LD + JavaScript + CSS. الحروف المشكّلة بـ 3 أشكال: &amp;eacute; / \u00e9 / UTF-8. العنوان مكرر 6 مرات.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">الخطوة 3 — الضوضاء</div>
+      <h3>88% بيانات عديمة الفائدة</h3>
+      <p>+15 عنصر div فارغ، 120 سطراً من النماذج، 80 سطراً من JS، كلمات مقسّمة لأغراض تنسيق CSS.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">الخطوة 4 — الإشارة</div>
+      <h3>~3 000 بايت مفيدة مستخرجة</h3>
+      <p>بعد كل هذا العمل: الاسم، العروض، الأسعار، الأسئلة الشائعة. 12% إشارة مفيدة من 41 كيلوبايت مستلمة. ~10 400 tokens مستهلكة.</p>
+    </div>
+    <div class="step-card solution">
+      <div class="step-num">الخطوة 5 — CBOR-Web</div>
+      <h3>2 487 بايت. 620 tokens. انتهى.</h3>
+      <p>GET /index.cbor → طلب واحد، صيغة واحدة، ترميز واحد. 100% إشارة مفيدة. محتوى مصنّف، منظّم، جاهز في 2 مللي ثانية.</p>
+    </div>
+  </div>
+
+  <div class="cmp">
+    <table>
+      <tr><th>المقياس</th><th>HTML (مقاس)</th><th>CBOR-Web</th><th>المكسب</th></tr>
+      <tr><td>حجم الملف</td><td>41 537 بايت</td><td>2 487 بايت</td><td class="good">×17</td></tr>
+      <tr><td>Tokens LLM</td><td>~10 400</td><td>~620</td><td class="good">×17</td></tr>
+      <tr><td>طلبات HTTP</td><td>9+</td><td>1</td><td class="good">×9</td></tr>
+      <tr><td>الإشارة المفيدة</td><td>12%</td><td>100%</td><td class="good">×8</td></tr>
+      <tr><td>الصيغ المتداخلة</td><td>4</td><td>1 (CBOR)</td><td class="good">—</td></tr>
+      <tr><td>ترميزات الحروف</td><td>3</td><td>1 (UTF-8)</td><td class="good">—</td></tr>
+      <tr><td>تكرار العنوان</td><td>6 مرات</td><td>مرة واحدة</td><td class="good">—</td></tr>
+    </table>
+    <div class="src">قياس حقيقي: deltopide.fr، 25/03/2026. Tokens: 1 token ≈ 4 بايت. الطاقة: You &amp; Salathé 2025 (2,3 جول/token، فئة GPT-4o).</div>
+  </div>
+</div>
+
+<!-- التبويبات -->
+<div class="tabs">
+  <div class="tab-bar">
+    <div class="tab-btn active" onclick="showTab('decideurs')">صناع القرار</div>
+    <div class="tab-btn" onclick="showTab('dev')">المطورون &amp; المدراء التقنيون</div>
+    <div class="tab-btn" onclick="showTab('invest')">المستثمرون</div>
+    <div class="tab-btn" onclick="showTab('editeurs')">الناشرون &amp; وسائل الإعلام</div>
+  </div>
+
+  <!-- ============ صناع القرار ============ -->
+  <div class="tab-content active" id="tab-decideurs">
+    <h2>لماذا موقعك <span>غير مرئي للذكاء الاصطناعي</span></h2>
+    <p class="tagline">وكيف تعالج ذلك في 48 ساعة.</p>
+
+    <h3>التكلفة الحقيقية لعدم الظهور أمام الذكاء الاصطناعي</h3>
+    <p>موقعك جميل. يحقق تحويلات. مُحسّن لمحركات البحث في Google. لكن عندما يطلب عميل توصية من ChatGPT أو Claude أو Gemini، لا تظهر شركتك. ليس لأن محتواك سيء — بل لأن الآلات لا تستطيع قراءته.</p>
+    <p>وفقاً لـ<strong>Gartner (2025)</strong>، سينخفض حجم البحث على المحركات التقليدية بنسبة 25% بحلول 2026، لصالح روبوتات الدردشة بالذكاء الاصطناعي. يؤكد <strong>Europanel/NIQ (2025)</strong> أن 41% من المستهلكين يستخدمون بالفعل الذكاء الاصطناعي التوليدي للبحث عن المنتجات. تحسين الظهور أمام الذكاء الاصطناعي ليس SEO الغد — إنه SEO اليوم، لقناة تنمو بمعدل 305% سنوياً (Cloudflare 2025، طلبات GPTBot).</p>
+
+    <h3>CBOR-Web v3.0: ملف واحد، موقعك بالكامل</h3>
+    <p>ينشئ CBOR-Web نسخة منظمة من موقعك، مصممة أصلاً للآلات. ملف واحد — <strong>index.cbor</strong> — في جذر نطاقك يحتوي على كامل محتواك: صفحات، منتجات، أسعار، تصفح، كل ذلك منظم في 7 مفاتيح، موثق، موقّع.</p>
+    <p>موقعك HTML يبقى كما هو لزوارك البشريين. CBOR-Web هو قناة موازية، غير مرئية لمتصفحي الإنترنت، قابلة للاكتشاف فوراً من أي ذكاء اصطناعي.</p>
+
+    <h3>خيارات الظهور — أنت تتحكم فيما يراه الذكاء الاصطناعي أولاً</h3>
+    <p>على عكس sitemap.xml حيث يتجاهل Google علامة <code>&lt;priority&gt;</code>، فإن زاحفات CBOR-Web <strong>تحترم</strong> إشاراتك.</p>
+    <table>
+      <tr><th>الإشارة</th><th>مجاني (T2)</th><th>ناشر (T1)</th><th>التأثير</th></tr>
+      <tr><td><code>priority</code></td><td>0.5 (افتراضي)</td><td>0.0 إلى 1.0</td><td>ترتيب الزحف</td></tr>
+      <tr><td><code>freshness</code></td><td>monthly</td><td>realtime إلى monthly</td><td>تكرار إعادة الزحف</td></tr>
+      <tr><td><code>boost</code></td><td>—</td><td>تسمية + مدة</td><td>إبراز (ترويج)</td></tr>
+      <tr><td><code>alternates</code></td><td>لغة واحدة</td><td>غير محدود</td><td>إصدارات متعددة اللغات</td></tr>
+    </table>
+    <div class="highlight green"><strong>CBOR-Web لا يبيع إعلانات. إنه يبيع قابلية القراءة الآلية.</strong></div>
+
+    <h3>النشر: 48 ساعة، صفر مخاطر</h3>
+    <p>لا هجرة، لا إعادة تصميم، لا مخاطر SEO. تضيف ملفاً ثابتاً في الجذر.</p>
+    <ul>
+      <li><strong>الخطوة 1 (30 دقيقة)</strong> — إنشاء index.cbor الخاص بك مع البيانات الوصفية. تكتشف الأنظمة الذكية صفحاتك.</li>
+      <li><strong>الخطوة 2 (2-4 ساعات)</strong> — إضافة محتوى صفحاتك. تقرأ الأنظمة الذكية محتواك الكامل.</li>
+      <li><strong>الخطوة 3 (1-2 يوم)</strong> — تكوين التصفح والظهور والتوقيع. فهرسة كاملة في طلب واحد.</li>
+    </ul>
+
+    <div class="adopters">
+      <h4>أوائل المتبنين — الدليل في الإنتاج</h4>
+      <p><strong>deltopide.fr</strong> — وكالة ذكاء اصطناعي فرنسية-إسبانية. أول موقع يقدم index.cbor.</p>
+      <p><strong>pacific-planet.com</strong> — زراعة حراجية في بريتاني.</p>
+      <p><strong>laforetnousregale.fr</strong> — جمعية. CBOR-Web يعمل أيضاً للهياكل الصغيرة.</p>
+    </div>
+
+    <div class="closing">
+      <p>المحتوى القابل للقراءة أولاً يربح اقتصاد الذكاء الاصطناعي.</p>
+      <p class="sub">السؤال ليس ما إذا كنت ستتبنى CBOR-Web، بل كم عميلاً ستخسر قبل أن تفعل.</p>
+    </div>
+  </div>
+
+  <!-- ============ المطورون ============ -->
+  <div class="tab-content" id="tab-dev">
+    <h2>معيار ثنائي <span>متوافق مع IETF</span></h2>
+    <p class="tagline">ملف index.cbor واحد، 7 مفاتيح، ~400 سطر من Rust.</p>
+
+    <h3>المشكلة التقنية</h3>
+    <p>كل وكيل ذكاء اصطناعي يزحف على موقعك يقوم بنفس العمل غير المجدي: تحميل مئات الكيلوبايتات من HTML + الموارد، تحليل DOM، تصفية CSS، إزالة تكرار البيانات الوصفية (العنوان موجود 6 مرات)، التعامل مع 3 ترميزات مختلفة. لاستخراج ~3 000 بايت من المحتوى المفيد.</p>
+    <p>هذه ليست مشكلة ذكاء اصطناعي. إنها مشكلة صيغة. تم تصميم HTML في 1993 لإنسان في متصفح.</p>
+
+    <h3>بنية CBOR-Web v3.0</h3>
+    <p>ملف <strong>index.cbor</strong> واحد في الجذر. 7 مفاتيح في المستوى الأول:</p>
+    <table>
+      <tr><th>المفتاح</th><th>المحتوى</th><th>مطلوب</th><th>الدور</th></tr>
+      <tr><td>0 : @type</td><td>"cbor-web"</td><td>نعم</td><td>التعريف</td></tr>
+      <tr><td>1 : @version</td><td>3</td><td>نعم</td><td>قابلية التطور</td></tr>
+      <tr><td>2 : site</td><td>النطاق، الاسم، جهة الاتصال، الموقع الجغرافي</td><td>نعم</td><td>البيانات الوصفية</td></tr>
+      <tr><td>3 : security</td><td>المصادقة، المستويات T0/T1/T2، المفتاح</td><td>نعم</td><td>التحكم في الوصول</td></tr>
+      <tr><td>4 : navigation</td><td>القوائم، التسلسل الهرمي</td><td>لا</td><td>البنية</td></tr>
+      <tr><td>5 : pages</td><td>مصفوفة بجميع الصفحات</td><td>نعم</td><td>المحتوى</td></tr>
+      <tr><td>6 : meta</td><td>الطابع الزمني، التوقيع</td><td>نعم</td><td>السلامة</td></tr>
+    </table>
+    <p>الاكتشاف: <code>GET /index.cbor</code> + سجل DNS TXT <code>_cbor-web.domaine.tld</code> اختياري.</p>
+
+    <h3>المواصفات التقنية</h3>
+    <table>
+      <tr><th>الخاصية</th><th>التفاصيل</th><th>المعيار</th></tr>
+      <tr><td>الترميز</td><td>CBOR ثنائي</td><td>RFC 8949 (STD 94)</td></tr>
+      <tr><td>الحتمية</td><td>مفاتيح مرتبة، متطابقة على مستوى البايت</td><td>RFC 8949 §4.2.1</td></tr>
+      <tr><td>المخطط</td><td>رسمي، قابل للتحقق</td><td>CDDL (RFC 8610)</td></tr>
+      <tr><td>الأمان</td><td>توقيعات، HTTPS مطلوب</td><td>COSE (RFC 9052)</td></tr>
+      <tr><td>التوافقية</td><td>المفاتيح غير المعروفة يتم تجاهلها</td><td>متوافق مستقبلياً</td></tr>
+    </table>
+
+    <h3>نظام مستويات الوصول</h3>
+    <table>
+      <tr><th>المستوى</th><th>الاسم</th><th>الوصول</th><th>الاستخدام</th></tr>
+      <tr><td>T2</td><td>مفتوح</td><td>مجاني</td><td>الصفحات العامة، البيانات الوصفية</td></tr>
+      <tr><td>T1</td><td>مصادق</td><td>Token CBORW / مفتاح API</td><td>المحتوى الكامل + المميز</td></tr>
+      <tr><td>T0</td><td>مؤسسي</td><td>eIDAS 2.0</td><td>الحكومات، معتمد</td></tr>
+    </table>
+
+    <h3>التكامل عملياً</h3>
+    <ul>
+      <li><strong>الحد الأدنى (30 دقيقة)</strong> — تقديم index.cbor بالمفاتيح 0-2-6. مثل إنشاء sitemap.xml.</li>
+      <li><strong>قياسي (1-2 يوم)</strong> — الصفحات (المفتاح 5) + التصفح (المفتاح 4) + الأمان (المفتاح 3). فهرسة كاملة في GET واحد.</li>
+      <li><strong>كامل (3-5 أيام)</strong> — كتل توليدية، قوالب، مستويات T0/T1/T2 مع توقيع COSE.</li>
+    </ul>
+
+    <h3>لماذا CBOR وليس JSON؟</h3>
+    <p>JSON نصي، غير حتمي، بدون سلاسل بايت أو علامات دلالية. CBOR معيار IETF (STD 94) من نفس مؤلفي JSON، يُستخدم في WebAuthn وCOSE وCWT وإنترنت الأشياء. الترميز الحتمي يضمن بايتات متطابقة لنفس المحتوى — تجزئات قابلة للاستنساخ، ذاكرات تخزين مؤقت موثوقة.</p>
+
+    <h3>التوافق مع المنظومة</h3>
+    <p>CBOR-Web يكمّل robots.txt وsitemap.xml وllms.txt وJSON-LD وOpenAPI. يضيف الطبقة المفقودة: المحتوى الكامل، المنظم، بصيغة ثنائية أصلية. GET واحد بدلاً من زحف متعدد الصفحات.</p>
+
+    <div class="adopters">
+      <h4>أوائل المتبنين</h4>
+      <p><strong>deltopide.fr</strong> — أول موقع بـ index.cbor في الإنتاج.</p>
+      <p><strong>pacific-planet.com</strong> · <strong>laforetnousregale.fr</strong></p>
+      <p>قابل للتحقق: <code>GET /index.cbor</code> على كل نطاق.</p>
+    </div>
+
+    <div class="highlight">بروتوكول مجاني. أدوات مفتوحة المصدر. المواصفات: 6 وثائق. التنفيذ المرجعي: ~400 سطر من Rust.</div>
+  </div>
+
+  <!-- ============ المستثمرون ============ -->
+  <div class="tab-content" id="tab-invest">
+    <h2>طبقة البنية التحتية <span>المفقودة</span></h2>
+    <p class="tagline">بين الويب والذكاء الاصطناعي — سوق بمليارات الدولارات لم يوجد بعد.</p>
+
+    <h3>الأطروحة</h3>
+    <p>الذكاء الاصطناعي يستهلك الويب. لكن الويب لم يُصمم للآلات. هذا الاختلال يولّد هدراً هيكلياً: 88% من كل طلب ذكاء اصطناعي هو ضوضاء. CBOR-Web يصحح هذا الاختلال بملف <strong>index.cbor</strong> واحد حيث كل بايت هو إشارة مفيدة.</p>
+
+    <h3>السوق — أرقام موثقة</h3>
+    <table>
+      <tr><th>الحقيقة</th><th>الرقم</th><th>المصدر</th></tr>
+      <tr><td>مراكز البيانات العالمية</td><td>415 TWh/سنة</td><td>AIE 2024</td></tr>
+      <tr><td>التوقعات لـ 2030</td><td>945 TWh (+130%)</td><td>AIE 2025</td></tr>
+      <tr><td>الطاقة العالمية لمراكز البيانات</td><td>55 → 92 GW</td><td>Goldman Sachs 2024-27</td></tr>
+      <tr><td>طلبات ذكاء اصطناعي/يوم</td><td>50 مليار</td><td>Cloudflare Radar 2025</td></tr>
+      <tr><td>نمو GPTBot</td><td>+305% سنوياً</td><td>Cloudflare 2025</td></tr>
+      <tr><td>Tokens Google Gemini</td><td>980T/شهر</td><td>Sundar Pichai، يوليو 2025</td></tr>
+      <tr><td>Tokens OpenAI</td><td>6 مليارات/دقيقة</td><td>OpenAI DevDay، أكتوبر 2025</td></tr>
+    </table>
+
+    <h3>المعادلة الاقتصادية</h3>
+    <table>
+      <tr><th>المقياس</th><th>HTML</th><th>CBOR-Web</th><th>التأثير</th></tr>
+      <tr><td>Tokens/صفحة</td><td>~10 400</td><td>~620</td><td class="good">×17</td></tr>
+      <tr><td>التكلفة/صفحة (Claude Sonnet)</td><td>$0,0000312</td><td>$0,0000019</td><td class="good">-94%</td></tr>
+      <tr><td>التكلفة/صفحة (GPT-5.2)</td><td>$0,0000182</td><td>$0,0000011</td><td class="good">-94%</td></tr>
+      <tr><td>الطاقة/صفحة (2,3 جول/token)</td><td>23,9 مللي جول</td><td>1,4 مللي جول</td><td class="good">-94%</td></tr>
+      <tr><td>الإشارة المفيدة</td><td>12%</td><td>100%</td><td class="good">×8</td></tr>
+    </table>
+
+    <h3>إذا انتقل 10% من حركة الذكاء الاصطناعي إلى CBOR-Web</h3>
+    <table>
+      <tr><th>المقياس</th><th>القيمة</th><th>المعادل</th></tr>
+      <tr><td>الصفحات المعنية</td><td>5 مليارات/يوم</td><td>10% من 50 مليار طلب ذكاء اصطناعي</td></tr>
+      <tr><td>Tokens الموفرة/يوم</td><td>20 000 مليار</td><td>—</td></tr>
+      <tr><td>الطاقة الموفرة/سنة</td><td style="color:#28c840;font-weight:700;">~4,6 TWh</td><td>= كرواتيا (Eurostat 2024)</td></tr>
+      <tr><td>توفير تكلفة tokens/سنة</td><td style="color:#28c840;font-weight:700;">~$40 مليون</td><td>بسعر $2/1M tokens</td></tr>
+    </table>
+
+    <h3>نموذج الأعمال — المستويات T2/T1/T0</h3>
+    <p>T2 (مفتوح): مجاني، صفحات عامة. T1 (مصادق): محتوى كامل عبر token CBORW (ERC-20) أو مفتاح API. T0 (مؤسسي): هويات موثقة eIDAS 2.0.</p>
+    <p>حلقة تبني عضوية: وكلاء الذكاء الاصطناعي يلاحظون -94% في التكاليف → يفضلون CBOR-Web → الناشرون يتبنون → المزيد من الوكلاء يفضلون → تأثير الشبكة.</p>
+
+    <h3>محركات النمو</h3>
+    <ul>
+      <li><strong>تأثير الشبكة</strong> — كل موقع يتبنى المعيار يزيد القيمة لجميع الوكلاء.</li>
+      <li><strong>تكلفة تبديل معدومة</strong> — يُضاف إلى الموجود. صفر هجرة.</li>
+      <li><strong>معيار مفتوح، منظومة أسيرة</strong> — بروتوكول مفتوح، لكن الأدوات واقتصاد tokens تولّد القيمة.</li>
+      <li><strong>رافعة ESG</strong> — 4,6 TWh/سنة موفرة (سيناريو 10%) = حجة قابلة للقياس.</li>
+    </ul>
+
+    <div class="adopters">
+      <h4>أوائل المتبنين</h4>
+      <p><strong>deltopide.fr</strong> · <strong>pacific-planet.com</strong> · <strong>laforetnousregale.fr</strong></p>
+      <p>قابل للتحقق: <code>GET /index.cbor</code> على كل نطاق.</p>
+    </div>
+
+    <div class="closing">
+      <p>الذكاء الاصطناعي يحتاج إلى ويب مصمم للآلات. CBOR-Web هو هذا الويب.</p>
+      <p class="sub">أول بروتوكول يفرض نفسه سيستحوذ على قيمة منظومة الآلة-إلى-المحتوى.</p>
+    </div>
+  </div>
+
+  <!-- ============ الناشرون ============ -->
+  <div class="tab-content" id="tab-editeurs">
+    <h2>محتواك له قيمة. <span>استعد السيطرة.</span></h2>
+    <p class="tagline">الأنظمة الذكية تستهلكه مجاناً. CBOR-Web يعيد لك السيطرة — ومصدر دخل جديد.</p>
+
+    <h3>مفارقة الناشر في 2026</h3>
+    <p>أنت تنتج محتوى عالي الجودة. وكلاء الذكاء الاصطناعي يستخرجون بيانات موقعك لتغذية إجاباتهم. خبرتك تُعاد توزيعها على ملايين المستخدمين دون أن ترى فلساً واحداً. الاستخراج هو ترقيع حيث يخمن الذكاء الاصطناعي البنية من محددات CSS التي تتغير مع كل إعادة تصميم. لا تحكم، لا إسناد، لا إيرادات.</p>
+
+    <h3>CBOR-Web v3.0: تحكم + تحقيق دخل</h3>
+    <p>ملف <strong>index.cbor</strong> واحد يقدم نسخة منظمة ومتحكم بها من محتواك. أنت تقدم بالضبط ما تختار مشاركته.</p>
+
+    <h3>ثلاثة مستويات وصول — أنت تقرر</h3>
+    <table>
+      <tr><th>المستوى</th><th>المحتوى</th><th>الوصول</th><th>الإيرادات</th></tr>
+      <tr><td><strong>T2 — مفتوح</strong></td><td>العناوين، الأوصاف، الصفحات العامة</td><td>مجاني</td><td>0 € (واجهة عرض)</td></tr>
+      <tr><td><strong>T1 — مصادق</strong></td><td>المقالات الكاملة، البيانات، التحليلات</td><td>Token CBORW / مفتاح API</td><td>تلقائية</td></tr>
+      <tr><td><strong>T0 — مؤسسي</strong></td><td>المحتويات الرسمية</td><td>eIDAS 2.0</td><td>—</td></tr>
+    </table>
+
+    <h3>خيارات الظهور — محتواك، قواعدك</h3>
+    <table>
+      <tr><th>الإشارة</th><th>مجاني (T2)</th><th>ناشر (T1)</th><th>التأثير</th></tr>
+      <tr><td><code>priority</code></td><td>0.5</td><td>0.0 إلى 1.0</td><td>ترتيب الزحف</td></tr>
+      <tr><td><code>freshness</code></td><td>monthly</td><td>realtime إلى monthly</td><td>تكرار إعادة الزحف</td></tr>
+      <tr><td><code>boost</code></td><td>—</td><td>تسمية + مدة</td><td>ترويج، إطلاق</td></tr>
+      <tr><td><code>alternates</code></td><td>لغة واحدة</td><td>غير محدود</td><td>متعدد اللغات</td></tr>
+    </table>
+
+    <h3>ما يحله CBOR-Web</h3>
+    <ul>
+      <li><strong>الإسناد</strong> — كل كتلة مصنّفة، منظمة، معرّفة. انتهى الاستخراج المجهول.</li>
+      <li><strong>جودة القراءة</strong> — التضمين على 100% من الإشارة أدق من التضمين على 12% من الإشارة. محتواك يُفهم بشكل أفضل، يُوصى به بشكل أفضل.</li>
+      <li><strong>إيرادات مباشرة</strong> — نموذج T1 ينشئ تدفقاً تلقائياً مع كل وصول مميز. بدون وسيط.</li>
+      <li><strong>ظهور أمام الذكاء الاصطناعي</strong> — وكيل يختار بين 41 كيلوبايت من HTML و2,5 كيلوبايت من CBOR يأخذ دائماً الثاني.</li>
+    </ul>
+
+    <h3>الحساب</h3>
+    <table>
+      <tr><th>السيناريو</th><th>استخراج HTML</th><th>CBOR-Web T2</th><th>CBOR-Web T1</th></tr>
+      <tr><td>التحكم بالمحتوى</td><td>لا شيء</td><td>البنية</td><td>كامل</td></tr>
+      <tr><td>الإسناد</td><td>لا</td><td>نعم</td><td>نعم</td></tr>
+      <tr><td>إيرادات الذكاء الاصطناعي</td><td>0 €</td><td>0 € (واجهة عرض)</td><td>تلقائية</td></tr>
+      <tr><td>جودة القراءة</td><td>12% إشارة</td><td>100%</td><td>100%</td></tr>
+      <tr><td>الظهور (priority)</td><td>متجاهل</td><td>افتراضي</td><td>متحكم به</td></tr>
+    </table>
+
+    <div class="adopters">
+      <h4>أوائل المتبنين</h4>
+      <p><strong>deltopide.fr</strong> · <strong>pacific-planet.com</strong> · <strong>laforetnousregale.fr</strong></p>
+      <p>قابل للتحقق: <code>GET /index.cbor</code> على كل نطاق.</p>
+    </div>
+
+    <div class="closing">
+      <p>توقف عن ترك الأنظمة الذكية تستخرج عملك.</p>
+      <p class="sub">CBOR-Web يحول محتواك إلى أصل رقمي في اقتصاد الوكلاء.</p>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <p><a href="https://github.com/ploteddie-bit/cbor-web">github.com/ploteddie-bit/cbor-web</a> — CBOR-Web Specification v3.0</p>
+  <p style="margin-top:.5rem;">ExploDev — مارس 2026 — وثيقة سرية</p>
+</div>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

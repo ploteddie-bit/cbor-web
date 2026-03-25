@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CBOR-Web — O protocolo nativo da web para IA</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #e0e0e0; line-height: 1.7; }
+
+  /* Header */
+  .header { text-align: center; padding: 3rem 2rem 1.5rem; }
+  .header h1 { font-size: 2.4rem; color: #fff; }
+  .header h1 span { color: #f97316; }
+  .header .sub { font-size: 1.1rem; color: #888; margin-top: .5rem; max-width: 650px; margin-left: auto; margin-right: auto; }
+  .header .badge { display: inline-block; margin-top: 1rem; background: #1a1a2e; border: 1px solid #333; border-radius: 2rem; padding: .3rem 1rem; font-size: .75rem; color: #f97316; }
+
+  /* Shared 5 steps */
+  .shared { max-width: 1000px; margin: 2rem auto; padding: 0 1.5rem; }
+  .shared h2 { font-size: 1.5rem; color: #fff; text-align: center; margin-bottom: .5rem; }
+  .shared h2 span { color: #f97316; }
+  .shared .intro { text-align: center; color: #888; margin-bottom: 1.5rem; font-size: .9rem; }
+  .steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .step-card { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 1.2rem; }
+  .step-card.solution { border-color: #28c840; background: #0d1f0d; }
+  .step-num { font-size: .7rem; color: #f97316; font-weight: 700; text-transform: uppercase; margin-bottom: .4rem; }
+  .step-card.solution .step-num { color: #28c840; }
+  .step-card h3 { font-size: .95rem; color: #fff; margin-bottom: .5rem; }
+  .step-card p { font-size: .8rem; color: #999; }
+
+  /* Comparison table */
+  .cmp { max-width: 800px; margin: 0 auto 2rem; overflow-x: auto; }
+  .cmp table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  .cmp th { text-align: left; padding: .5rem .6rem; color: #888; border-bottom: 1px solid #333; font-weight: 600; }
+  .cmp td { padding: .45rem .6rem; border-bottom: 1px solid #1a1a1a; }
+  .cmp .good { color: #28c840; font-weight: 600; }
+  .cmp .src { font-size: .65rem; color: #555; margin-top: .5rem; font-style: italic; }
+
+  /* Tabs */
+  .tabs { max-width: 1000px; margin: 0 auto; padding: 0 1.5rem; }
+  .tab-bar { display: flex; gap: 0; border-bottom: 2px solid #222; margin-bottom: 0; flex-wrap: wrap; }
+  .tab-btn { flex: 1; min-width: 140px; padding: .9rem .5rem; text-align: center; background: #111; border: 1px solid #222; border-bottom: none; cursor: pointer; color: #888; font-size: .85rem; font-weight: 600; transition: all .2s; border-radius: 8px 8px 0 0; }
+  .tab-btn:hover { color: #ccc; background: #1a1a1a; }
+  .tab-btn.active { color: #f97316; background: #161b22; border-color: #f97316; border-bottom: 2px solid #161b22; margin-bottom: -2px; }
+  .tab-content { display: none; background: #161b22; border: 1px solid #222; border-top: none; border-radius: 0 0 10px 10px; padding: 2rem; }
+  .tab-content.active { display: block; }
+
+  /* Content styles */
+  .tab-content h2 { font-size: 1.4rem; color: #fff; margin-bottom: .3rem; }
+  .tab-content h2 span { color: #f97316; }
+  .tab-content .tagline { color: #888; font-size: .9rem; margin-bottom: 1.5rem; font-style: italic; }
+  .tab-content h3 { font-size: 1.1rem; color: #f97316; margin: 1.5rem 0 .5rem; }
+  .tab-content p { margin-bottom: .8rem; font-size: .9rem; color: #ccc; }
+  .tab-content ul { margin: .5rem 0 1rem 1.2rem; font-size: .9rem; color: #ccc; }
+  .tab-content ul li { margin-bottom: .3rem; }
+  .tab-content strong { color: #fff; }
+
+  /* Tables in tabs */
+  .tab-content table { width: 100%; border-collapse: collapse; font-size: .82rem; margin: 1rem 0; }
+  .tab-content th { text-align: left; padding: .5rem; color: #888; border-bottom: 1px solid #333; font-weight: 600; }
+  .tab-content td { padding: .45rem .5rem; border-bottom: 1px solid #1a1a1a; color: #ccc; }
+
+  .highlight { background: #1c1c1c; border-left: 4px solid #f97316; padding: 1rem 1.2rem; margin: 1.2rem 0; border-radius: 0 8px 8px 0; font-size: .88rem; }
+  .highlight.green { border-color: #28c840; }
+  .highlight strong { color: #28c840; }
+
+  .adopters { background: #0d1f0d; border: 1px solid #28c840; border-radius: 10px; padding: 1.2rem; margin: 1.5rem 0; }
+  .adopters h4 { color: #28c840; font-size: .9rem; margin-bottom: .5rem; }
+  .adopters p { font-size: .82rem; color: #aaa; margin-bottom: .3rem; }
+
+  .closing { background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #333; border-radius: 10px; padding: 1.5rem; text-align: center; margin-top: 2rem; }
+  .closing p { font-size: 1rem; color: #fff; font-weight: 600; }
+  .closing .sub { font-size: .85rem; color: #888; font-weight: 400; margin-top: .5rem; }
+
+  .footer { text-align: center; padding: 2.5rem; color: #444; font-size: .75rem; }
+  .footer a { color: #f97316; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <h1>CBOR-Web — <span>O protocolo nativo da web para IA</span></h1>
+  <p class="sub">Um único arquivo. Zero ruído. 100% de sinal.</p>
+  <div class="badge">Versão 3.0 — Março 2026 — ExploDev</div>
+</div>
+
+<!-- 5 ETAPAS COMPARTILHADAS -->
+<div class="shared">
+  <h2>O que um agente de IA <span>realmente vê</span></h2>
+  <p class="intro">Caso real: deltopide.fr — 679 linhas, 41 537 bytes. Medido em 25 de março de 2026.</p>
+
+  <div class="steps-grid">
+    <div class="step-card">
+      <div class="step-num">Etapa 1 — O muro</div>
+      <h3>41 Ko de HTML + 8 arquivos</h3>
+      <p>O agente recebe ~260 Ko no total. CSS (30 Ko), JS de rastreamento (90 Ko), favicons, fontes. Para uma única página inicial.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Etapa 2 — O caos</div>
+      <h3>4 formatos, 3 codificações</h3>
+      <p>HTML + JSON-LD + JavaScript + CSS. Os acentos em 3 formas: &amp;eacute; / \u00e9 / UTF-8. O título duplicado 6 vezes.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Etapa 3 — O ruído</div>
+      <h3>88% de lixo</h3>
+      <p>15+ divs vazias, 120 linhas de formulários, 80 linhas de JS, palavras cortadas ao meio para o estilo CSS.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Etapa 4 — O sinal</div>
+      <h3>~3 000 bytes úteis extraídos</h3>
+      <p>Após todo esse trabalho: o nome, as ofertas, os preços, o FAQ. 12% de sinal em 41 Ko recebidos. ~10 400 tokens consumidos.</p>
+    </div>
+    <div class="step-card solution">
+      <div class="step-num">Etapa 5 — CBOR-Web</div>
+      <h3>2 487 bytes. 620 tokens. Pronto.</h3>
+      <p>GET /index.cbor → 1 requisição, 1 formato, 1 codificação. 100% de sinal. Conteúdo tipado, estruturado, pronto em 2 ms.</p>
+    </div>
+  </div>
+
+  <div class="cmp">
+    <table>
+      <tr><th>Métrica</th><th>HTML (medido)</th><th>CBOR-Web</th><th>Ganho</th></tr>
+      <tr><td>Tamanho do arquivo</td><td>41 537 bytes</td><td>2 487 bytes</td><td class="good">×17</td></tr>
+      <tr><td>Tokens LLM</td><td>~10 400</td><td>~620</td><td class="good">×17</td></tr>
+      <tr><td>Requisições HTTP</td><td>9+</td><td>1</td><td class="good">×9</td></tr>
+      <tr><td>Sinal útil</td><td>12%</td><td>100%</td><td class="good">×8</td></tr>
+      <tr><td>Formatos aninhados</td><td>4</td><td>1 (CBOR)</td><td class="good">—</td></tr>
+      <tr><td>Codificações de acentos</td><td>3</td><td>1 (UTF-8)</td><td class="good">—</td></tr>
+      <tr><td>Duplicações do título</td><td>6 vezes</td><td>1 vez</td><td class="good">—</td></tr>
+    </table>
+    <div class="src">Medição real: deltopide.fr, 25/03/2026. Tokens: 1 token ≈ 4 bytes. Energia: You &amp; Salathé 2025 (2,3 J/token, classe GPT-4o).</div>
+  </div>
+</div>
+
+<!-- ABAS -->
+<div class="tabs">
+  <div class="tab-bar">
+    <div class="tab-btn active" onclick="showTab('decideurs')">Decisores</div>
+    <div class="tab-btn" onclick="showTab('dev')">Desenvolvedores &amp; CTO</div>
+    <div class="tab-btn" onclick="showTab('invest')">Investidores</div>
+    <div class="tab-btn" onclick="showTab('editeurs')">Editores &amp; Mídia</div>
+  </div>
+
+  <!-- ============ DECISORES ============ -->
+  <div class="tab-content active" id="tab-decideurs">
+    <h2>Por que seu site é <span>invisível para a IA</span></h2>
+    <p class="tagline">E como resolver isso em 48 horas.</p>
+
+    <h3>O custo real da invisibilidade para IA</h3>
+    <p>Seu site é bonito. Ele converte. Está bem posicionado no Google. Mas quando um cliente pede uma recomendação ao ChatGPT, Claude ou Gemini, sua empresa não aparece. Não porque seu conteúdo é ruim — porque as máquinas não conseguem lê-lo.</p>
+    <p>Segundo o <strong>Gartner (2025)</strong>, o volume de buscas em mecanismos tradicionais cairá 25% até 2026, em favor dos chatbots de IA. <strong>Europanel/NIQ (2025)</strong> confirma que 41% dos consumidores já usam IA generativa para pesquisas de produtos. O SEO para IA não é o SEO de amanhã — é o SEO de hoje, para um canal que cresce 305% ao ano (Cloudflare 2025, requisições GPTBot).</p>
+
+    <h3>CBOR-Web v3.0: um único arquivo, todo o seu site</h3>
+    <p>CBOR-Web cria uma cópia estruturada do seu site, projetada nativamente para máquinas. Um único arquivo — <strong>index.cbor</strong> — na raiz do seu domínio contém todo o seu conteúdo: páginas, produtos, preços, navegação, tudo estruturado em 7 chaves, verificado, assinado.</p>
+    <p>Seu site HTML permanece idêntico para seus visitantes humanos. CBOR-Web é um canal paralelo, invisível para os internautas, imediatamente detectável por qualquer IA.</p>
+
+    <h3>Opções de visibilidade — você controla o que a IA vê primeiro</h3>
+    <p>Ao contrário do sitemap.xml onde <code>&lt;priority&gt;</code> é ignorado pelo Google, os crawlers CBOR-Web <strong>respeitam</strong> seus sinais.</p>
+    <table>
+      <tr><th>Sinal</th><th>Gratuito (T2)</th><th>Publisher (T1)</th><th>Efeito</th></tr>
+      <tr><td><code>priority</code></td><td>0.5 (padrão)</td><td>0.0 a 1.0</td><td>Ordem de crawl</td></tr>
+      <tr><td><code>freshness</code></td><td>monthly</td><td>realtime a monthly</td><td>Frequência de recrawl</td></tr>
+      <tr><td><code>boost</code></td><td>—</td><td>Label + duração</td><td>Destaque (promoção)</td></tr>
+      <tr><td><code>alternates</code></td><td>1 idioma</td><td>Ilimitado</td><td>Versões multilíngues</td></tr>
+    </table>
+    <div class="highlight green"><strong>CBOR-Web não vende publicidade. Vende legibilidade para máquinas.</strong></div>
+
+    <h3>Implantação: 48 horas, zero risco</h3>
+    <p>Nenhuma migração, nenhuma reformulação, nenhum risco de SEO. Você adiciona um arquivo estático na raiz.</p>
+    <ul>
+      <li><strong>Etapa 1 (30 min)</strong> — Gerar seu index.cbor com os metadados. As IAs descobrem suas páginas.</li>
+      <li><strong>Etapa 2 (2-4h)</strong> — Adicionar o conteúdo das suas páginas. As IAs leem todo o seu conteúdo.</li>
+      <li><strong>Etapa 3 (1-2 dias)</strong> — Configurar navegação, visibilidade, assinatura. Indexação completa em 1 requisição.</li>
+    </ul>
+
+    <div class="adopters">
+      <h4>Primeiros adotantes — a prova em produção</h4>
+      <p><strong>deltopide.fr</strong> — Agência de IA franco-espanhola. Primeiro site a servir um index.cbor.</p>
+      <p><strong>pacific-planet.com</strong> — Agrofloresta na Bretanha.</p>
+      <p><strong>laforetnousregale.fr</strong> — Associação. CBOR-Web funciona também para pequenas estruturas.</p>
+    </div>
+
+    <div class="closing">
+      <p>O conteúdo legível primeiro vence na economia da IA.</p>
+      <p class="sub">A questão não é se você adotará o CBOR-Web, mas quantos clientes terá perdido antes de fazê-lo.</p>
+    </div>
+  </div>
+
+  <!-- ============ DESENVOLVEDORES ============ -->
+  <div class="tab-content" id="tab-dev">
+    <h2>Um padrão binário <span>compatível com IETF</span></h2>
+    <p class="tagline">Um único arquivo index.cbor, 7 chaves, ~400 linhas de Rust.</p>
+
+    <h3>O problema técnico</h3>
+    <p>Cada agente de IA que rastreia seu site realiza o mesmo trabalho inútil: baixar centenas de Ko de HTML + assets, analisar o DOM, filtrar o CSS, deduplicar os metadados (o título existe 6 vezes), lidar com 3 codificações diferentes. Para extrair ~3 000 bytes de conteúdo útil.</p>
+    <p>Isso não é um problema de IA. É um problema de formato. HTML foi projetado em 1993 para um humano em um navegador.</p>
+
+    <h3>Arquitetura CBOR-Web v3.0</h3>
+    <p>Um único arquivo <strong>index.cbor</strong> na raiz. 7 chaves de primeiro nível:</p>
+    <table>
+      <tr><th>Chave</th><th>Conteúdo</th><th>Obrigatório</th><th>Função</th></tr>
+      <tr><td>0 : @type</td><td>"cbor-web"</td><td>Sim</td><td>Identificação</td></tr>
+      <tr><td>1 : @version</td><td>3</td><td>Sim</td><td>Evolução</td></tr>
+      <tr><td>2 : site</td><td>domínio, nome, contato, geo</td><td>Sim</td><td>Metadados</td></tr>
+      <tr><td>3 : security</td><td>auth, tiers T0/T1/T2, chave</td><td>Sim</td><td>Controle de acesso</td></tr>
+      <tr><td>4 : navigation</td><td>menus, hierarquia</td><td>Não</td><td>Estrutura</td></tr>
+      <tr><td>5 : pages</td><td>array de todas as páginas</td><td>Sim</td><td>Conteúdo</td></tr>
+      <tr><td>6 : meta</td><td>timestamp, assinatura</td><td>Sim</td><td>Integridade</td></tr>
+    </table>
+    <p>Descoberta: <code>GET /index.cbor</code> + DNS TXT <code>_cbor-web.dominio.tld</code> opcional.</p>
+
+    <h3>Especificações técnicas</h3>
+    <table>
+      <tr><th>Característica</th><th>Detalhe</th><th>Norma</th></tr>
+      <tr><td>Codificação</td><td>CBOR binário</td><td>RFC 8949 (STD 94)</td></tr>
+      <tr><td>Determinismo</td><td>Chaves ordenadas, byte-identical</td><td>RFC 8949 §4.2.1</td></tr>
+      <tr><td>Schema</td><td>Formal, validável</td><td>CDDL (RFC 8610)</td></tr>
+      <tr><td>Segurança</td><td>Assinaturas, HTTPS obrigatório</td><td>COSE (RFC 9052)</td></tr>
+      <tr><td>Compatibilidade</td><td>Chaves desconhecidas ignoradas</td><td>Forward-compatible</td></tr>
+    </table>
+
+    <h3>Sistema de tiers de acesso</h3>
+    <table>
+      <tr><th>Tier</th><th>Nome</th><th>Acesso</th><th>Uso</th></tr>
+      <tr><td>T2</td><td>Aberto</td><td>Gratuito</td><td>Páginas públicas, metadados</td></tr>
+      <tr><td>T1</td><td>Autenticado</td><td>Token CBORW / API key</td><td>Conteúdo completo + premium</td></tr>
+      <tr><td>T0</td><td>Institucional</td><td>eIDAS 2.0</td><td>Governos, certificado</td></tr>
+    </table>
+
+    <h3>Integração na prática</h3>
+    <ul>
+      <li><strong>Mínimo (30 min)</strong> — Servir um index.cbor com chaves 0-2-6. Como criar um sitemap.xml.</li>
+      <li><strong>Padrão (1-2 dias)</strong> — Páginas (chave 5) + navegação (chave 4) + security (chave 3). Indexação completa em 1 GET.</li>
+      <li><strong>Completo (3-5 dias)</strong> — Blocos generativos, templates, tiers T0/T1/T2 com assinatura COSE.</li>
+    </ul>
+
+    <h3>Por que CBOR e não JSON?</h3>
+    <p>JSON é textual, não-determinístico, sem byte strings nem tags semânticas. CBOR é um padrão IETF (STD 94) dos mesmos autores do JSON, usado em WebAuthn, COSE, CWT e IoT. A codificação determinística garante bytes idênticos para o mesmo conteúdo — hashes reprodutíveis, caches confiáveis.</p>
+
+    <h3>Compatibilidade com o ecossistema</h3>
+    <p>CBOR-Web complementa robots.txt, sitemap.xml, llms.txt, JSON-LD, OpenAPI. Ele adiciona a camada que faltava: o conteúdo completo, estruturado, em binário nativo. Um único GET em vez de um crawl de múltiplas páginas.</p>
+
+    <div class="adopters">
+      <h4>Primeiros adotantes</h4>
+      <p><strong>deltopide.fr</strong> — Primeiro site com index.cbor em produção.</p>
+      <p><strong>pacific-planet.com</strong> · <strong>laforetnousregale.fr</strong></p>
+      <p>Verificável: <code>GET /index.cbor</code> em cada domínio.</p>
+    </div>
+
+    <div class="highlight">Protocolo gratuito. Ferramentas open source. Spec: 6 documentos. Implementação de referência: ~400 linhas de Rust.</div>
+  </div>
+
+  <!-- ============ INVESTIDORES ============ -->
+  <div class="tab-content" id="tab-invest">
+    <h2>A camada de infraestrutura <span>que faltava</span></h2>
+    <p class="tagline">Entre a web e a IA — um mercado de vários bilhões que ainda não existe.</p>
+
+    <h3>A tese</h3>
+    <p>A IA consome a web. Mas a web não foi projetada para máquinas. Esse desalinhamento cria um desperdício estrutural: 88% de cada requisição de IA é ruído. CBOR-Web corrige esse desalinhamento com um único arquivo <strong>index.cbor</strong> onde cada byte é sinal.</p>
+
+    <h3>O mercado — números com fontes</h3>
+    <table>
+      <tr><th>Fato</th><th>Número</th><th>Fonte</th></tr>
+      <tr><td>Data centers mundiais</td><td>415 TWh/ano</td><td>AIE 2024</td></tr>
+      <tr><td>Projeção 2030</td><td>945 TWh (+130%)</td><td>AIE 2025</td></tr>
+      <tr><td>Potência DC mundial</td><td>55 → 92 GW</td><td>Goldman Sachs 2024-27</td></tr>
+      <tr><td>Requisições IA/dia</td><td>50 bilhões</td><td>Cloudflare Radar 2025</td></tr>
+      <tr><td>Crescimento GPTBot</td><td>+305% YoY</td><td>Cloudflare 2025</td></tr>
+      <tr><td>Tokens Google Gemini</td><td>980T/mês</td><td>Sundar Pichai, jul. 2025</td></tr>
+      <tr><td>Tokens OpenAI</td><td>6 bilhões/min</td><td>OpenAI DevDay, out. 2025</td></tr>
+    </table>
+
+    <h3>A equação econômica</h3>
+    <table>
+      <tr><th>Métrica</th><th>HTML</th><th>CBOR-Web</th><th>Impacto</th></tr>
+      <tr><td>Tokens/página</td><td>~10 400</td><td>~620</td><td class="good">×17</td></tr>
+      <tr><td>Custo/página (Claude Sonnet)</td><td>$0,0000312</td><td>$0,0000019</td><td class="good">-94%</td></tr>
+      <tr><td>Custo/página (GPT-5.2)</td><td>$0,0000182</td><td>$0,0000011</td><td class="good">-94%</td></tr>
+      <tr><td>Energia/página (2,3 J/tok)</td><td>23,9 mJ</td><td>1,4 mJ</td><td class="good">-94%</td></tr>
+      <tr><td>Sinal útil</td><td>12%</td><td>100%</td><td class="good">×8</td></tr>
+    </table>
+
+    <h3>Se 10% do tráfego de IA passar para CBOR-Web</h3>
+    <table>
+      <tr><th>Métrica</th><th>Valor</th><th>Equivalente</th></tr>
+      <tr><td>Páginas envolvidas</td><td>5 bilhões/dia</td><td>10% de 50B requisições IA</td></tr>
+      <tr><td>Tokens economizados/dia</td><td>20 000 bilhões</td><td>—</td></tr>
+      <tr><td>Energia economizada/ano</td><td style="color:#28c840;font-weight:700;">~4,6 TWh</td><td>= Croácia (Eurostat 2024)</td></tr>
+      <tr><td>Custo de tokens economizado/ano</td><td style="color:#28c840;font-weight:700;">~$40 milhões</td><td>a $2/1M tokens</td></tr>
+    </table>
+
+    <h3>O modelo de negócios — Tiers T2/T1/T0</h3>
+    <p>T2 (Aberto): gratuito, páginas públicas. T1 (Autenticado): conteúdo completo via token CBORW (ERC-20) ou API key. T0 (Institucional): identidades verificadas eIDAS 2.0.</p>
+    <p>Ciclo de adoção orgânica: os agentes de IA constatam -94% de custos → preferem CBOR-Web → os publishers adotam → mais agentes preferem → efeito de rede.</p>
+
+    <h3>Motores de crescimento</h3>
+    <ul>
+      <li><strong>Efeito de rede</strong> — Cada site adotado aumenta o valor para todos os agentes.</li>
+      <li><strong>Custo de mudança zero</strong> — Se adiciona ao existente. Zero migração.</li>
+      <li><strong>Padrão aberto, ecossistema cativo</strong> — Protocolo aberto, mas ferramentas e economia do token geram valor.</li>
+      <li><strong>Alavanca ESG</strong> — 4,6 TWh/ano economizados (cenário 10%) = argumento mensurável.</li>
+    </ul>
+
+    <div class="adopters">
+      <h4>Primeiros adotantes</h4>
+      <p><strong>deltopide.fr</strong> · <strong>pacific-planet.com</strong> · <strong>laforetnousregale.fr</strong></p>
+      <p>Verificável: <code>GET /index.cbor</code> em cada domínio.</p>
+    </div>
+
+    <div class="closing">
+      <p>A IA precisa de uma web projetada para máquinas. CBOR-Web é essa web.</p>
+      <p class="sub">O primeiro protocolo a se impor capturará o valor do ecossistema machine-to-content.</p>
+    </div>
+  </div>
+
+  <!-- ============ EDITORES ============ -->
+  <div class="tab-content" id="tab-editeurs">
+    <h2>Seu conteúdo tem valor. <span>Retome o controle.</span></h2>
+    <p class="tagline">As IAs o consomem gratuitamente. CBOR-Web devolve o controle — e uma nova fonte de receita.</p>
+
+    <h3>O paradoxo do editor em 2026</h3>
+    <p>Você produz conteúdo de qualidade. Os agentes de IA fazem scraping do seu site para alimentar suas respostas. Sua expertise é redistribuída para milhões de usuários sem que você veja um centavo. O scraping é uma gambiarra onde a IA adivinha a estrutura a partir de seletores CSS que mudam a cada reformulação. Nenhum controle, nenhuma atribuição, nenhuma receita.</p>
+
+    <h3>CBOR-Web v3.0: controle + monetização</h3>
+    <p>Um único arquivo <strong>index.cbor</strong> serve uma versão estruturada e controlada do seu conteúdo. Você fornece exatamente o que escolhe compartilhar.</p>
+
+    <h3>Três níveis de acesso — você decide</h3>
+    <table>
+      <tr><th>Tier</th><th>Conteúdo</th><th>Acesso</th><th>Receitas</th></tr>
+      <tr><td><strong>T2 — Aberto</strong></td><td>Títulos, descrições, páginas públicas</td><td>Gratuito</td><td>R$ 0 (vitrine)</td></tr>
+      <tr><td><strong>T1 — Autenticado</strong></td><td>Artigos integrais, dados, análises</td><td>Token CBORW / API key</td><td>Automáticas</td></tr>
+      <tr><td><strong>T0 — Institucional</strong></td><td>Conteúdos oficiais</td><td>eIDAS 2.0</td><td>—</td></tr>
+    </table>
+
+    <h3>Opções de visibilidade — seu conteúdo, suas regras</h3>
+    <table>
+      <tr><th>Sinal</th><th>Gratuito (T2)</th><th>Publisher (T1)</th><th>Efeito</th></tr>
+      <tr><td><code>priority</code></td><td>0.5</td><td>0.0 a 1.0</td><td>Ordem de crawl</td></tr>
+      <tr><td><code>freshness</code></td><td>monthly</td><td>realtime a monthly</td><td>Frequência de recrawl</td></tr>
+      <tr><td><code>boost</code></td><td>—</td><td>Label + duração</td><td>Promoção, lançamento</td></tr>
+      <tr><td><code>alternates</code></td><td>1 idioma</td><td>Ilimitado</td><td>Multilíngue</td></tr>
+    </table>
+
+    <h3>O que CBOR-Web resolve</h3>
+    <ul>
+      <li><strong>Atribuição</strong> — Cada bloco é tipado, estruturado, identificado. Fim da extração anônima.</li>
+      <li><strong>Qualidade de leitura</strong> — Um embedding sobre 100% de sinal é mais preciso que um embedding sobre 12% de sinal. Seu conteúdo é melhor compreendido, melhor recomendado.</li>
+      <li><strong>Receitas diretas</strong> — O modelo T1 cria um fluxo automático a cada acesso premium. Sem intermediário.</li>
+      <li><strong>Visibilidade para IA</strong> — Um agente que escolhe entre 41 Ko de HTML e 2,5 Ko de CBOR sempre escolhe o segundo.</li>
+    </ul>
+
+    <h3>O cálculo</h3>
+    <table>
+      <tr><th>Cenário</th><th>Scraping HTML</th><th>CBOR-Web T2</th><th>CBOR-Web T1</th></tr>
+      <tr><td>Controle de conteúdo</td><td>Nenhum</td><td>Estrutura</td><td>Total</td></tr>
+      <tr><td>Atribuição</td><td>Não</td><td>Sim</td><td>Sim</td></tr>
+      <tr><td>Receitas IA</td><td>R$ 0</td><td>R$ 0 (vitrine)</td><td>Automáticas</td></tr>
+      <tr><td>Qualidade de leitura</td><td>12% sinal</td><td>100%</td><td>100%</td></tr>
+      <tr><td>Visibilidade (priority)</td><td>Ignorada</td><td>Padrão</td><td>Controlada</td></tr>
+    </table>
+
+    <div class="adopters">
+      <h4>Primeiros adotantes</h4>
+      <p><strong>deltopide.fr</strong> · <strong>pacific-planet.com</strong> · <strong>laforetnousregale.fr</strong></p>
+      <p>Verificável: <code>GET /index.cbor</code> em cada domínio.</p>
+    </div>
+
+    <div class="closing">
+      <p>Pare de deixar as IAs fazerem scraping do seu trabalho.</p>
+      <p class="sub">CBOR-Web transforma seu conteúdo em ativo digital na economia dos agentes.</p>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <p><a href="https://github.com/ploteddie-bit/cbor-web">github.com/ploteddie-bit/cbor-web</a> — CBOR-Web Specification v3.0</p>
+  <p style="margin-top:.5rem;">ExploDev — Março 2026 — Documento confidencial</p>
+</div>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

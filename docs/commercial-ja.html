@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CBOR-Web — AI のためのネイティブ・ウェブプロトコル</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Noto Sans JP', 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #e0e0e0; line-height: 1.7; }
+
+  /* Header */
+  .header { text-align: center; padding: 3rem 2rem 1.5rem; }
+  .header h1 { font-size: 2.4rem; color: #fff; }
+  .header h1 span { color: #f97316; }
+  .header .sub { font-size: 1.1rem; color: #888; margin-top: .5rem; max-width: 650px; margin-left: auto; margin-right: auto; }
+  .header .badge { display: inline-block; margin-top: 1rem; background: #1a1a2e; border: 1px solid #333; border-radius: 2rem; padding: .3rem 1rem; font-size: .75rem; color: #f97316; }
+
+  /* Shared 5 steps */
+  .shared { max-width: 1000px; margin: 2rem auto; padding: 0 1.5rem; }
+  .shared h2 { font-size: 1.5rem; color: #fff; text-align: center; margin-bottom: .5rem; }
+  .shared h2 span { color: #f97316; }
+  .shared .intro { text-align: center; color: #888; margin-bottom: 1.5rem; font-size: .9rem; }
+  .steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .step-card { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 1.2rem; }
+  .step-card.solution { border-color: #28c840; background: #0d1f0d; }
+  .step-num { font-size: .7rem; color: #f97316; font-weight: 700; text-transform: uppercase; margin-bottom: .4rem; }
+  .step-card.solution .step-num { color: #28c840; }
+  .step-card h3 { font-size: .95rem; color: #fff; margin-bottom: .5rem; }
+  .step-card p { font-size: .8rem; color: #999; }
+
+  /* Comparison table */
+  .cmp { max-width: 800px; margin: 0 auto 2rem; overflow-x: auto; }
+  .cmp table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  .cmp th { text-align: left; padding: .5rem .6rem; color: #888; border-bottom: 1px solid #333; font-weight: 600; }
+  .cmp td { padding: .45rem .6rem; border-bottom: 1px solid #1a1a1a; }
+  .cmp .good { color: #28c840; font-weight: 600; }
+  .cmp .src { font-size: .65rem; color: #555; margin-top: .5rem; font-style: italic; }
+
+  /* Tabs */
+  .tabs { max-width: 1000px; margin: 0 auto; padding: 0 1.5rem; }
+  .tab-bar { display: flex; gap: 0; border-bottom: 2px solid #222; margin-bottom: 0; flex-wrap: wrap; }
+  .tab-btn { flex: 1; min-width: 140px; padding: .9rem .5rem; text-align: center; background: #111; border: 1px solid #222; border-bottom: none; cursor: pointer; color: #888; font-size: .85rem; font-weight: 600; transition: all .2s; border-radius: 8px 8px 0 0; }
+  .tab-btn:hover { color: #ccc; background: #1a1a1a; }
+  .tab-btn.active { color: #f97316; background: #161b22; border-color: #f97316; border-bottom: 2px solid #161b22; margin-bottom: -2px; }
+  .tab-content { display: none; background: #161b22; border: 1px solid #222; border-top: none; border-radius: 0 0 10px 10px; padding: 2rem; }
+  .tab-content.active { display: block; }
+
+  /* Content styles */
+  .tab-content h2 { font-size: 1.4rem; color: #fff; margin-bottom: .3rem; }
+  .tab-content h2 span { color: #f97316; }
+  .tab-content .tagline { color: #888; font-size: .9rem; margin-bottom: 1.5rem; font-style: italic; }
+  .tab-content h3 { font-size: 1.1rem; color: #f97316; margin: 1.5rem 0 .5rem; }
+  .tab-content p { margin-bottom: .8rem; font-size: .9rem; color: #ccc; }
+  .tab-content ul { margin: .5rem 0 1rem 1.2rem; font-size: .9rem; color: #ccc; }
+  .tab-content ul li { margin-bottom: .3rem; }
+  .tab-content strong { color: #fff; }
+
+  /* Tables in tabs */
+  .tab-content table { width: 100%; border-collapse: collapse; font-size: .82rem; margin: 1rem 0; }
+  .tab-content th { text-align: left; padding: .5rem; color: #888; border-bottom: 1px solid #333; font-weight: 600; }
+  .tab-content td { padding: .45rem .5rem; border-bottom: 1px solid #1a1a1a; color: #ccc; }
+
+  .highlight { background: #1c1c1c; border-left: 4px solid #f97316; padding: 1rem 1.2rem; margin: 1.2rem 0; border-radius: 0 8px 8px 0; font-size: .88rem; }
+  .highlight.green { border-color: #28c840; }
+  .highlight strong { color: #28c840; }
+
+  .adopters { background: #0d1f0d; border: 1px solid #28c840; border-radius: 10px; padding: 1.2rem; margin: 1.5rem 0; }
+  .adopters h4 { color: #28c840; font-size: .9rem; margin-bottom: .5rem; }
+  .adopters p { font-size: .82rem; color: #aaa; margin-bottom: .3rem; }
+
+  .closing { background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #333; border-radius: 10px; padding: 1.5rem; text-align: center; margin-top: 2rem; }
+  .closing p { font-size: 1rem; color: #fff; font-weight: 600; }
+  .closing .sub { font-size: .85rem; color: #888; font-weight: 400; margin-top: .5rem; }
+
+  .footer { text-align: center; padding: 2.5rem; color: #444; font-size: .75rem; }
+  .footer a { color: #f97316; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <h1>CBOR-Web — <span>AI のためのネイティブ・ウェブプロトコル</span></h1>
+  <p class="sub">ファイル1つ。ノイズゼロ。シグナル100%。</p>
+  <div class="badge">バージョン 3.0 — 2026年3月 — ExploDev</div>
+</div>
+
+<!-- 5つのステップ -->
+<div class="shared">
+  <h2>AI エージェントが<span>実際に見ているもの</span></h2>
+  <p class="intro">実測ケース：deltopide.fr — 679行、41,537バイト。2026年3月25日計測。</p>
+
+  <div class="steps-grid">
+    <div class="step-card">
+      <div class="step-num">ステップ 1 — 壁</div>
+      <h3>41 Ko の HTML + 8 ファイル</h3>
+      <p>エージェントが受信する合計は約260 Ko。CSS（30 Ko）、トラッキング JS（90 Ko）、ファビコン、フォント。たった1つのトップページで。</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">ステップ 2 — 混沌</div>
+      <h3>4つのフォーマット、3つのエンコーディング</h3>
+      <p>HTML + JSON-LD + JavaScript + CSS。アクセント記号が3種類：&amp;eacute; / \u00e9 / UTF-8。タイトルが6回重複。</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">ステップ 3 — ノイズ</div>
+      <h3>88% が無駄なデータ</h3>
+      <p>15以上の空div、120行のフォーム、80行のJS、CSSスタイルのために分断された単語。</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">ステップ 4 — シグナル</div>
+      <h3>約3,000バイトの有用コンテンツを抽出</h3>
+      <p>全作業後：名前、サービス、価格、FAQ。受信した41 Koの12%がシグナル。約10,400 tokens を消費。</p>
+    </div>
+    <div class="step-card solution">
+      <div class="step-num">ステップ 5 — CBOR-Web</div>
+      <h3>2,487バイト。620 tokens。完了。</h3>
+      <p>GET /index.cbor → リクエスト1回、フォーマット1つ、エンコーディング1つ。シグナル100%。型付き構造化コンテンツ、2ミリ秒で準備完了。</p>
+    </div>
+  </div>
+
+  <div class="cmp">
+    <table>
+      <tr><th>指標</th><th>HTML（実測）</th><th>CBOR-Web</th><th>改善</th></tr>
+      <tr><td>ファイルサイズ</td><td>41,537バイト</td><td>2,487バイト</td><td class="good">×17</td></tr>
+      <tr><td>LLM Tokens</td><td>~10,400</td><td>~620</td><td class="good">×17</td></tr>
+      <tr><td>HTTP リクエスト</td><td>9+</td><td>1</td><td class="good">×9</td></tr>
+      <tr><td>有効シグナル</td><td>12%</td><td>100%</td><td class="good">×8</td></tr>
+      <tr><td>ネストされたフォーマット</td><td>4</td><td>1 (CBOR)</td><td class="good">—</td></tr>
+      <tr><td>アクセントエンコーディング</td><td>3</td><td>1 (UTF-8)</td><td class="good">—</td></tr>
+      <tr><td>タイトルの重複</td><td>6回</td><td>1回</td><td class="good">—</td></tr>
+    </table>
+    <div class="src">実測データ：deltopide.fr、2026/03/25。Tokens：1 token ≈ 4バイト。エネルギー：You &amp; Salathé 2025（2.3 J/token、GPT-4o クラス）。</div>
+  </div>
+</div>
+
+<!-- タブ -->
+<div class="tabs">
+  <div class="tab-bar">
+    <div class="tab-btn active" onclick="showTab('decideurs')">意思決定者</div>
+    <div class="tab-btn" onclick="showTab('dev')">開発者 &amp; CTO</div>
+    <div class="tab-btn" onclick="showTab('invest')">投資家</div>
+    <div class="tab-btn" onclick="showTab('editeurs')">パブリッシャー &amp; メディア</div>
+  </div>
+
+  <!-- ============ 意思決定者 ============ -->
+  <div class="tab-content active" id="tab-decideurs">
+    <h2>なぜあなたのサイトは AI に<span>見えないのか</span></h2>
+    <p class="tagline">そして48時間で解決する方法。</p>
+
+    <h3>AI 不可視の実際のコスト</h3>
+    <p>あなたのサイトは美しく、コンバージョン率が高く、Google でも上位表示されています。しかし、顧客が ChatGPT、Claude、Gemini にレコメンドを求めると、あなたの企業は表示されません。コンテンツが悪いからではなく、機械が読めないからです。</p>
+    <p><strong>Gartner (2025)</strong> によると、従来の検索エンジンの検索量は2026年までに25%減少し、AIチャットボットに置き換わります。<strong>Europanel/NIQ (2025)</strong> は、消費者の41%が既に商品検索に生成AIを使用していることを確認しています。AI検索最適化は明日のSEOではなく、今日のSEOです。このチャネルは年間305%成長しています（Cloudflare 2025、GPTBot リクエスト数）。</p>
+
+    <h3>CBOR-Web v3.0：1ファイルであなたのサイト全体を</h3>
+    <p>CBOR-Web は、機械向けにネイティブ設計されたサイトの構造化コピーを作成します。1つのファイル——<strong>index.cbor</strong>——をドメインのルートに置くだけで、ページ、商品、価格、ナビゲーションなどすべてのコンテンツを7つのキーで構造化し、検証・署名済みで提供します。</p>
+    <p>人間の訪問者向けのHTMLサイトはそのまま変わりません。CBOR-Web はインターネットユーザーには見えない並列チャネルですが、すべてのAIが即座に検出できます。</p>
+
+    <h3>可視性オプション——AI が最初に見るものをあなたが制御</h3>
+    <p>sitemap.xml の <code>&lt;priority&gt;</code> が Google に無視されるのとは異なり、CBOR-Web クローラーはあなたのシグナルを<strong>尊重</strong>します。</p>
+    <table>
+      <tr><th>シグナル</th><th>無料（T2）</th><th>パブリッシャー（T1）</th><th>効果</th></tr>
+      <tr><td><code>priority</code></td><td>0.5（デフォルト）</td><td>0.0 〜 1.0</td><td>クロール順序</td></tr>
+      <tr><td><code>freshness</code></td><td>monthly</td><td>realtime 〜 monthly</td><td>再クロール頻度</td></tr>
+      <tr><td><code>boost</code></td><td>—</td><td>ラベル + 期間</td><td>プロモーション強調</td></tr>
+      <tr><td><code>alternates</code></td><td>1言語</td><td>無制限</td><td>多言語バージョン</td></tr>
+    </table>
+    <div class="highlight green"><strong>CBOR-Web は広告を売りません。機械可読性を売ります。</strong></div>
+
+    <h3>導入：48時間、リスクゼロ</h3>
+    <p>移行不要、リニューアル不要、SEOリスクなし。ルートに静的ファイルを1つ追加するだけです。</p>
+    <ul>
+      <li><strong>ステップ 1（30分）</strong> — メタデータ付きの index.cbor を生成。AI があなたのページを発見します。</li>
+      <li><strong>ステップ 2（2〜4時間）</strong> — ページコンテンツを追加。AI が完全なコンテンツを読み取ります。</li>
+      <li><strong>ステップ 3（1〜2日）</strong> — ナビゲーション、可視性、署名を設定。1リクエストで完全なインデックス作成。</li>
+    </ul>
+
+    <div class="adopters">
+      <h4>アーリーアダプター——本番環境での実証</h4>
+      <p><strong>deltopide.fr</strong> — フランス・スペインのAIデジタルエージェンシー。index.cbor を提供する最初のサイト。</p>
+      <p><strong>pacific-planet.com</strong> — ブルターニュのアグロフォレストリー。</p>
+      <p><strong>laforetnousregale.fr</strong> — 協会。CBOR-Web は小規模組織にも対応。</p>
+    </div>
+
+    <div class="closing">
+      <p>最も読みやすいコンテンツが AI 経済を制する。</p>
+      <p class="sub">問題は CBOR-Web を導入するかどうかではなく、導入するまでにどれだけの顧客を失うかです。</p>
+    </div>
+  </div>
+
+  <!-- ============ 開発者 ============ -->
+  <div class="tab-content" id="tab-dev">
+    <h2><span>IETF 互換</span>のバイナリ標準</h2>
+    <p class="tagline">index.cbor ファイル1つ、7つのキー、Rust 約400行。</p>
+
+    <h3>技術的な問題</h3>
+    <p>あなたのサイトをクロールするすべてのAIエージェントが同じ無駄な作業を繰り返しています：数百KoのHTML+アセットのダウンロード、DOMの解析、CSSのフィルタリング、メタデータの重複排除（タイトルが6回存在）、3種類のエンコーディングの処理。そして抽出できるのは約3,000バイトの有用コンテンツだけ。</p>
+    <p>これはAIの問題ではありません。フォーマットの問題です。HTML は1993年にブラウザの人間ユーザー向けに設計されました。</p>
+
+    <h3>CBOR-Web v3.0 アーキテクチャ</h3>
+    <p>ルートに <strong>index.cbor</strong> ファイルを1つ配置。7つのトップレベルキー：</p>
+    <table>
+      <tr><th>キー</th><th>内容</th><th>必須</th><th>役割</th></tr>
+      <tr><td>0 : @type</td><td>"cbor-web"</td><td>はい</td><td>識別</td></tr>
+      <tr><td>1 : @version</td><td>3</td><td>はい</td><td>拡張性</td></tr>
+      <tr><td>2 : site</td><td>ドメイン、名称、連絡先、地理情報</td><td>はい</td><td>メタデータ</td></tr>
+      <tr><td>3 : security</td><td>認証、ティア T0/T1/T2、鍵</td><td>はい</td><td>アクセス制御</td></tr>
+      <tr><td>4 : navigation</td><td>メニュー、階層構造</td><td>いいえ</td><td>構造</td></tr>
+      <tr><td>5 : pages</td><td>全ページの配列</td><td>はい</td><td>コンテンツ</td></tr>
+      <tr><td>6 : meta</td><td>タイムスタンプ、署名</td><td>はい</td><td>完全性</td></tr>
+    </table>
+    <p>ディスカバリ：<code>GET /index.cbor</code> + オプションの DNS TXT <code>_cbor-web.domain.tld</code>。</p>
+
+    <h3>技術仕様</h3>
+    <table>
+      <tr><th>特性</th><th>詳細</th><th>標準</th></tr>
+      <tr><td>エンコーディング</td><td>CBOR バイナリ</td><td>RFC 8949 (STD 94)</td></tr>
+      <tr><td>決定性</td><td>ソート済みキー、バイト同一</td><td>RFC 8949 §4.2.1</td></tr>
+      <tr><td>スキーマ</td><td>形式的、検証可能</td><td>CDDL (RFC 8610)</td></tr>
+      <tr><td>セキュリティ</td><td>署名、HTTPS 必須</td><td>COSE (RFC 9052)</td></tr>
+      <tr><td>互換性</td><td>未知のキーは無視</td><td>前方互換</td></tr>
+    </table>
+
+    <h3>アクセスティアシステム</h3>
+    <table>
+      <tr><th>ティア</th><th>名称</th><th>アクセス</th><th>用途</th></tr>
+      <tr><td>T2</td><td>オープン</td><td>無料</td><td>公開ページ、メタデータ</td></tr>
+      <tr><td>T1</td><td>認証済み</td><td>CBORW Token / API key</td><td>完全+プレミアムコンテンツ</td></tr>
+      <tr><td>T0</td><td>機関</td><td>eIDAS 2.0</td><td>政府機関、認証済み</td></tr>
+    </table>
+
+    <h3>実装の実際</h3>
+    <ul>
+      <li><strong>最小構成（30分）</strong> — キー 0-2-6 で index.cbor を配信。sitemap.xml を作成するのと同じ。</li>
+      <li><strong>標準（1〜2日）</strong> — ページ（キー 5）+ ナビゲーション（キー 4）+ セキュリティ（キー 3）。1回の GET で完全インデックス。</li>
+      <li><strong>フル（3〜5日）</strong> — 生成ブロック、テンプレート、T0/T1/T2 ティアと COSE 署名。</li>
+    </ul>
+
+    <h3>なぜ JSON ではなく CBOR なのか？</h3>
+    <p>JSON はテキスト形式で非決定的、バイト文字列やセマンティックタグがありません。CBOR は JSON と同じ著者による IETF 標準（STD 94）で、WebAuthn、COSE、CWT、IoT で使用されています。決定的エンコーディングにより同一コンテンツは同一バイトを保証——再現可能なハッシュ、信頼性の高いキャッシュ。</p>
+
+    <h3>エコシステム互換性</h3>
+    <p>CBOR-Web は robots.txt、sitemap.xml、llms.txt、JSON-LD、OpenAPI を補完します。欠けていたレイヤーを追加：完全で構造化されたネイティブバイナリコンテンツ。マルチページクロールの代わりに1回の GET。</p>
+
+    <div class="adopters">
+      <h4>アーリーアダプター</h4>
+      <p><strong>deltopide.fr</strong> — 本番環境で index.cbor を運用する最初のサイト。</p>
+      <p><strong>pacific-planet.com</strong> · <strong>laforetnousregale.fr</strong></p>
+      <p>検証可能：各ドメインで <code>GET /index.cbor</code> を実行。</p>
+    </div>
+
+    <div class="highlight">プロトコルは無料。ツールはオープンソース。仕様：6つのドキュメント。リファレンス実装：Rust 約400行。</div>
+  </div>
+
+  <!-- ============ 投資家 ============ -->
+  <div class="tab-content" id="tab-invest">
+    <h2><span>欠けていた</span>インフラストラクチャ層</h2>
+    <p class="tagline">Web と AI の間——まだ存在しない数十億ドル規模の市場。</p>
+
+    <h3>投資テーゼ</h3>
+    <p>AI は Web を消費しています。しかし Web は機械向けに設計されていません。このミスアラインメントが構造的な浪費を生みます：AIリクエストの88%がノイズです。CBOR-Web は1つの <strong>index.cbor</strong> ファイルでこのミスアラインメントを修正し、すべてのバイトがシグナルになります。</p>
+
+    <h3>市場——出典付きデータ</h3>
+    <table>
+      <tr><th>事実</th><th>数値</th><th>出典</th></tr>
+      <tr><td>世界のデータセンター</td><td>415 TWh/年</td><td>IEA 2024</td></tr>
+      <tr><td>2030年予測</td><td>945 TWh (+130%)</td><td>IEA 2025</td></tr>
+      <tr><td>世界の DC 電力</td><td>55 → 92 GW</td><td>Goldman Sachs 2024-27</td></tr>
+      <tr><td>AI リクエスト/日</td><td>500億</td><td>Cloudflare Radar 2025</td></tr>
+      <tr><td>GPTBot 成長</td><td>+305% YoY</td><td>Cloudflare 2025</td></tr>
+      <tr><td>Google Gemini Tokens</td><td>980T/月</td><td>Sundar Pichai、2025年7月</td></tr>
+      <tr><td>OpenAI Tokens</td><td>60億/分</td><td>OpenAI DevDay、2025年10月</td></tr>
+    </table>
+
+    <h3>経済方程式</h3>
+    <table>
+      <tr><th>指標</th><th>HTML</th><th>CBOR-Web</th><th>インパクト</th></tr>
+      <tr><td>Tokens/ページ</td><td>~10,400</td><td>~620</td><td class="good">×17</td></tr>
+      <tr><td>コスト/ページ（Claude Sonnet）</td><td>$0.0000312</td><td>$0.0000019</td><td class="good">-94%</td></tr>
+      <tr><td>コスト/ページ（GPT-5.2）</td><td>$0.0000182</td><td>$0.0000011</td><td class="good">-94%</td></tr>
+      <tr><td>エネルギー/ページ（2.3 J/tok）</td><td>23.9 mJ</td><td>1.4 mJ</td><td class="good">-94%</td></tr>
+      <tr><td>有効シグナル</td><td>12%</td><td>100%</td><td class="good">×8</td></tr>
+    </table>
+
+    <h3>AI トラフィックの10%が CBOR-Web に移行した場合</h3>
+    <table>
+      <tr><th>指標</th><th>数値</th><th>相当量</th></tr>
+      <tr><td>対象ページ</td><td>50億/日</td><td>500億 AI リクエストの10%</td></tr>
+      <tr><td>1日あたり節約 Tokens</td><td>20兆</td><td>—</td></tr>
+      <tr><td>年間節約エネルギー</td><td style="color:#28c840;font-weight:700;">~4.6 TWh</td><td>= クロアチア（Eurostat 2024）</td></tr>
+      <tr><td>年間 Token コスト節約</td><td style="color:#28c840;font-weight:700;">~4,000万ドル</td><td>$2/1M tokens として</td></tr>
+    </table>
+
+    <h3>ビジネスモデル——T2/T1/T0 ティア</h3>
+    <p>T2（オープン）：無料、公開ページ。T1（認証済み）：CBORW token（ERC-20）または API key で完全コンテンツにアクセス。T0（機関）：eIDAS 2.0 で身元確認済み。</p>
+    <p>オーガニック採用ループ：AI エージェントが94%のコスト削減を確認 → CBOR-Web を優先 → パブリッシャーが採用 → より多くのエージェントが優先 → ネットワーク効果。</p>
+
+    <h3>成長エンジン</h3>
+    <ul>
+      <li><strong>ネットワーク効果</strong> — 採用するサイトが増えるほど、すべてのエージェントにとっての価値が上がる。</li>
+      <li><strong>スイッチングコストゼロ</strong> — 既存に追加。移行不要。</li>
+      <li><strong>オープン標準、エコシステムロックイン</strong> — プロトコルはオープンだが、ツールとトークンエコノミーが価値を生む。</li>
+      <li><strong>ESG レバレッジ</strong> — 年間4.6 TWh 節約（10%シナリオ）= 測定可能な指標。</li>
+    </ul>
+
+    <div class="adopters">
+      <h4>アーリーアダプター</h4>
+      <p><strong>deltopide.fr</strong> · <strong>pacific-planet.com</strong> · <strong>laforetnousregale.fr</strong></p>
+      <p>検証可能：各ドメインで <code>GET /index.cbor</code> を実行。</p>
+    </div>
+
+    <div class="closing">
+      <p>AI は機械向けに設計された Web を必要としています。CBOR-Web がその Web です。</p>
+      <p class="sub">最初に確立されたプロトコルが、マシン・ツー・コンテンツ・エコシステムの価値を獲得します。</p>
+    </div>
+  </div>
+
+  <!-- ============ パブリッシャー ============ -->
+  <div class="tab-content" id="tab-editeurs">
+    <h2>あなたのコンテンツには価値がある。<span>コントロールを取り戻そう。</span></h2>
+    <p class="tagline">AI は無料で消費しています。CBOR-Web はコントロールを取り戻し、新たな収益源を提供します。</p>
+
+    <h3>2026年のパブリッシャーのパラドックス</h3>
+    <p>あなたは高品質なコンテンツを制作しています。AIエージェントがあなたのサイトをスクレイピングして回答を生成しています。あなたの専門知識は何百万人ものユーザーに再配布されていますが、あなたには1円も入りません。スクレイピングはCSSセレクタからAIが構造を推測する間に合わせの手法です。コントロールなし、帰属表示なし、収益なし。</p>
+
+    <h3>CBOR-Web v3.0：コントロール + マネタイズ</h3>
+    <p>1つの <strong>index.cbor</strong> ファイルが、あなたのコンテンツの構造化・管理されたバージョンを提供します。共有する内容をあなたが正確に決定します。</p>
+
+    <h3>3つのアクセスレベル——あなたが決める</h3>
+    <table>
+      <tr><th>ティア</th><th>コンテンツ</th><th>アクセス</th><th>収益</th></tr>
+      <tr><td><strong>T2 — オープン</strong></td><td>タイトル、説明、公開ページ</td><td>無料</td><td>0 €（ショーケース）</td></tr>
+      <tr><td><strong>T1 — 認証済み</strong></td><td>完全な記事、データ、分析</td><td>CBORW Token / API key</td><td>自動</td></tr>
+      <tr><td><strong>T0 — 機関</strong></td><td>公式コンテンツ</td><td>eIDAS 2.0</td><td>—</td></tr>
+    </table>
+
+    <h3>可視性オプション——あなたのコンテンツ、あなたのルール</h3>
+    <table>
+      <tr><th>シグナル</th><th>無料（T2）</th><th>パブリッシャー（T1）</th><th>効果</th></tr>
+      <tr><td><code>priority</code></td><td>0.5</td><td>0.0 〜 1.0</td><td>クロール順序</td></tr>
+      <tr><td><code>freshness</code></td><td>monthly</td><td>realtime 〜 monthly</td><td>再クロール頻度</td></tr>
+      <tr><td><code>boost</code></td><td>—</td><td>ラベル + 期間</td><td>プロモーション、ローンチ</td></tr>
+      <tr><td><code>alternates</code></td><td>1言語</td><td>無制限</td><td>多言語</td></tr>
+    </table>
+
+    <h3>CBOR-Web が解決すること</h3>
+    <ul>
+      <li><strong>帰属表示</strong> — すべてのブロックが型付き・構造化・識別済み。匿名抽出はもう終わり。</li>
+      <li><strong>読解品質</strong> — 100%シグナルに基づくエンベディングは、12%シグナルに基づくものより正確。あなたのコンテンツがより良く理解され、より良く推薦される。</li>
+      <li><strong>直接収益</strong> — T1モデルはプレミアムアクセスごとに自動的な収益フローを生成。仲介者なし。</li>
+      <li><strong>AI 可視性</strong> — 41 KoのHTMLと2.5 KoのCBORの選択肢があるとき、エージェントは常に後者を選ぶ。</li>
+    </ul>
+
+    <h3>比較計算</h3>
+    <table>
+      <tr><th>シナリオ</th><th>HTML スクレイピング</th><th>CBOR-Web T2</th><th>CBOR-Web T1</th></tr>
+      <tr><td>コンテンツ管理</td><td>なし</td><td>構造</td><td>完全</td></tr>
+      <tr><td>帰属表示</td><td>なし</td><td>あり</td><td>あり</td></tr>
+      <tr><td>AI 収益</td><td>0 €</td><td>0 €（ショーケース）</td><td>自動</td></tr>
+      <tr><td>読解品質</td><td>12% シグナル</td><td>100%</td><td>100%</td></tr>
+      <tr><td>可視性（priority）</td><td>無視される</td><td>デフォルト</td><td>制御可能</td></tr>
+    </table>
+
+    <div class="adopters">
+      <h4>アーリーアダプター</h4>
+      <p><strong>deltopide.fr</strong> · <strong>pacific-planet.com</strong> · <strong>laforetnousregale.fr</strong></p>
+      <p>検証可能：各ドメインで <code>GET /index.cbor</code> を実行。</p>
+    </div>
+
+    <div class="closing">
+      <p>AI にあなたの仕事を無料でスクレイピングさせるのはもうやめましょう。</p>
+      <p class="sub">CBOR-Web はあなたのコンテンツをエージェント経済のデジタル資産に変えます。</p>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <p><a href="https://github.com/ploteddie-bit/cbor-web">github.com/ploteddie-bit/cbor-web</a> — CBOR-Web Specification v3.0</p>
+  <p style="margin-top:.5rem;">ExploDev — 2026年3月 — 機密文書</p>
+</div>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
