@@ -4,7 +4,7 @@
 
 ```
 Status:   Draft
-Date:     2026-03-24
+Date:     2026-03-25
 Authors:  ExploDev (Eddie Plot, Claude)
 License:  CC BY-ND 4.0
 Format:   CBOR (RFC 8949)
@@ -125,6 +125,9 @@ Validation : les 3 premiers octets DOIVENT être `D9 D9 F7` (tag 55799, self-des
           ["Rose arc-en-ciel", "4.90 EUR", "Sur commande"]
         ]}
       ],
+      "priority": 0.9,
+      "freshness": "daily",
+      "boost": {"until": 1(1742860800), "label": "Promo printemps"},
       "structured_data": {
         "type": "Product",
         "name": "Roses",
@@ -187,6 +190,9 @@ Un agent DOIT ignorer les clés qu'il ne reconnaît pas (compatibilité ascendan
 | `"alternates"` | map | OPT | Versions linguistiques `{"en": "/en/roses"}` |
 | `"structured_data"` | map | OPT | Schema.org natif CBOR |
 | `"links"` | map | OPT | Liens internes/externes |
+| `"priority"` | float16 | OPT | Priorité de crawl 0.0-1.0 (défaut 0.5). Respectée par les crawlers CBOR-Web |
+| `"freshness"` | text | OPT | Fréquence de recrawl souhaitée : `"realtime"`, `"hourly"`, `"daily"`, `"weekly"`, `"monthly"` |
+| `"boost"` | map | OPT | Mise en avant temporaire (voir §9.5) |
 
 ---
 
@@ -380,7 +386,7 @@ Content-Type: application/json
   "pages": [
     {"path": "/", "access": "T2"},
     {"path": "/catalogue", "access": "T2"},
-    {"path": "/roses", "access": "T2"},
+    {"path": "/roses", "access": "T2", "priority": 0.9, "freshness": "daily", "boost": {"until": "2026-04-30", "label": "Promo printemps"}},
     {"path": "/livraison/tarifs", "access": "T1"}
   ],
   "exclude": [
@@ -438,6 +444,29 @@ Le publisher peut aussi utiliser le connecteur MCP CBOR-Web depuis Claude, ChatG
 
 Le MCP appelle la même API sous le capot.
 
+### 9.5 Options de visibilité marchand
+
+CBOR-Web offre aux publishers un contrôle direct sur la visibilité de leurs pages auprès des agents IA. Contrairement à `sitemap.xml` où `<priority>` est ignoré par les moteurs de recherche, les crawlers CBOR-Web **respectent** ces signaux.
+
+#### Champs par page
+
+| Champ | Gratuit (T2) | Publisher (token) | Effet |
+|-------|-------------|-------------------|-------|
+| `"priority"` | 0.5 (défaut) | 0.0 à 1.0 au choix | Ordre de traitement par le crawler. Les pages `priority: 0.9` sont crawlées et indexées en premier |
+| `"freshness"` | `"monthly"` (défaut) | `"realtime"` à `"monthly"` | Fréquence de recrawl. `"realtime"` = le crawler revérifie cette page à chaque passe |
+| `"boost"` | non disponible | `{"until": timestamp, "label": "..."}` | Mise en avant temporaire. Le crawler traite cette page comme prioritaire jusqu'à la date `"until"` |
+
+#### Comportement du crawler
+
+1. **Tri par priorité** — lors du crawl d'un `index.cbor`, le crawler traite les pages par `"priority"` décroissante
+2. **Respect du freshness** — une page `"freshness": "hourly"` sera revérifiée (hash comparé) toutes les heures
+3. **Boost temporaire** — pendant la durée du boost, la page est traitée comme `"priority": 1.0` quel que soit son `"priority"` déclaré
+4. **Expiration** — un boost expiré (`"until"` dans le passé) est ignoré silencieusement
+
+#### Pourquoi les agents IA respectent ces signaux
+
+Un `sitemap.xml` est un fichier texte passif. Un `index.cbor` est un contrat binaire signé. Le publisher a payé pour un token, vérifié son identité par DNS, et signé son fichier. Les crawlers CBOR-Web récompensent cet investissement en respectant les signaux de visibilité — c'est l'incitation à l'adoption.
+
 ---
 
 ## 10. Vérification
@@ -466,7 +495,34 @@ Un robot CBOR-Web (`cbor-verify`) crawle les sites déclarés :
 
 ## 12. Économie
 
-Le protocole est gratuit (CC BY-ND 4.0). Le token CBORW (ERC-20) est un badge d'accès T1 permanent. Voir CBOR-WEB-ECONOMICS.md pour le modèle complet.
+Le protocole est gratuit (CC BY-ND 4.0). La monétisation repose sur les **services à valeur ajoutée**, pas sur le standard lui-même.
+
+### 12.1 Modèle à deux niveaux
+
+| Niveau | Coût | Ce que le publisher obtient |
+|--------|------|---------------------------|
+| **Gratuit** | 0 | `index.cbor` généré avec `priority: 0.5`, `freshness: "monthly"`, pas de boost. Indexation standard |
+| **Publisher** (token annuel) | Payant | `priority` configurable (0.0-1.0), `freshness` jusqu'à `"realtime"`, `boost` temporaire, recrawl prioritaire |
+
+### 12.2 Sources de revenus
+
+| Source | Description |
+|--------|-------------|
+| Token publisher (API key) | Abonnement annuel pour le service de génération + options de visibilité |
+| Token CBORW (ERC-20) | Badge d'accès T1 permanent pour les agents IA consommant du contenu premium |
+| Boost temporaire | Option ponctuelle : mise en avant d'une page (promo, lancement, saison) |
+| Génération à la demande | Régénérations supplémentaires au-delà du quota gratuit |
+
+### 12.3 Analogie
+
+```
+Google :  indexation gratuite  +  Google Ads (payant pour être vu en premier)
+CBOR-Web: index.cbor gratuit   +  Visibility options (payant pour être crawlé en priorité par les IA)
+```
+
+La différence fondamentale : CBOR-Web ne vend pas de la publicité, il vend de la **lisibilité machine**. Le publisher ne paie pas pour apparaître devant un humain — il paie pour que les agents IA trouvent, comprennent et recommandent son contenu en priorité.
+
+Voir CBOR-WEB-ECONOMICS.md pour le modèle complet.
 
 ---
 
