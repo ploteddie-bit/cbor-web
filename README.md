@@ -2,7 +2,7 @@
 
 **The binary protocol that replaces HTML for AI agents.**
 
-Created by [Eddie Plot](https://deltopide.fr) — [Deltopide](https://deltopide.com)
+Created by [Eddie Plot](https://deltopide.fr) & [Claude](https://claude.ai) — [Deltopide](https://deltopide.com)
 
 ```
 fleurs.com/index.html  →  for browsers

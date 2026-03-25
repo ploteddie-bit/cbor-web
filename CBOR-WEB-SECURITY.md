@@ -3,7 +3,7 @@
 **Companion to:** CBOR-Web Core Specification v2.1 (CBOR-WEB-CORE.md)
 **Status:** Draft
 **Date:** 2026-03-24
-**Authors:** Eddie Plot — Deltopide
+**Authors:** Eddie Plot & Claude — Deltopide
 
 ---
 

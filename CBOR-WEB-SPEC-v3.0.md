@@ -5,7 +5,7 @@
 ```
 Status:   Draft
 Date:     2026-03-25
-Authors:  Eddie Plot — Deltopide
+Authors:  Eddie Plot & Claude — Deltopide
 License:  CC BY-ND 4.0
 Format:   CBOR (RFC 8949)
 ```
