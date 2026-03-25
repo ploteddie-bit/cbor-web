@@ -1,6 +1,6 @@
-# CBOR-Web Multimedia Specification v2.1
+# CBOR-Web Multimedia Specification v3.0
 
-**Companion to:** CBOR-Web Core Specification v2.1 (CBOR-WEB-CORE.md)
+**Companion to:** CBOR-Web Core Specification v3.0 (CBOR-WEB-SPEC-v3.0.md)
 **Status:** Draft
 **Date:** 2026-03-24
 **Authors:** Eddie Plot & Claude — Deltopide
@@ -11,7 +11,7 @@
 
 This document defines multimedia content blocks for CBOR-Web: rich images, video, audio, documents, diagrams, and live streams. All multimedia blocks are **trust level 0** (declarative, no side effects).
 
-Multimedia blocks extend the core content block system (CBOR-WEB-CORE.md §8) with richer metadata while maintaining the same principles: explicit types, minimal size, zero ambiguity.
+Multimedia blocks extend the core content block system (CBOR-WEB-SPEC-v3.0.md §8) with richer metadata while maintaining the same principles: explicit types, minimal size, zero ambiguity.
 
 **Design principle:** Multimedia content is **referenced by URL**, not embedded. The exception is inline images below 10 KB (§2.2). CBOR-Web is a content format, not a media container.
 
@@ -21,7 +21,7 @@ Multimedia blocks extend the core content block system (CBOR-WEB-CORE.md §8) wi
 
 ### 2.1 Rich Image (`"image"`)
 
-The rich image block extends the core `"img"` block (CBOR-WEB-CORE.md §8.9) with semantic role, dimensions, AI description, and optional inline data.
+The rich image block extends the core `"img"` block (CBOR-WEB-SPEC-v3.0.md §8.9) with semantic role, dimensions, AI description, and optional inline data.
 
 **Type code:** `"image"` | **Category:** Non-editorial | **Trust level:** 0
 
@@ -79,7 +79,7 @@ For small images (icons, logos, thumbnails) below **10 KB**, a publisher MAY emb
 - `"inline_format"` MUST be present when `"inline_data"` is present
 - `"src"` MUST still be present as a fallback URL
 - An agent MAY use `"inline_data"` directly or fetch from `"src"` — both are valid
-- For data exceeding 100 KB, indefinite-length byte strings MAY be used (CBOR-WEB-CORE.md §3.8)
+- For data exceeding 100 KB, indefinite-length byte strings MAY be used (CBOR-WEB-SPEC-v3.0.md §3.8)
 
 ### 2.3 Image Semantic Roles
 
@@ -285,9 +285,9 @@ A technical diagram with machine-readable source code (Mermaid, PlantUML, DOT) a
 ```cbor-diag
 {
   "t": "diagram",
-  "alt": "Architecture du pipeline CBOR-Web: Publisher génère CBOR, Agent consomme via manifest",
+  "alt": "Architecture du pipeline CBOR-Web: Publisher génère CBOR, Agent consomme via index.cbor",
   "title": "CBOR-Web Pipeline",
-  "source": "graph LR\n  A[HTML Site] --> B[text2cbor]\n  B --> C[CBOR Manifest]\n  B --> D[CBOR Pages]\n  C --> E[AI Agent]\n  D --> E",
+  "source": "graph LR\n  A[HTML Site] --> B[text2cbor]\n  B --> C[index.cbor]\n  B --> D[CBOR Pages]\n  C --> E[AI Agent]\n  D --> E",
   "syntax": "mermaid",
   "rendered": "https://example.com/diagrams/pipeline.svg"
 }
@@ -336,9 +336,9 @@ References a real-time or near-real-time data stream. This block enables CBOR-We
 
 ---
 
-## 8. Channels (Manifest Key 8)
+## 8. Channels (index.cbor Key 8)
 
-The manifest key 8 declares site-level streaming channels. This is different from per-page `"live_stream"` blocks — channels are site-wide real-time feeds.
+The index.cbor key 8 declares site-level streaming channels. This is different from per-page `"live_stream"` blocks — channels are site-wide real-time feeds.
 
 ```cbor-diag
 8: [
@@ -393,7 +393,7 @@ channel = {
 ```
 
 **Agent behavior:**
-- An agent SHOULD subscribe to `"content-updates"` (SSE) if available — it eliminates the need to poll the manifest for changes
+- An agent SHOULD subscribe to `"content-updates"` (SSE) if available — it eliminates the need to poll the index.cbor for changes
 - Stock channels enable real-time commerce decisions
 - Channel authentication follows the same tier model as pages
 
@@ -403,7 +403,7 @@ channel = {
 
 ```cddl
 ; ══════════════════════════════════════════════════════════
-; CBOR-Web Multimedia Specification v2.1 — CDDL Schema
+; CBOR-Web Multimedia Specification v3.0 — CDDL Schema
 ; ══════════════════════════════════════════════════════════
 
 ; ── Multimedia Content Blocks ──
@@ -512,7 +512,7 @@ live-stream = {
   * tstr => any
 }
 
-; ── Manifest Channels (Key 8) ──
+; ── index.cbor Channels (Key 8) ──
 
 channel = {
   "id" => tstr,
@@ -564,6 +564,6 @@ if block.get("role") in SKIP_ROLES:
 
 ---
 
-*CBOR-Web Multimedia Specification v2.1 — Document 3 of 6*
+*CBOR-Web Multimedia Specification v3.0 — Document 3 of 6*
 
 *Deltopide 2026*

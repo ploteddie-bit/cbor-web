@@ -1,6 +1,6 @@
-# CBOR-Web Generative & Commerce Specification v2.1
+# CBOR-Web Generative & Commerce Specification v3.0
 
-**Companion to:** CBOR-Web Core Specification v2.1 (CBOR-WEB-CORE.md)
+**Companion to:** CBOR-Web Core Specification v3.0 (CBOR-WEB-SPEC-v3.0.md)
 **Status:** Draft
 **Date:** 2026-03-24
 **Authors:** Eddie Plot & Claude — Deltopide
@@ -17,7 +17,7 @@ This document defines generative content blocks, forms, commerce structures, and
 
 ## 2. Generative Content Blocks
 
-Generative blocks appear in page key 7 (`generative` array). They are separate from editorial content (key 4) to allow agents to filter them independently.
+Generative blocks appear in page key 7 (`generative` array). They are separate from editorial content field in page entries (key 5 array) to allow agents to filter them independently.
 
 ### 2.1 Block Summary
 
@@ -501,9 +501,9 @@ shipping-option = {
 
 ---
 
-## 11. Capabilities Declaration (Manifest Key 7)
+## 11. Capabilities Declaration (index.cbor Key 7)
 
-The manifest key 7 declares what the site offers beyond static content. An agent reads capabilities before fetching pages.
+The index.cbor key 7 declares what the site offers beyond static content. An agent reads capabilities before fetching pages.
 
 ```cbor-diag
 7: {
@@ -597,6 +597,6 @@ Blocks with `"requires_consent": true` MUST NOT be executed without human approv
 
 ---
 
-*CBOR-Web Generative & Commerce Specification v2.1 — Document 4 of 6*
+*CBOR-Web Generative & Commerce Specification v3.0 — Document 4 of 6*
 
 *Deltopide 2026*

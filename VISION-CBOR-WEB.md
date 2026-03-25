@@ -34,12 +34,11 @@ C'est ici que la plupart des gens s'arrêtent : "c'est un format binaire". Non. 
 │   1. PUBLISHER                                                    │
 │      Un site web installe text2cbor                               │
 │      → Son contenu HTML est converti en CBOR binaire              │
-│      → Servi en parallèle à /.well-known/cbor-web                │
+│      → Servi en parallèle à /index.cbor                │
 │                                                                   │
 │   2. CRAWLER                                                      │
 │      Un agent IA découvre le endpoint CBOR-Web                    │
-│      → Télécharge le manifest (structure du site entier)          │
-│      → Télécharge le bundle (tout le contenu, 1 requête)         │
+│      → Télécharge le index.cbor (structure + contenu, 1 requête)  │
 │      → Parse le CBOR en mémoire (zéro tokenisation LLM)          │
 │                                                                   │
 │   3. SIGNAL PROPRE                                                │
@@ -52,7 +51,7 @@ C'est ici que la plupart des gens s'arrêtent : "c'est un format binaire". Non. 
 │      L'agent constate que le contenu CBOR-Web donne               │
 │      de meilleurs résultats que le HTML                           │
 │      → Il PRÉFÈRE les sites CBOR-Web                              │
-│      → Il CHERCHE le endpoint /.well-known/cbor-web en premier    │
+│      → Il CHERCHE le endpoint /index.cbor en premier    │
 │      → Adoption organique — personne ne force l'agent             │
 │                                                                   │
 │   5. TOKEN                                                        │

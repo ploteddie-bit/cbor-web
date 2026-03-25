@@ -1,6 +1,6 @@
-# CBOR-Web Economics Specification v2.1
+# CBOR-Web Economics Specification v3.0
 
-**Companion to:** CBOR-Web Core Specification v2.1 (CBOR-WEB-CORE.md)
+**Companion to:** CBOR-Web Core Specification v3.0 (CBOR-WEB-SPEC-v3.0.md)
 **Status:** Draft
 **Date:** 2026-03-24
 **Authors:** Eddie Plot & Claude — Deltopide
@@ -38,7 +38,7 @@ Today, publishers suffer from AI scraping with zero compensation:
 - No monetization of machine-readable content
 
 CBOR-Web gives publishers:
-- **Visibility** — the manifest shows agents exactly what's available
+- **Visibility** — the index.cbor shows agents exactly what's available
 - **Control** — tiers determine who sees what
 - **Analytics** — authenticated agents (T1) are identifiable
 - **Revenue** — token model creates value for premium content
@@ -119,7 +119,7 @@ Tokens distributed to:
 - **Integration builders** who create tools, libraries, plugins
 - **Early adopters** (first 1000 sites, first 500 agents)
 
-Distribution mechanism: quarterly claims via smart contract. Proof of activity required (on-chain verification of CBOR-Web manifest signatures, page hashes on IPFS, or similar).
+Distribution mechanism: quarterly claims via smart contract. Proof of activity required (on-chain verification of CBOR-Web index.cbor signatures, page hashes on IPFS, or similar).
 
 ---
 
@@ -191,14 +191,14 @@ The economic incentive is overwhelming: **CBOR-Web costs less than nothing** for
 |------|------|------|
 | Install `text2cbor` | $0 (open source) | 30 minutes |
 | Generate CBOR-Web content | $0 (automated) | Automatic |
-| Serve /.well-known/cbor-web | $0 (existing server) | 5 minutes config |
+| Serve /index.cbor | $0 (existing server) | 5 minutes config |
 | **Total** | **$0** | **< 1 hour** |
 
 ### 6.2 Revenue for Publishers
 
 Publishers earn ecosystem reward tokens for:
-- Deploying CBOR-Web (proof: manifest accessible at well-known URL)
-- Maintaining content freshness (proof: manifest `generated_at` < 7 days)
+- Deploying CBOR-Web (proof: index.cbor accessible at site root)
+- Maintaining content freshness (proof: index.cbor `generated_at` < 7 days)
 - Serving authenticated agents (proof: T1 request logs)
 - Quality content (proof: cross-validation HTML/CBOR match, low error rate)
 
@@ -246,11 +246,11 @@ More content available → more agents adopt
 ## 8. Launch Plan
 
 ### Phase 0 — Foundation (current)
-- [x] Spec v2.1 written (6 documents)
+- [x] Spec v3.0 written (6 documents)
 - [x] text2cbor reference implementation
-- [ ] cbor-crawl reference implementation
+- [x] cbor-crawl reference implementation (v0.1.0)
 - [ ] Site cbor-web.org deployed
-- [ ] Spec published on GitHub (explodev/cbor-web)
+- [ ] Spec published on GitHub (ploteddie-bit/cbor-web)
 
 ### Phase 1 — Airdrop (cost: ~$50)
 - Deploy ERC-20 smart contract on Ethereum mainnet (~$50 gas)
@@ -275,7 +275,7 @@ More content available → more agents adopt
 - 1000+ sites, 100+ agents
 - Token price reflects real usage
 - Stabilization mechanism active
-- IANA registration of well-known URI
+- IANA CBOR tag registration
 - eIDAS 2.0 T0 integrations
 
 ---
@@ -316,9 +316,9 @@ The CBORW token model is compatible with eIDAS 2.0:
 
 | eIDAS Feature | CBOR-Web Integration |
 |--------------|---------------------|
-| EUDI Wallet | T0 authentication mechanism (CBOR-WEB-SECURITY.md §4.1) |
+| EUDI Wallet | T0 authentication mechanism (key 3 security in index.cbor) |
 | Verifiable Credentials | Publisher identity verification |
-| Qualified Electronic Signatures | Manifest signing (alternative to COSE) |
+| Qualified Electronic Signatures | index.cbor signing (alternative to COSE) |
 | Cross-border recognition | Agent authenticated in FR → valid in all EU |
 
 **Vision:** An AI agent with both an EUDI Wallet credential (identity) and a CBORW token (access) has full T0+T1 access across the entire CBOR-Web ecosystem. The EUDI proves WHO the agent represents. The CBORW proves the agent is a legitimate ecosystem participant.
@@ -338,6 +338,6 @@ The CBORW token model is compatible with eIDAS 2.0:
 
 ---
 
-*CBOR-Web Economics Specification v2.1 — Document 5 of 6*
+*CBOR-Web Economics Specification v3.0 — Document 5 of 6*
 
 *Deltopide 2026*
