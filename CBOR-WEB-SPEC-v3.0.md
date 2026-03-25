@@ -274,6 +274,33 @@ Quand un agent demande `index.cbor` :
 
 Après authentification, l'agent reçoit une version complète de `index.cbor` avec tous les contenus déverrouillés.
 
+### 4.1 Licence de confiance — la chaîne de vérification
+
+Un agent IA qui crawle le web ne sait pas distinguer un site légitime d'un site de phishing, de désinformation, ou d'un contenu illicite migré sur le clearnet. L'IA a la capacité technique d'aller partout — y compris là où elle ne devrait pas. Rien ne l'en empêche aujourd'hui.
+
+CBOR-Web résout ce problème en créant une **chaîne de confiance vérifiable** :
+
+```
+index.cbor signé
+  └→ Signature valide ? → vérifier clé publique dans DNS TXT
+       └→ Clé liée à un token CBORW ? → vérifier on-chain (Ethereum)
+            └→ Wallet identifiable ? → adresse publique, traçable
+                 └→ Entité légale ? → vérifiable (registre commerce, eIDAS)
+```
+
+L'agent IA établit un **niveau de confiance** basé sur cette chaîne :
+
+| Signal vérifié | Confiance |
+|----------------|-----------|
+| `index.cbor` présent, non signé | Basse — contenu structuré mais non vérifié |
+| `index.cbor` signé, clé DNS valide | Moyenne — le publisher contrôle le domaine |
+| Signé + token CBORW (T1) | Haute — le publisher a investi dans le protocole, identité wallet publique |
+| Signé + eIDAS 2.0 (T0) | Maximale — identité vérifiée par un État européen |
+
+Un `index.cbor` signé par une entité identifiable est un **passeport numérique** pour le contenu. L'agent IA sait où il met les pieds — il peut recommander en toute confiance ou, à l'inverse, refuser de traiter un contenu non vérifié.
+
+Ce n'est pas un mécanisme de censure — c'est un mécanisme de **transparence**. Tout le monde peut publier un `index.cbor`. Seuls ceux qui signent et s'identifient obtiennent la confiance des agents IA. Comme HTTPS : personne n'est obligé d'avoir un certificat SSL, mais les navigateurs marquent HTTP comme "non sécurisé". Les agents IA feront la même chose avec le contenu non signé.
+
 ---
 
 ## 5. Identité par DNS
