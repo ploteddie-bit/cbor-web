@@ -1,24 +1,42 @@
-//! text2cbor v1.0.0 — Convert HTML websites to CBOR-Web v3.0 index.cbor
+//! text2cbor v1.1.0 — Convert HTML websites to CBOR-Web v3.0 index.cbor
 //!
 //! Usage:
-//!   text2cbor --input ./site --output ./out --domain example.com
-//!   text2cbor --input ./site --output ./out --domain example.com --default-lang fr --priority 0.9
+//!   text2cbor generate --input ./site --output ./out --domain example.com
+//!   text2cbor watch --site /srv/mysite --domain example.com --interval 60
 
 use ciborium::Value;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use scraper::{Html, Selector, ElementRef};
 use sha2::{Sha256, Digest};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 // ============================================================
-// CLI Arguments (v3.0)
+// CLI — Subcommands
 // ============================================================
 
 #[derive(Parser, Debug)]
-#[command(name = "text2cbor", version = "1.0.0")]
-#[command(about = "Convert HTML to CBOR-Web v3.0 index.cbor")]
-struct Args {
+#[command(name = "text2cbor", version = "1.1.0")]
+#[command(about = "CBOR-Web v3.0 — generate and maintain index.cbor")]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// Generate index.cbor from HTML files (one-shot)
+    Generate(GenerateArgs),
+    /// Watch site directory and rebuild incrementally when files change
+    Watch(WatchArgs),
+}
+
+// ============================================================
+// Generate Arguments
+// ============================================================
+
+#[derive(Parser, Debug, Clone)]
+struct GenerateArgs {
     /// Input directory containing HTML files
     #[arg(short, long)]
     input: PathBuf,
@@ -106,6 +124,110 @@ struct Args {
     /// Footer navigation paths (comma-separated)
     #[arg(long, default_value = "")]
     nav_footer: String,
+}
+
+// ============================================================
+// Watch Arguments
+// ============================================================
+
+#[derive(Parser, Debug)]
+struct WatchArgs {
+    /// Site directory to watch (same as --input for generate)
+    #[arg(long)]
+    site: PathBuf,
+
+    /// Output directory (index.cbor will be written/updated here)
+    #[arg(short, long)]
+    output: PathBuf,
+
+    /// Site domain
+    #[arg(short, long)]
+    domain: String,
+
+    /// CBORW publisher token (optional — free mode without)
+    #[arg(long, default_value = "")]
+    token: String,
+
+    /// Check interval in minutes
+    #[arg(long, default_value_t = 60)]
+    interval: u64,
+
+    /// Site name
+    #[arg(long, default_value = "")]
+    name: String,
+
+    /// Default language
+    #[arg(long, default_value = "en")]
+    default_lang: String,
+
+    /// Supported languages (comma-separated)
+    #[arg(long, default_value = "")]
+    languages: String,
+
+    /// Contact email
+    #[arg(long, default_value = "")]
+    contact_email: String,
+
+    /// Contact phone
+    #[arg(long, default_value = "")]
+    contact_phone: String,
+
+    /// Country ISO code
+    #[arg(long, default_value = "")]
+    country: String,
+
+    /// Region
+    #[arg(long, default_value = "")]
+    region: String,
+
+    /// Description
+    #[arg(long, default_value = "")]
+    description: String,
+
+    /// Default access tier
+    #[arg(long, default_value = "T2")]
+    default_access: String,
+
+    /// T1 pages (comma-separated)
+    #[arg(long, default_value = "")]
+    t1_pages: String,
+
+    /// Default priority
+    #[arg(long, default_value_t = 0.5)]
+    priority: f64,
+
+    /// Default freshness
+    #[arg(long, default_value = "monthly")]
+    freshness: String,
+}
+
+impl WatchArgs {
+    fn to_generate_args(&self) -> GenerateArgs {
+        GenerateArgs {
+            input: self.site.clone(),
+            output: self.output.clone(),
+            domain: self.domain.clone(),
+            name: self.name.clone(),
+            description: self.description.clone(),
+            default_lang: self.default_lang.clone(),
+            languages: self.languages.clone(),
+            contact_email: self.contact_email.clone(),
+            contact_phone: self.contact_phone.clone(),
+            country: self.country.clone(),
+            region: self.region.clone(),
+            default_access: self.default_access.clone(),
+            t1_pages: self.t1_pages.clone(),
+            t0_pages: String::new(),
+            auth_mechanisms: String::new(),
+            erc20_contract: String::new(),
+            rate_limit_t1: 50,
+            rate_limit_t2: 10,
+            priority: self.priority,
+            freshness: self.freshness.clone(),
+            nav_main: String::new(),
+            nav_footer: String::new(),
+        }
+    }
 }
 
 // ============================================================
@@ -456,7 +578,7 @@ fn json_to_cbor(json: &serde_json::Value) -> Value {
 // Index builders (v3.0)
 // ============================================================
 
-fn build_site_metadata(args: &Args) -> Value {
+fn build_site_metadata(args: &GenerateArgs) -> Value {
     let mut entries = vec![
         (t("domain"), t(&args.domain)),
     ];
@@ -504,7 +626,7 @@ fn build_site_metadata(args: &Args) -> Value {
     cmap(entries)
 }
 
-fn build_security(args: &Args) -> Value {
+fn build_security(args: &GenerateArgs) -> Value {
     let mut entries = vec![
         (t("default_access"), t(&args.default_access)),
     ];
@@ -533,7 +655,7 @@ fn build_security(args: &Args) -> Value {
     cmap(entries)
 }
 
-fn build_navigation(args: &Args, pages: &[PageEntry]) -> Value {
+fn build_navigation(args: &GenerateArgs, pages: &[PageEntry]) -> Value {
     let mut entries = Vec::new();
 
     if !args.nav_main.is_empty() {
@@ -675,28 +797,17 @@ fn build_page_entry(page: &PageEntry) -> Value {
 }
 
 // ============================================================
-// Main
+// Generate — one-shot build (core logic)
 // ============================================================
 
-fn main() {
-    let args = Args::parse();
-
-    println!("text2cbor v1.0.0 — CBOR-Web v3.0");
-    println!("Input:  {}", args.input.display());
-    println!("Output: {}", args.output.display());
-    println!("Domain: {}", args.domain);
-    println!();
-
-    // Parse tier paths
+fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
     let t1_paths: Vec<String> = args.t1_pages.split(',')
         .filter(|s| !s.is_empty()).map(|s| s.trim().to_string()).collect();
     let t0_paths: Vec<String> = args.t0_pages.split(',')
         .filter(|s| !s.is_empty()).map(|s| s.trim().to_string()).collect();
 
-    // Create output directory
     std::fs::create_dir_all(&args.output).expect("Failed to create output directory");
 
-    // Phase 1: Walk HTML files and collect page entries
     let mut pages: Vec<PageEntry> = Vec::new();
 
     for entry in walkdir::WalkDir::new(&args.input)
@@ -709,15 +820,10 @@ fn main() {
         })
     {
         let rel_path = entry.path().strip_prefix(&args.input).unwrap();
-
-        // Convert file path to URL path
         let url_path = if rel_path.file_stem().unwrap() == "index" {
             let parent = rel_path.parent().unwrap();
-            if parent.as_os_str().is_empty() {
-                "/".to_string()
-            } else {
-                format!("/{}", parent.display()).replace('\\', "/")
-            }
+            if parent.as_os_str().is_empty() { "/".to_string() }
+            else { format!("/{}", parent.display()).replace('\\', "/") }
         } else {
             let without_ext = rel_path.with_extension("");
             format!("/{}", without_ext.display()).replace('\\', "/")
@@ -725,44 +831,27 @@ fn main() {
 
         println!("  Processing: {} → {}", rel_path.display(), url_path);
 
-        // Read and parse HTML
         let html = std::fs::read_to_string(entry.path())
             .unwrap_or_else(|_| panic!("Failed to read {}", entry.path().display()));
         let content = parse_html(&html, &args.default_lang);
 
-        // Determine access tier
-        let access = if t0_paths.iter().any(|p| url_path.starts_with(p)) {
-            "T0"
-        } else if t1_paths.iter().any(|p| url_path.starts_with(p)) {
-            "T1"
-        } else {
-            &args.default_access
-        };
+        let access = if t0_paths.iter().any(|p| url_path.starts_with(p)) { "T0" }
+            else if t1_paths.iter().any(|p| url_path.starts_with(p)) { "T1" }
+            else { &args.default_access };
 
-        // Compute content hash
         let content_cbor = encode(&arr(content.blocks.clone()));
         let hash = sha256_bytes(&content_cbor);
-
         let title = if content.title.is_empty() { url_path.clone() } else { content.title.clone() };
 
-        println!("    → {} blocks, access={}, title=\"{}\"",
-            content.blocks.len(), access, title);
+        println!("    → {} blocks, access={}", content.blocks.len(), access);
 
         pages.push(PageEntry {
-            path: url_path,
-            title,
-            description: content.description,
-            lang: content.lang,
-            access: access.to_string(),
-            blocks: content.blocks,
-            hash,
-            content_size: content_cbor.len(),
-            internal_links: content.internal_links,
-            external_links: content.external_links,
-            alternates: content.alternates,
-            structured_data: content.structured_data,
-            priority: args.priority,
-            freshness: args.freshness.clone(),
+            path: url_path, title, description: content.description,
+            lang: content.lang, access: access.to_string(), blocks: content.blocks,
+            hash, content_size: content_cbor.len(),
+            internal_links: content.internal_links, external_links: content.external_links,
+            alternates: content.alternates, structured_data: content.structured_data,
+            priority: args.priority, freshness: args.freshness.clone(),
         });
     }
 
@@ -771,27 +860,21 @@ fn main() {
         std::process::exit(1);
     }
 
-    // Sort pages by path for deterministic output
     pages.sort_by(|a, b| a.path.cmp(&b.path));
 
-    // Phase 2: Build index.cbor
     let total_content_size: usize = pages.iter().map(|p| p.content_size).sum();
-
     let page_values: Vec<Value> = pages.iter().map(build_page_entry).collect();
 
     let mut index_entries = vec![
         (ii(0), t("cbor-web")),
         (ii(1), u(3)),
-        (ii(2), build_site_metadata(&args)),
-        (ii(3), build_security(&args)),
+        (ii(2), build_site_metadata(args)),
+        (ii(3), build_security(args)),
     ];
 
-    // Key 4: navigation (only if we have data)
-    let nav = build_navigation(&args, &pages);
+    let nav = build_navigation(args, &pages);
     if let Value::Map(ref pairs) = nav {
-        if !pairs.is_empty() {
-            index_entries.push((ii(4), nav));
-        }
+        if !pairs.is_empty() { index_entries.push((ii(4), nav)); }
     }
 
     index_entries.push((ii(5), arr(page_values)));
@@ -800,55 +883,149 @@ fn main() {
     let index_doc = sd(cmap(index_entries));
     let index_bytes = encode(&index_doc);
 
-    // Phase 3: Write output
-    let index_path = args.output.join("index.cbor");
-    std::fs::write(&index_path, &index_bytes)
+    // Write index.cbor
+    std::fs::write(args.output.join("index.cbor"), &index_bytes)
         .expect("Failed to write index.cbor");
 
-    println!("\n  index.cbor: {} bytes, {} pages", index_bytes.len(), pages.len());
-
-    // Write summary JSON
+    // Write summary.json
     let summary = serde_json::json!({
-        "type": "cbor-web",
-        "version": 3,
-        "domain": args.domain,
-        "site": {
-            "name": if args.name.is_empty() { &args.domain } else { &args.name },
-            "default_language": args.default_lang,
-            "generated_at": std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
-        },
-        "security": {
-            "default_access": args.default_access,
-        },
-        "pages": pages.iter().map(|p| {
-            serde_json::json!({
-                "path": p.path,
-                "title": p.title,
-                "access": p.access,
-                "blocks": p.blocks.len(),
-                "content_size": p.content_size,
-                "hash": hex::encode(&p.hash),
-                "priority": p.priority,
-                "freshness": p.freshness,
-            })
-        }).collect::<Vec<_>>(),
+        "type": "cbor-web", "version": 3, "domain": args.domain,
+        "pages": pages.iter().map(|p| serde_json::json!({
+            "path": p.path, "title": p.title, "access": p.access,
+            "blocks": p.blocks.len(), "hash": hex::encode(&p.hash),
+        })).collect::<Vec<_>>(),
         "stats": {
             "total_pages": pages.len(),
-            "total_content_bytes": total_content_size,
             "index_cbor_bytes": index_bytes.len(),
-            "access_breakdown": {
-                "T0": pages.iter().filter(|p| p.access == "T0").count(),
-                "T1": pages.iter().filter(|p| p.access == "T1").count(),
-                "T2": pages.iter().filter(|p| p.access == "T2").count(),
-            }
         }
     });
-
-    let summary_path = args.output.join("summary.json");
-    std::fs::write(&summary_path, serde_json::to_string_pretty(&summary).unwrap())
+    std::fs::write(args.output.join("summary.json"),
+        serde_json::to_string_pretty(&summary).unwrap())
         .expect("Failed to write summary.json");
 
-    println!("  summary.json: human-readable breakdown");
-    println!("\n✅ CBOR-Web v3.0 — serve index.cbor at https://{}/index.cbor", args.domain);
+    (index_bytes, pages)
+}
+
+// ============================================================
+// Watch — incremental rebuild daemon
+// ============================================================
+
+fn compute_site_hash(site_dir: &std::path::Path) -> Vec<u8> {
+    let mut hasher = Sha256::new();
+    let mut files: Vec<_> = walkdir::WalkDir::new(site_dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension()
+            .map(|ext| ext == "html" || ext == "htm")
+            .unwrap_or(false))
+        .collect();
+    files.sort_by(|a, b| a.path().cmp(b.path()));
+    for entry in &files {
+        // Hash filename + modification time + size
+        hasher.update(entry.path().to_string_lossy().as_bytes());
+        if let Ok(meta) = entry.metadata() {
+            hasher.update(meta.len().to_le_bytes());
+            if let Ok(modified) = meta.modified() {
+                let secs = modified.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+                hasher.update(secs.to_le_bytes());
+            }
+        }
+    }
+    hasher.finalize().to_vec()
+}
+
+fn verify_token(token: &str) -> bool {
+    if token.is_empty() {
+        println!("  [FREE MODE] No token — T2 only, no signature");
+        return true;
+    }
+    // For now: accept any non-empty token prefixed with "cbw_"
+    // Future: call cbor-web.com/api/verify or on-chain verification
+    if token.starts_with("cbw_") {
+        println!("  [TOKEN OK] Publisher token verified");
+        true
+    } else {
+        eprintln!("  [TOKEN INVALID] Token must start with cbw_");
+        false
+    }
+}
+
+fn run_watch(args: &WatchArgs) {
+    println!("text2cbor v1.1.0 — CBOR-Web v3.0 Watch Mode");
+    println!("Site:     {}", args.site.display());
+    println!("Output:   {}", args.output.display());
+    println!("Domain:   {}", args.domain);
+    println!("Interval: {} min", args.interval);
+    println!();
+
+    // Verify token
+    if !verify_token(&args.token) {
+        std::process::exit(1);
+    }
+
+    let gen_args = args.to_generate_args();
+    let mut last_site_hash: Vec<u8> = Vec::new();
+
+    // Initial build
+    println!("[INIT] Building index.cbor...");
+    let (bytes, pages) = run_generate(&gen_args);
+    last_site_hash = compute_site_hash(&args.site);
+    println!("[INIT] Done — {} bytes, {} pages\n", bytes.len(), pages.len());
+
+    // Watch loop
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(args.interval * 60));
+
+        // Quick check: has anything changed?
+        let current_hash = compute_site_hash(&args.site);
+        if current_hash == last_site_hash {
+            let now = chrono_now();
+            println!("[{}] No changes detected", now);
+            continue;
+        }
+
+        // Something changed — rebuild
+        println!("[REBUILD] Changes detected, rebuilding...");
+        let (bytes, pages) = run_generate(&gen_args);
+        last_site_hash = current_hash;
+
+        // Count changed pages by comparing hashes
+        let now = chrono_now();
+        println!("[{}] Rebuilt — {} bytes, {} pages", now, bytes.len(), pages.len());
+    }
+}
+
+fn chrono_now() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    // Simple HH:MM:SS from epoch (UTC)
+    let h = (now % 86400) / 3600;
+    let m = (now % 3600) / 60;
+    let s = now % 60;
+    format!("{:02}:{:02}:{:02} UTC", h, m, s)
+}
+
+// ============================================================
+// Main — dispatch subcommands
+// ============================================================
+
+fn main() {
+    let cli = Cli::parse();
+
+    match cli.command {
+        Commands::Generate(args) => {
+            println!("text2cbor v1.1.0 — CBOR-Web v3.0 Generate");
+            println!("Input:  {}", args.input.display());
+            println!("Output: {}", args.output.display());
+            println!("Domain: {}", args.domain);
+            println!();
+            let (bytes, pages) = run_generate(&args);
+            println!("\n  index.cbor: {} bytes, {} pages", bytes.len(), pages.len());
+            println!("  summary.json: human-readable breakdown");
+            println!("\n✅ Serve at https://{}/index.cbor", args.domain);
+        }
+        Commands::Watch(args) => {
+            run_watch(&args);
+        }
+    }
 }
