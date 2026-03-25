@@ -3,7 +3,7 @@
 **Companion to:** CBOR-Web Core Specification v2.1 (CBOR-WEB-CORE.md)
 **Status:** Draft
 **Date:** 2026-03-24
-**Authors:** ExploDev (Eddie Plot, Claude)
+**Authors:** Eddie Plot — Deltopide
 
 ---
 
@@ -599,4 +599,4 @@ Blocks with `"requires_consent": true` MUST NOT be executed without human approv
 
 *CBOR-Web Generative & Commerce Specification v2.1 — Document 4 of 6*
 
-*ExploDev 2026*
+*Deltopide 2026*

@@ -3,7 +3,7 @@
 **Companion to:** CBOR-Web Core Specification v2.1 (CBOR-WEB-CORE.md)
 **Status:** Draft
 **Date:** 2026-03-24
-**Authors:** ExploDev (Eddie Plot, Claude)
+**Authors:** Eddie Plot — Deltopide
 
 ---
 
@@ -254,14 +254,14 @@ DID (W3C Recommendation, juillet 2022) fournit une identité décentralisée vé
 
 | Méthode | Format | Résolution | Usage |
 |---------|--------|-----------|-------|
-| `did:web` | `did:web:agent.explodev.dev` | HTTPS (fichier `.well-known/did.json`) | Agents liés à un domaine |
+| `did:web` | `did:web:agent.deltopide.com` | HTTPS (fichier `.well-known/did.json`) | Agents liés à un domaine |
 | `did:ethr` | `did:ethr:0x742d35Cc...` | Ethereum blockchain | Agents avec wallet Ethereum |
 | `did:key` | `did:key:z6Mkf5rG...` | Auto-contenu (clé dans l'identifiant) | Agents autonomes sans domaine |
 
 **Flow d'authentification T0 via DID :**
 
 ```
-1. Agent présente son DID : did:web:agent.explodev.dev
+1. Agent présente son DID : did:web:agent.deltopide.com
 2. Server résout le DID → récupère le DID Document (clé publique)
 3. Agent signe un challenge avec sa clé privée
 4. Server vérifie la signature contre la clé du DID Document
@@ -277,7 +277,7 @@ GET /index.cbor HTTP/1.1
 Host: fleurs.com
 Accept: application/cbor
 X-CBOR-Web-Auth: did
-X-CBOR-Web-DID: did:web:agent.explodev.dev
+X-CBOR-Web-DID: did:web:agent.deltopide.com
 X-CBOR-Web-DID-Sig: <signature du challenge>
 X-CBOR-Web-VC: <Verifiable Credential JWT>
 ```
@@ -290,7 +290,7 @@ X-CBOR-Web-VC: <Verifiable Credential JWT>
   "trusted_issuers": [
     "did:web:franceconnect.gouv.fr",
     "did:web:eidas.europa.eu",
-    "did:web:explodev.dev"
+    "did:web:deltopide.com"
   ],
   "required_vc_types": ["GovernmentOrganization", "VerifiedAgent"]
 }
@@ -915,4 +915,4 @@ An agent MAY read `cbor.txt` before fetching the manifest to quickly determine i
 
 *CBOR-Web Security Specification v2.1 — Document 2 of 6*
 
-*ExploDev 2026*
+*Deltopide 2026*

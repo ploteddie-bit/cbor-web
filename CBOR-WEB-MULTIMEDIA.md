@@ -3,7 +3,7 @@
 **Companion to:** CBOR-Web Core Specification v2.1 (CBOR-WEB-CORE.md)
 **Status:** Draft
 **Date:** 2026-03-24
-**Authors:** ExploDev (Eddie Plot, Claude)
+**Authors:** Eddie Plot — Deltopide
 
 ---
 
@@ -566,4 +566,4 @@ if block.get("role") in SKIP_ROLES:
 
 *CBOR-Web Multimedia Specification v2.1 — Document 3 of 6*
 
-*ExploDev 2026*
+*Deltopide 2026*

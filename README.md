@@ -2,6 +2,8 @@
 
 **The binary protocol that replaces HTML for AI agents.**
 
+Created by [Eddie Plot](https://deltopide.fr) — [Deltopide](https://deltopide.com)
+
 ```
 fleurs.com/index.html  →  for browsers
 fleurs.com/index.cbor  →  for AI agents (entire site in one request)
@@ -222,4 +224,4 @@ Website:        cbor-web.org / cbor-web.com (coming soon)
 
 *CBOR-Web — the entire site in one file.*
 
-*ExploDev 2026*
+*Deltopide 2026*

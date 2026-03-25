@@ -4,7 +4,7 @@
 **Lire ce document AVANT de toucher au code, à la spec, ou au token.**
 
 ```
-Auteur :    Eddie Plot (ExploDev)
+Auteur :    Eddie Plot (Deltopide)
 Version :   1.0
 Date :      2026-03-22
 Statut :    Document vivant — source de vérité
@@ -85,7 +85,7 @@ C'est ici que la plupart des gens s'arrêtent : "c'est un format binaire". Non. 
 | **Token ERC-20 (CBORW)** | Badge d'accès permanent, autofinancement | Conçu, pas déployé |
 | **Site cbor-web.org** | Vitrine du standard | Fichiers prêts, pas déployé |
 | **Sites Deltopide** | Premiers adopteurs (preuve de concept) | 80 pages FR/ES/EN prêtes |
-| **Infrastructure ExploDev** | 7 machines + 6 agents autonomes | Opérationnel |
+| **Infrastructure Deltopide** | 7 machines + 6 agents autonomes | Opérationnel |
 | **Framwork** | Peut générer text2cbor + crawler | Pipeline v4 sur framlocal |
 
 ---
@@ -185,7 +185,7 @@ text2cbor ──→ fichiers .cbor ──→ crawler ──→ signal propre ─
 
 ## L'infrastructure qui existe déjà
 
-ExploDev dispose de 7 machines et 6 agents autonomes qui peuvent porter ce projet :
+Deltopide dispose de 7 machines et 6 agents autonomes qui peuvent porter ce projet :
 
 | Machine | Rôle dans CBOR-Web |
 |---------|-------------------|
@@ -223,7 +223,7 @@ ExploDev dispose de 7 machines et 6 agents autonomes qui peuvent porter ce proje
 
 **Si vous travaillez sur le token :** Le token n'a de valeur que si le crawler existe et fonctionne. Ne déployez pas le token avant que le crawler ne prouve la boucle.
 
-**Si vous travaillez sur l'infra :** Tout ce que vous maintenez (sites, DB, backups, monitoring) protège la capacité d'ExploDev à exécuter ce plan. Chaque service down est un jour de retard.
+**Si vous travaillez sur l'infra :** Tout ce que vous maintenez (sites, DB, backups, monitoring) protège la capacité d'Deltopide à exécuter ce plan. Chaque service down est un jour de retard.
 
 ---
 
@@ -259,4 +259,4 @@ CBOR-Web n'est pas un format d'optimisation. C'est le **format de remplacement**
 
 *"Le web a deux clients : les humains et les machines. Dans 10 ans, il n'en aura plus qu'un."*
 
-*— Eddie Plot, ExploDev, 2026*
+*— Eddie Plot, Deltopide, 2026*

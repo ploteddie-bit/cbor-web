@@ -3,7 +3,7 @@
 **Companion to:** CBOR-Web Core Specification v2.1 (CBOR-WEB-CORE.md)
 **Status:** Draft
 **Date:** 2026-03-24
-**Authors:** ExploDev (Eddie Plot, Claude)
+**Authors:** Eddie Plot — Deltopide
 
 ---
 
@@ -95,7 +95,7 @@ The token creates **alignment**: agents that hold tokens benefit from a growing 
 
 | Allocation | Tokens | Percentage | Vesting | Purpose |
 |-----------|--------|------------|---------|---------|
-| Founder (ExploDev) | 20,000,000 | 20% | 4 years, 1-year cliff | Long-term alignment, development funding |
+| Founder (Deltopide) | 20,000,000 | 20% | 4 years, 1-year cliff | Long-term alignment, development funding |
 | Ecosystem Rewards | 40,000,000 | 40% | Released over 10 years | Publisher rewards, verifier rewards, integration bounties |
 | Community & Grants | 20,000,000 | 20% | Released on milestones | Developer grants, hackathons, academic research |
 | Development Fund | 10,000,000 | 10% | Released quarterly | Engineering salaries, infrastructure, security audits |
@@ -340,4 +340,4 @@ The CBORW token model is compatible with eIDAS 2.0:
 
 *CBOR-Web Economics Specification v2.1 — Document 5 of 6*
 
-*ExploDev 2026*
+*Deltopide 2026*

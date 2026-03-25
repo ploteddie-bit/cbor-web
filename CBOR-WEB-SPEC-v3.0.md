@@ -5,7 +5,7 @@
 ```
 Status:   Draft
 Date:     2026-03-25
-Authors:  ExploDev (Eddie Plot, Claude)
+Authors:  Eddie Plot — Deltopide
 License:  CC BY-ND 4.0
 Format:   CBOR (RFC 8949)
 ```
@@ -540,4 +540,4 @@ Voir CBOR-WEB-ECONOMICS.md pour le modèle complet.
 
 *CBOR-Web Specification v3.0 — "index.cbor — le site entier en un fichier"*
 
-*ExploDev 2026*
+*Deltopide 2026*
