@@ -1,8 +1,8 @@
 [package]
 name = "text2cbor"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
-description = "Convert HTML websites to CBOR-Web v2.1 format"
+description = "Convert HTML websites to CBOR-Web v3.0 index.cbor"
 license = "MIT"
 
 [dependencies]
