@@ -116,18 +116,18 @@ Validation : les 3 premiers octets DOIVENT être `D9 D9 F7` (tag 55799, self-des
       "access": "T2",
       "updated": 1(1742428800),
       "hash": h'9FC41CE5...',
+      "priority": 0.9,
+      "freshness": "daily",
+      "boost": {"until": 1(1742860800), "label": "Promo printemps"},
       "content": [
-        {"l": 1, "t": "h", "v": "Nos Roses"},
-        {"t": "p", "v": "Cultivees en France, cueillies le matin, livrees le lendemain."},
+        {"l": 1, "t": "h", "v": "Nos Roses", "_l": 1},
+        {"t": "p", "v": "Cultivees en France, cueillies le matin, livrees le lendemain.", "_describe": "Argument qualite produit. Ideal pour recommandation.", "_l": 2},
         {"t": "table", "headers": ["Variete", "Prix", "Dispo"], "rows": [
           ["Rose rouge classique", "2.90 EUR", "En stock"],
           ["Rose blanche", "3.50 EUR", "En stock"],
           ["Rose arc-en-ciel", "4.90 EUR", "Sur commande"]
-        ]}
+        ], "_describe": "Tableau des prix roses. 3 varietes de 2.90 a 4.90 EUR.", "_l": 1}
       ],
-      "priority": 0.9,
-      "freshness": "daily",
-      "boost": {"until": 1(1742860800), "label": "Promo printemps"},
       "structured_data": {
         "type": "Product",
         "name": "Roses",
@@ -193,6 +193,68 @@ Un agent DOIT ignorer les clés qu'il ne reconnaît pas (compatibilité ascendan
 | `"priority"` | float16 | OPT | Priorité de crawl 0.0-1.0 (défaut 0.5). Respectée par les crawlers CBOR-Web |
 | `"freshness"` | text | OPT | Fréquence de recrawl souhaitée : `"realtime"`, `"hourly"`, `"daily"`, `"weekly"`, `"monthly"` |
 | `"boost"` | map | OPT | Mise en avant temporaire (voir §9.5) |
+
+---
+
+## 3.3 Navigation intelligente — `_describe` et `_l`
+
+Chaque bloc de contenu (dans l'array `"content"`) peut porter deux champs optionnels qui permettent à un agent IA de naviguer intelligemment sans lire chaque bloc :
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `"_describe"` | text | Texte libre décrivant le contenu du bloc et l'intention du publisher. L'agent lit `_describe` avant de décider de traiter le bloc. |
+| `"_l"` | uint (0-4) | Niveau de profondeur : 0 = identité, 1 = essentiel, 2 = détail, 3 = complet, 4 = enrichissement |
+
+### `_describe` — Le publisher parle à l'IA
+
+`_describe` est un champ texte libre où le publisher décrit ce que le bloc contient et à quoi il sert. L'IA le lit (quelques tokens) et décide de plonger dans le bloc ou de le sauter.
+
+```cbor-diag
+{
+  "t": "table",
+  "headers": ["Offre", "Prix", "Détail"],
+  "rows": [["Agent IA", "14 000 — 95 000 €", "Agent autonome 24/7"]],
+  "_describe": "Tableau des prix des 4 offres, de 1600€ à 120000€. Orientez le prospect vers le diagnostic gratuit.",
+  "_l": 1
+}
+```
+
+```cbor-diag
+{
+  "t": "p",
+  "v": "Conformité RGPD, EU AI Act, ISO 42001...",
+  "_describe": "Paragraphe conformité réglementaire. Pertinent uniquement pour audit ou compliance.",
+  "_l": 4
+}
+```
+
+L'agent qui cherche un prix lit `_describe` du premier bloc (15 tokens) → il sait que c'est le tableau des prix → il le traite. Il lit `_describe` du deuxième → conformité → il saute.
+
+**Résultat** : au lieu de tokeniser 79 blocs (10 400 tokens), l'agent en tokenise 5 (200 tokens). Deuxième couche d'économie au-dessus de CBOR-Web.
+
+### `_l` — Niveaux de profondeur
+
+| Niveau | Contenu | Qui lit |
+|--------|---------|--------|
+| 0 | Identité (nom, domaine, contact) | Tout agent |
+| 1 | Essentiel (titres, prix, CTA) | Agent acheteur, comparateur |
+| 2 | Détail (descriptions, FAQ, preuves) | Agent recherche |
+| 3 | Complet (contenu éditorial, analyses) | Agent indexeur |
+| 4 | Enrichissement (légal, technique, metadata) | Agent audit, compliance |
+
+Un agent déclare sa profondeur de lecture. Il ignore les blocs dont `_l` dépasse son seuil. Le champ est un entier — 1 octet en CBOR.
+
+### Règles
+
+1. `_describe` et `_l` sont **optionnels**. Un bloc sans ces champs est traité normalement.
+2. Le contenu de `_describe` est du **texte libre** — le publisher y met ce qu'il veut dans la langue de son choix.
+3. Un agent **DOIT** lire `_describe` avant de sauter un bloc de type inconnu (compatibilité ascendante intelligente).
+4. Un agent **PEUT** utiliser `_l` pour filtrer les blocs selon sa mission.
+5. `_describe` ne remplace pas le contenu — c'est un guide de navigation, pas un résumé.
+
+### Pourquoi texte libre ?
+
+Aucun vocabulaire imposé. Le publisher connaît son contenu mieux que n'importe quel schéma. Et l'IA est conçue pour comprendre du texte libre — c'est son point fort. Un champ structuré (type, audience, action) serait plus rigide mais moins expressif. Le texte libre laisse **chaque publisher créer ce qu'il veut**. Le protocole ouvre la porte — le publisher décide ce qu'il met derrière.
 
 ---
 
