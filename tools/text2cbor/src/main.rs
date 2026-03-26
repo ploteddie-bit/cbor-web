@@ -734,6 +734,120 @@ struct PageEntry {
     freshness: String,
 }
 
+// ============================================================
+// Intelligent navigation: _describe + _l
+// ============================================================
+
+fn enrich_block_with_describe(block: &Value) -> Value {
+    if let Value::Map(pairs) = block {
+        let mut new_pairs: Vec<(Value, Value)> = pairs.clone();
+
+        // Extract block type and value
+        let block_type = pairs.iter()
+            .find(|(k, _)| matches!(k, Value::Text(s) if s == "t"))
+            .and_then(|(_, v)| if let Value::Text(s) = v { Some(s.as_str()) } else { None })
+            .unwrap_or("");
+
+        let block_value = pairs.iter()
+            .find(|(k, _)| matches!(k, Value::Text(s) if s == "v"))
+            .and_then(|(_, v)| if let Value::Text(s) = v { Some(s.as_str()) } else { None })
+            .unwrap_or("");
+
+        let block_level = pairs.iter()
+            .find(|(k, _)| matches!(k, Value::Text(s) if s == "l"))
+            .and_then(|(_, v)| match v {
+                Value::Integer(i) => { let n: i128 = (*i).into(); Some(n as u64) }
+                _ => None
+            })
+            .unwrap_or(0);
+
+        // Generate _describe
+        let describe = match block_type {
+            "h" => {
+                let text = if block_value.len() > 50 { &block_value[..50] } else { block_value };
+                format!("Heading level {}: {}", block_level, text)
+            }
+            "p" => {
+                if block_value.len() > 100 {
+                    let words: Vec<&str> = block_value.split_whitespace().take(30).collect();
+                    format!("{}...", words.join(" "))
+                } else {
+                    String::new() // Short paragraphs don't need _describe
+                }
+            }
+            "table" => {
+                let headers = pairs.iter()
+                    .find(|(k, _)| matches!(k, Value::Text(s) if s == "headers"))
+                    .and_then(|(_, v)| if let Value::Array(a) = v {
+                        Some(a.iter().filter_map(|h| if let Value::Text(s) = h { Some(s.as_str()) } else { None }).collect::<Vec<_>>().join(", "))
+                    } else { None })
+                    .unwrap_or_default();
+                let rows = pairs.iter()
+                    .find(|(k, _)| matches!(k, Value::Text(s) if s == "rows"))
+                    .and_then(|(_, v)| if let Value::Array(a) = v { Some(a.len()) } else { None })
+                    .unwrap_or(0);
+                format!("Table: {}. {} rows.", headers, rows)
+            }
+            "ul" | "ol" => {
+                let count = pairs.iter()
+                    .find(|(k, _)| matches!(k, Value::Text(s) if s == "v"))
+                    .and_then(|(_, v)| if let Value::Array(a) = v { Some(a.len()) } else { None })
+                    .unwrap_or(0);
+                format!("List: {} items.", count)
+            }
+            "cta" => {
+                let href = pairs.iter()
+                    .find(|(k, _)| matches!(k, Value::Text(s) if s == "href"))
+                    .and_then(|(_, v)| if let Value::Text(s) = v { Some(s.as_str()) } else { None })
+                    .unwrap_or("");
+                format!("Call to action: {} -> {}", block_value, href)
+            }
+            "img" => {
+                let alt = pairs.iter()
+                    .find(|(k, _)| matches!(k, Value::Text(s) if s == "alt"))
+                    .and_then(|(_, v)| if let Value::Text(s) = v { Some(s.as_str()) } else { None })
+                    .unwrap_or("Image");
+                format!("Image: {}", alt)
+            }
+            "q" => format!("Quote: {}...", if block_value.len() > 40 { &block_value[..40] } else { block_value }),
+            "code" => {
+                let lang = pairs.iter()
+                    .find(|(k, _)| matches!(k, Value::Text(s) if s == "lang"))
+                    .and_then(|(_, v)| if let Value::Text(s) = v { Some(s.as_str()) } else { None })
+                    .unwrap_or("unknown");
+                format!("Code block: {}", lang)
+            }
+            _ => String::new(),
+        };
+
+        // Generate _l (depth level)
+        let level: u64 = match block_type {
+            "h" if block_level == 1 => 0,        // Identity
+            "h" if block_level == 2 => 1,         // Essential
+            "table" | "cta" => 1,                  // Essential
+            "p" | "ul" | "ol" => 2,                // Detail
+            "h" => 2,                              // h3+ = detail
+            "q" | "code" | "dl" => 3,              // Complete
+            "img" | "sep" | "embed" => 4,          // Enrichment
+            _ => 2,
+        };
+
+        // Add _describe if non-empty
+        if !describe.is_empty() {
+            new_pairs.push((t("_describe"), t(&describe)));
+        }
+        new_pairs.push((t("_l"), u(level)));
+
+        cmap(new_pairs)
+    } else {
+        block.clone()
+    }
+}
+
+fn enrich_blocks(blocks: &[Value]) -> Vec<Value> {
+    blocks.iter().map(enrich_block_with_describe).collect()
+}
+
 fn build_page_entry(page: &PageEntry) -> Value {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -742,7 +856,7 @@ fn build_page_entry(page: &PageEntry) -> Value {
 
     let mut entries: Vec<(Value, Value)> = vec![
         (t("access"), t(&page.access)),
-        (t("content"), arr(page.blocks.clone())),
+        (t("content"), arr(enrich_blocks(&page.blocks))),
         (t("hash"), Value::Bytes(page.hash.clone())),
         (t("lang"), t(&page.lang)),
         (t("path"), t(&page.path)),
