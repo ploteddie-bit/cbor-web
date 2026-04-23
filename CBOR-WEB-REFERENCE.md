@@ -593,7 +593,7 @@ manifest-security = {
 ## 2. Complete Test Vectors
 
 All test vectors have been generated using **deterministic CBOR encoding** (RFC 8949 §4.2.1) and **cross-validated** by two independent implementations producing **byte-identical output**:
-- **Rust**: ciborium 0.2.2 (`cbor-vectors/` in the repository)
+- **Rust**: ciborium 0.2.2 (`tools/cbor-vectors/` in the repository)
 - **Python**: cbor2 (canonical=True)
 
 ### 2.1 TV1 — Minimal Manifest

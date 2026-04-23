@@ -151,7 +151,7 @@ CBOR-Web follows ten design principles, ordered by priority. When two principles
 | 7 | **Deterministic encoding** | Two publishers converting the same HTML must produce identical CBOR bytes. This enables hash reproducibility. | RFC 8949 §4.2.1 deterministic encoding. Map keys sorted. Integers minimized. |
 | 8 | **Human debuggability** | Despite being binary, the format should be inspectable. CBOR diagnostic notation, self-described tag. | `D9 D9 F7` magic bytes identify CBOR-Web files. `cbor2diag` renders human-readable output. |
 | 9 | **Ecosystem compatibility** | CBOR-Web complements robots.txt, sitemap.xml, llms.txt — not replace them. | A site adds CBOR-Web alongside its existing standards. Each layer adds value. |
-| 10 | **Implementation simplicity** | A minimal publisher should be implementable in < 500 lines of code. The spec avoids unnecessary complexity. | The `text2cbor` reference implementation is ~400 lines of Rust. |
+| 10 | **Implementation simplicity** | A minimal publisher should be implementable in < 500 lines of code. The spec avoids unnecessary complexity. | The `text2cbor` reference implementation is a Rust CLI tool (see `tools/text2cbor/` in this repository). |
 
 ### 1.4 Positioning
 
@@ -194,7 +194,7 @@ Each layer provides progressively richer machine access. A site that adds CBOR-W
 | **Step 3: Standard** | 1-2 days | Add navigation, hashes, structured data, bundle. Agents get the full efficient experience. |
 | **Step 4: Full** | Ongoing | Add signatures, multimedia, generative blocks, token access. The complete ecosystem. |
 
-The reference tool `text2cbor` automates Steps 1-3 from existing HTML. A publisher running `text2cbor serve --port 3500` on their site gets Minimal conformance with zero code changes.
+The reference tool `text2cbor` automates Steps 1-3 from existing HTML. A publisher running `text2cbor generate --input ./site --output ./out --domain example.com` gets Minimal conformance with zero code changes.
 
 ### 1.5 Scope
 
@@ -1049,7 +1049,7 @@ A manifest is analogous to a book's table of contents combined with its colophon
     }
   },
   5: {                                 ; meta (map) — generation info
-    "generator": "text2cbor/0.1.0",    ; "generator" (10B) < "bundle_url" (11B) < ...
+    "generator": "text2cbor/1.1.0",    ; "generator" (10B) < "bundle_url" (11B) < ...
     "bundle_url": "/.well-known/cbor-web/bundle",
     "rate_limit": {
       "requests_per_second": 10,
@@ -1264,7 +1264,7 @@ The meta map contains information about the manifest itself: when it was generat
 
 | Field | Type | Required | Constraints | Description |
 |-------|------|----------|-------------|-------------|
-| `"generator"` | text | RECOMMENDED | `"software/version"` format | Publisher software name and version. Example: `"text2cbor/0.1.0"` |
+| `"generator"` | text | RECOMMENDED | `"software/version"` format | Publisher software name and version. Example: `"text2cbor/1.1.0"` |
 | `"generated_at"` | tag 1 (uint) | REQUIRED | Unix epoch | When this manifest was generated. Used for freshness checking. |
 | `"total_pages"` | uint | REQUIRED | | Total number of pages across all sub-manifests. |
 | `"total_size"` | uint | REQUIRED | In bytes | Total size of all standalone page documents. Helps agent estimate storage/bandwidth. |
@@ -3000,20 +3000,23 @@ A crawler MUST:
 
 ### 14.7 Reference Implementation
 
-The reference crawler implementation is `cbor-crawl`, written in Rust. Source: `https://github.com/ploteddie-bit/cbor-web` (directory `cbor-crawl/`).
+The reference crawler implementation is `cbor-crawl`, written in Rust. Source: `https://github.com/ploteddie-bit/cbor-web` (directory `tools/cbor-crawl/`).
 
 ```bash
 # Inspect a site's CBOR-Web manifest
 cbor-crawl inspect https://verdetao.com
-
-# Fetch full site content as JSON
+```
+```bash
 cbor-crawl fetch https://verdetao.com --format json
-
-# Watch for changes (poll every hour)
-cbor-crawl watch https://verdetao.com --interval 3600
-
-# Fetch with token authentication
-cbor-crawl fetch https://verdetao.com --wallet 0x1234... --keyfile ~/.cbor-web/key
+```
+```bash
+cbor-crawl fetch https://verdetao.com --output ./pages
+```
+```bash
+cbor-crawl search https://verdetao.com "keyword"
+```
+```bash
+cbor-crawl doleance https://verdetao.com --feedback '{"signals":[{"signal":"missing_data","details":"...","block_type":"table"}],"page_path":"/"}'
 ```
 
 ---
@@ -3252,10 +3255,12 @@ commerce-data = { * tstr => any }      ; CBOR-WEB-GENERATIVE.md §19
 ## Appendix B: Test Vectors
 
 All test vectors have been generated using **deterministic CBOR encoding** (RFC 8949 §4.2.1) and cross-validated by two independent implementations:
-- **Rust**: ciborium 0.2.2 (`cbor-vectors/` in the repository)
+- **Rust**: ciborium 0.2.2 (`tools/cbor-vectors/` in the repository)
 - **Python**: cbor2 (`canonical=True`)
 
 Both implementations produce **byte-identical output** for all vectors.
+
+Binary `.cbor` files for all test vectors are available in the `test-vectors/` directory of the repository.
 
 ### B.1 Test Vector 1 — Minimal Manifest (v2.1)
 
