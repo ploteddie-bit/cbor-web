@@ -1,0 +1,10 @@
+[package]
+name = "cbor-vectors"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ciborium = "0.2"
+sha2 = "0.10"
+hex = "0.4"
+clap = { version = "4", features = ["derive"] }

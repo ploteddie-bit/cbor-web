@@ -1,0 +1,101 @@
+name: CBOR-Web CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check CDDL schemas exist
+        run: |
+          for f in schemas/cbor-web-core.cddl schemas/cbor-web-security.cddl schemas/cbor-web-multimedia.cddl schemas/cbor-web-generative.cddl schemas/cbor-web-unified.cddl; do
+            if [ ! -f "$f" ]; then echo "Missing: $f" && exit 1; fi
+            echo "OK: $f"
+          done
+
+      - name: Check test vectors exist
+        run: |
+          for f in test-vectors/tv1_manifest.cbor test-vectors/tv2_page.cbor test-vectors/tv3_product.cbor test-vectors/tv4_bundle.cbor test-vectors/tv5_navigation.cbor; do
+            if [ ! -f "$f" ]; then echo "Missing: $f" && exit 1; fi
+            echo "OK: $f ($(wc -c < $f) bytes)"
+          done
+
+      - name: Verify test vectors have self-described CBOR tag
+        run: |
+          for f in test-vectors/*.cbor; do
+            MAGIC=$(xxd -p -l3 "$f")
+            if [ "$MAGIC" != "d9d9f7" ]; then
+              echo "ERROR: $f missing self-described CBOR tag (got $MAGIC)"
+              exit 1
+            fi
+            echo "OK: $f has CBOR self-described tag"
+          done
+
+      - name: Check no internal references remain
+        run: |
+          if grep -r "DIRECTIVE-CLAUDE\|Co-Authored-By: Claude\|explodev/cbor-web" --include="*.md" .; then
+            echo "ERROR: Found internal or incorrect references"
+            exit 1
+          fi
+          echo "No internal references found"
+
+      - name: Check LICENSE exists
+        run: test -f LICENSE && echo "LICENSE OK"
+
+      - name: Check CONTRIBUTING.md exists
+        run: test -f CONTRIBUTING.md && echo "CONTRIBUTING.md OK"
+
+      - name: Check PROOF.md has all 7 hashes
+        run: |
+          COUNT=$(grep -c "CBOR-WEB-.*\.md" PROOF.md || true)
+          if [ "$COUNT" -lt 7 ]; then
+            echo "ERROR: PROOF.md only has $COUNT/7 document hashes"
+            exit 1
+          fi
+          echo "PROOF.md OK ($COUNT hashes)"
+
+  build-tools:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build cbor-crawl
+        working-directory: tools/cbor-crawl
+        run: cargo check
+
+      - name: Build text2cbor
+        working-directory: tools/text2cbor
+        run: cargo check
+
+      - name: Build cbor-vectors
+        working-directory: tools/cbor-vectors
+        run: cargo check
+
+      - name: Run cbor-vectors
+        working-directory: tools/cbor-vectors
+        run: cargo run -- --output /tmp/tv && ls -la /tmp/tv/
+
+  markdown-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check spec documents are not empty
+        run: |
+          for f in CBOR-WEB-*.md; do
+            SIZE=$(wc -c < "$f")
+            if [ "$SIZE" -lt 1000 ]; then
+              echo "ERROR: $f seems too small ($SIZE bytes)"
+              exit 1
+            fi
+            echo "OK: $f ($SIZE bytes)"
+          done
