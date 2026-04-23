@@ -1,0 +1,263 @@
+; ══════════════════════════════════════════════════════════
+; CBOR-Web Generative Specification v2.1 — CDDL Schema
+; Document: CBOR-WEB-GENERATIVE.md, Appendix C
+; ══════════════════════════════════════════════════════════
+
+; ── Variable Type System (shared by all generative blocks) ──
+
+variable-def = {
+  "type" => "string" / "number" / "integer" / "boolean" / "array" / "object",
+  "required" => bool,
+  "description" => tstr,
+  ? "default" => any,
+  ? "enum" => [+ any],
+  ? "items" => tstr,
+  ? "min" => number,
+  ? "max" => number,
+  ? "min_length" => uint,
+  ? "max_length" => uint,
+  ? "pattern" => tstr,
+  ? "format" => tstr,
+  ? "fields" => { + tstr => variable-def },
+  * tstr => any
+}
+
+; ── Generative Blocks ──
+
+generative-block = template-block / schema-block / api-endpoint-block /
+                   executable-block / workflow-block / constraint-block
+
+template-block = {
+  "t" => "template",
+  "trust" => 1,
+  "template_id" => tstr,
+  "purpose" => tstr,
+  "variables" => { + tstr => variable-def },
+  ? "output_template" => tstr,
+  ? "example_instantiation" => { * tstr => any },
+  * tstr => any
+}
+
+schema-block = {
+  "t" => "schema",
+  "trust" => 0,
+  "schema_id" => tstr,
+  "purpose" => tstr,
+  ? "version" => uint,
+  "fields" => { + tstr => variable-def },
+  ? "primary_key" => tstr,
+  ? "required" => [+ tstr],
+  ? "indexes" => [+ tstr],
+  * tstr => any
+}
+
+api-endpoint-block = {
+  "t" => "api_endpoint",
+  "trust" => 3,
+  "endpoint_id" => tstr,
+  "purpose" => tstr,
+  "method" => "GET" / "POST" / "PUT" / "PATCH" / "DELETE",
+  "url" => tstr,
+  ? "url_params" => { + tstr => variable-def },
+  ? "query_params" => { + tstr => variable-def },
+  ? "body" => { + tstr => variable-def },
+  ? "headers" => { + tstr => tstr },
+  ? "auth" => { "type" => tstr, ? "description" => tstr, * tstr => any },
+  "response" => {
+    "content_type" => tstr,
+    ? "schema_ref" => tstr,
+    ? "example" => { * tstr => any },
+    * tstr => any
+  },
+  ? "rate_limit" => { * tstr => uint },
+  ? "errors" => [+ { "code" => uint, "description" => tstr }],
+  * tstr => any
+}
+
+sandbox-requirements = {
+  ? "network" => bool,
+  ? "filesystem" => bool,
+  ? "max_execution_time_ms" => uint,
+  ? "max_memory_mb" => uint,
+  ? "required_packages" => [+ tstr],
+  * tstr => any
+}
+
+test-case = {
+  "inputs" => { * tstr => any },
+  "expected_output" => { * tstr => any },
+  * tstr => any
+}
+
+executable-block = {
+  "t" => "executable",
+  "trust" => 2,
+  "exec_id" => tstr,
+  "purpose" => tstr,
+  "lang" => tstr,
+  "inputs" => { + tstr => variable-def },
+  "outputs" => { + tstr => variable-def },
+  "code" => tstr,
+  ? "test_cases" => [+ test-case],
+  "sandbox_requirements" => sandbox-requirements,
+  * tstr => any
+}
+
+workflow-step = {
+  "step_id" => tstr,
+  "action" => "api_call" / "execute" / "transform" / "user_choice" / "user_confirmation" / "validate",
+  "purpose" => tstr,
+  ? "endpoint_ref" => tstr,
+  ? "exec_ref" => tstr,
+  ? "schema_ref" => tstr,
+  ? "params" => { * tstr => any },
+  ? "body" => { * tstr => any },
+  ? "input_var" => tstr,
+  ? "output_var" => tstr,
+  ? "condition" => tstr,
+  ? "display" => tstr,
+  * tstr => any
+}
+
+workflow-block = {
+  "t" => "workflow",
+  "trust" => 3,
+  "workflow_id" => tstr,
+  "purpose" => tstr,
+  "steps" => [+ workflow-step],
+  ? "error_handling" => { * tstr => tstr },
+  * tstr => any
+}
+
+constraint-rule = {
+  "rule_id" => tstr,
+  "condition" => tstr,
+  "action" => "reject" / "apply" / "require" / "warn",
+  ? "effect" => tstr,
+  "message" => tstr,
+  * tstr => any
+}
+
+constraint-block = {
+  "t" => "constraint",
+  "trust" => 0,
+  "constraint_id" => tstr,
+  "purpose" => tstr,
+  "rules" => [+ constraint-rule],
+  * tstr => any
+}
+
+; ── Form Blocks ──
+
+form-field = {
+  "name" => tstr,
+  "type" => "text" / "textarea" / "email" / "tel" / "number" / "select" /
+            "multi_select" / "checkbox" / "date" / "file" / "hidden",
+  "label" => tstr,
+  "required" => bool,
+  ? "max_length" => uint,
+  ? "min_length" => uint,
+  ? "min" => number,
+  ? "max" => number,
+  ? "step" => number,
+  ? "pattern" => tstr,
+  ? "validation" => tstr,
+  ? "placeholder" => tstr,
+  ? "default" => any,
+  ? "options" => [+ { "value" => tstr, "label" => tstr }],
+  ? "min_selections" => uint,
+  ? "max_selections" => uint,
+  ? "accepted_types" => [+ tstr],
+  ? "max_size" => uint,
+  ? "value" => any,
+  ? "min_date" => tstr,
+  ? "max_date" => tstr,
+  * tstr => any
+}
+
+form-block = {
+  "t" => "form",
+  "trust" => 3,
+  "form_id" => tstr,
+  "purpose" => tstr,
+  "action" => tstr,
+  "method" => "POST" / "PUT" / "PATCH",
+  "submit_format" => "cbor" / "json" / "form",
+  "fields" => [+ form-field],
+  ? "success_message" => tstr,
+  ? "captcha" => { "type" => tstr, ? "note" => tstr },
+  * tstr => any
+}
+
+; ── Commerce ──
+
+availability-status = "in_stock" / "low_stock" / "out_of_stock" / "pre_order" / "discontinued"
+
+product-variant = {
+  "variant_id" => tstr,
+  "name" => tstr,
+  "price" => number,
+  "availability" => availability-status,
+  ? "quantity_available" => uint,
+  * tstr => any
+}
+
+product-block = {
+  "t" => "product",
+  "trust" => 0,
+  "product_id" => tstr,
+  "name" => tstr,
+  "slug" => tstr,
+  "description" => tstr,
+  "price" => number,
+  "currency" => tstr,
+  "availability" => availability-status,
+  ? "quantity_available" => uint,
+  ? "variants" => [+ product-variant],
+  ? "images" => [+ { "src" => tstr, "semantic_role" => tstr, "alt" => tstr }],
+  ? "categories" => [+ tstr],
+  ? "specs" => { * tstr => any },
+  ? "certifications" => [+ tstr],
+  ? "rating" => { "average" => number, "count" => uint },
+  * tstr => any
+}
+
+cart-action-block = {
+  "t" => "cart_action",
+  "trust" => 3,
+  "action" => tstr,
+  "endpoint" => tstr,
+  "method" => "POST" / "PUT",
+  "body_schema" => { + tstr => variable-def },
+  ? "auth" => { "type" => tstr, ? "description" => tstr, * tstr => any },
+  * tstr => any
+}
+
+commerce-data = {
+  ? "products" => [+ product-block],
+  ? "cart_actions" => [+ cart-action-block],
+  ? "checkout_url" => tstr,
+  ? "payment_methods" => [+ tstr],
+  ? "shipping_zones" => [+ {
+    "zone" => tstr,
+    "countries" => [+ tstr],
+    "base_cost" => number,
+    ? "free_above" => number / null
+  }],
+  * tstr => any
+}
+
+; ── Capability Declaration (manifest key 7) ──
+
+capabilities = {
+  ? "static_content" => bool,
+  ? "multimedia" => { ? "images" => bool, ? "video" => bool, ? "audio" => bool, ? "documents" => bool, ? "live_streams" => bool, * tstr => any },
+  ? "api" => { ? "available" => bool, ? "auth_required" => bool, ? "endpoint_count" => uint, ? "docs_url" => tstr, * tstr => any },
+  ? "generative" => { ? "templates" => bool, ? "schemas" => bool, ? "executables" => bool, ? "workflows" => bool, ? "constraints" => bool, * tstr => any },
+  ? "live" => bool,
+  ? "commerce" => { ? "available" => bool, ? "currencies" => [+ tstr], ? "checkout_type" => tstr, ? "product_count" => uint, * tstr => any },
+  ? "forms" => { ? "available" => bool, ? "types" => [+ tstr], * tstr => any },
+  ? "languages" => [+ tstr],
+  ? "conformance" => "minimal" / "standard" / "full",
+  * tstr => any
+}

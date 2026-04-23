@@ -6,12 +6,12 @@
 Status:       Proposed Standard
 Version:      2.1.1
 Date:         2026-03-23
-Authors:      ExploDev (Eddie Plot, Claude)
+Authors:      ExploDev (Eddie Plot)
 Format:       CBOR (RFC 8949)
 Schema:       CDDL (RFC 8610)
 Signing:      COSE (RFC 9052)
 License:      CC BY 4.0
-Repository:   https://github.com/explodev/cbor-web
+Repository:   https://github.com/ploteddie-bit/cbor-web
 Document:     4 of 6 — CBOR-WEB-SECURITY.md
 Companion:    CBOR-WEB-CORE.md, CBOR-WEB-MULTIMEDIA.md,
               CBOR-WEB-GENERATIVE.md, CBOR-WEB-ECONOMICS.md,

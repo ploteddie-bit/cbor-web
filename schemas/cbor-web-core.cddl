@@ -1,0 +1,222 @@
+; ══════════════════════════════════════════════════════════
+; CBOR-Web Core Specification v2.1.3 — CDDL Schema
+; Document: CBOR-WEB-CORE.md, Appendix A
+; RFC 8610 (Concise Data Definition Language)
+; ══════════════════════════════════════════════════════════
+
+; ── Top-Level Document Types ──
+
+cbor-web-document = #6.55799(manifest / sub-manifest / page / bundle)
+
+; ── Manifest ──
+
+manifest = {
+  0 => "cbor-web-manifest",
+  1 => uint,                          ; @version: MUST be 2
+  2 => site-metadata,
+  3 => [+ page-entry],
+  ? 4 => navigation,                  ; OPTIONAL (RECOMMENDED at Standard+)
+  5 => manifest-meta,
+  ? 6 => bstr,                        ; COSE_Sign1 signature (serialized as bstr)
+  ? 7 => capabilities,                ; defined in CBOR-WEB-GENERATIVE.md
+  ? 8 => [+ channel],                 ; defined in CBOR-WEB-MULTIMEDIA.md
+  ? 9 => diff-manifest,
+  ? 10 => manifest-security,          ; defined in CBOR-WEB-SECURITY.md
+  * int => any                         ; forward-compatible
+}
+
+; Sub-manifest: keys 2 and 4 OPTIONAL (only in first page)
+sub-manifest = {
+  0 => "cbor-web-manifest",
+  1 => uint,
+  ? 2 => site-metadata,
+  3 => [+ page-entry],
+  ? 4 => navigation,
+  5 => manifest-meta,
+  ? 6 => bstr,
+  ? 7 => capabilities,
+  ? 8 => [+ channel],
+  ? 9 => diff-manifest,
+  ? 10 => manifest-security,
+  * int => any
+}
+
+site-metadata = {
+  "domain" => tstr,
+  "name" => tstr,
+  ? "description" => tstr,
+  "languages" => [+ language-code],
+  "default_language" => language-code,
+  ? "contact" => { ? "email" => tstr, ? "phone" => tstr, * tstr => any },
+  ? "geo" => {
+    ? "country" => tstr,
+    ? "region" => tstr,
+    ? "coordinates" => [float .ge -90.0 .le 90.0, float .ge -180.0 .le 180.0],
+    * tstr => any
+  },
+  * tstr => any
+}
+
+language-code = tstr .regexp "[a-z]{2,3}(-[A-Za-z]{2,8})*"  ; BCP 47 (RFC 5646)
+
+page-entry = {
+  "path" => tstr,
+  "title" => tstr,
+  "lang" => language-code,
+  "access" => "public" / "token",     ; v2.1 REQUIRED field
+  "size" => uint,
+  ? "updated" => #6.1(uint),
+  ? "hash" => bstr .size 32,
+  ? "alternates" => { + language-code => tstr },
+  ? "category" => tstr,
+  ? "content_type" => "article" / "product" / "landing" / "documentation" / tstr,
+  ? "has_multimedia" => bool,
+  ? "has_generative" => bool,
+  ? "has_forms" => bool,
+  ? "has_commerce" => bool,
+  ? "media_size" => uint,
+  * tstr => any
+}
+
+navigation = {
+  "main" => [+ tstr],
+  ? "footer" => [+ tstr],
+  ? "hierarchy" => { + tstr => [+ tstr] },
+  ? "breadcrumbs" => { + tstr => [+ tstr] },
+  * tstr => any
+}
+
+manifest-meta = {
+  ? "generator" => tstr,
+  "generated_at" => #6.1(uint),
+  "total_pages" => uint,
+  "total_size" => uint,
+  "bundle_available" => bool,
+  ? "bundle_url" => tstr,
+  ? "rate_limit" => {
+    ? "requests_per_second" => uint,
+    ? "bundle_cooldown_seconds" => uint,
+    * tstr => any
+  },
+  ? "next" => tstr,
+  * tstr => any
+}
+
+; Diff manifest (key 9)
+diff-manifest = {
+  "diff_version" => uint,
+  "base_version_hash" => bstr .size 32,
+  "base_generated_at" => #6.1(uint),
+  "current_generated_at" => #6.1(uint),
+  "changes" => [+ diff-change],
+  ? "stats" => {
+    ? "pages_added" => uint,
+    ? "pages_modified" => uint,
+    ? "pages_removed" => uint,
+    ? "total_pages_now" => uint,
+    * tstr => any
+  },
+  * tstr => any
+}
+
+diff-change = {
+  "path" => tstr,
+  "action" => "added" / "modified" / "removed",
+  ? "hash" => bstr .size 32,
+  ? "previous_hash" => bstr .size 32,
+  ? "size" => uint,
+  ? "title" => tstr,
+  ? "fields_changed" => [+ tstr],
+  * tstr => any
+}
+
+; ── Page Document ──
+
+page = {
+  0 => "cbor-web-page",
+  1 => uint,                          ; @version: MUST be 2
+  2 => page-identity,
+  3 => page-metadata,
+  4 => [* content-block],             ; empty array allowed (e.g., redirect pages)
+  ? 5 => page-links,
+  ? 6 => structured-data,
+  ? 7 => [+ generative-block],       ; defined in CBOR-WEB-GENERATIVE.md
+  ? 8 => [+ form-block],             ; defined in CBOR-WEB-GENERATIVE.md
+  ? 9 => commerce-data,              ; defined in CBOR-WEB-GENERATIVE.md
+  * int => any
+}
+
+page-identity = {
+  "path" => tstr,
+  "canonical" => tstr,
+  "lang" => language-code,
+  ? "alternates" => { + language-code => tstr },
+  * tstr => any
+}
+
+page-metadata = {
+  "title" => tstr,
+  ? "description" => tstr,
+  ? "author" => tstr,
+  ? "published" => #6.1(uint),
+  ? "updated" => #6.1(uint),
+  ? "tags" => [+ tstr],
+  ? "category" => tstr,
+  ? "reading_time_seconds" => uint,
+  ? "word_count" => uint,
+  * tstr => any
+}
+
+page-links = {
+  ? "internal" => [* { "path" => tstr, "text" => tstr, * tstr => any }],
+  ? "external" => [* { "url" => tstr, "text" => tstr, * tstr => any }],
+  * tstr => any
+}
+
+structured-data = {
+  "type" => tstr,
+  * tstr => any
+}
+
+; ── Content Blocks (Core v1.0) ──
+
+content-block = heading / paragraph / unordered-list / ordered-list /
+                quote / code-block / data-table / image-ref /
+                call-to-action / embed / separator / definition-list /
+                note-block
+                ; multimedia + generative blocks defined in companion docs
+
+heading = { "t" => "h", "l" => uint .ge 1 .le 6, "v" => tstr, * tstr => any }
+paragraph = { "t" => "p", "v" => tstr, * tstr => any }
+unordered-list = { "t" => "ul", "v" => [+ tstr], * tstr => any }
+ordered-list = { "t" => "ol", "v" => [+ tstr], * tstr => any }
+quote = { "t" => "q", "v" => tstr, ? "attr" => tstr, * tstr => any }
+code-block = { "t" => "code", "v" => tstr, ? "lang" => tstr, * tstr => any }
+data-table = { "t" => "table", "headers" => [+ tstr], "rows" => [+ [+ tstr]], * tstr => any }
+image-ref = { "t" => "img", "alt" => tstr, "src" => tstr, ? "caption" => tstr, * tstr => any }
+call-to-action = { "t" => "cta", "v" => tstr, "href" => tstr, * tstr => any }
+embed = { "t" => "embed", "src" => tstr, ? "description" => tstr, * tstr => any }
+separator = { "t" => "sep", * tstr => any }
+definition-list = { "t" => "dl", "v" => [+ { "term" => tstr, "def" => tstr, * tstr => any }], * tstr => any }
+note-block = { "t" => "note", "v" => tstr, ? "level" => "info" / "warn" / "important", * tstr => any }
+
+; ── Bundle ──
+
+bundle = {
+  0 => "cbor-web-bundle",
+  1 => uint,
+  2 => manifest,
+  3 => { + tstr => page },
+  * int => any
+}
+
+; ── Forward declarations for companion document types ──
+; These are placeholders — full definitions in respective documents.
+; An agent that only implements CBOR-WEB-CORE.md ignores these keys.
+
+capabilities = { * tstr => any }      ; CBOR-WEB-GENERATIVE.md §17
+channel = { * tstr => any }            ; CBOR-WEB-MULTIMEDIA.md §20
+manifest-security = { * tstr => any }  ; CBOR-WEB-SECURITY.md §12.3
+generative-block = { * tstr => any }   ; CBOR-WEB-GENERATIVE.md
+form-block = { * tstr => any }         ; CBOR-WEB-GENERATIVE.md §18
+commerce-data = { * tstr => any }      ; CBOR-WEB-GENERATIVE.md §19

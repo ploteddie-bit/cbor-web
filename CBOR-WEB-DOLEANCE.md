@@ -6,7 +6,7 @@
 Status:       Proposed Standard
 Version:      1.0
 Date:         2026-03-23
-Authors:      ExploDev (Eddie Plot, Claude)
+Authors:      ExploDev (Eddie Plot)
 Extends:      CBOR-Web Core v2.1.3 (Reading Contract, Manifest key 11)
 Format:       CBOR (RFC 8949)
 License:      CC BY 4.0
@@ -570,7 +570,7 @@ The Doléance Protocol MUST NOT require agent identification. A reading profile 
 | Language preferences | User information |
 | Reading hash (proof of consumption) | Agent credentials or wallet |
 
-A publisher learns **"an agent compared products and found nutritional data missing"**, not **"Claude 4.6 running on Eddie's desktop compared products for a user named Jean"**.
+A publisher learns **"an agent compared products and found nutritional data missing"**, not **"Agent-X running on a user's desktop compared products for a user named Jean"**.
 
 ### 9.2 Aggregate-Only Insights
 
@@ -819,4 +819,4 @@ It is not analytics. It is not monitoring. It is a **dialogue**.
 
 ---
 
-**License**: CC BY 4.0 — ExploDev (Eddie Plot, Claude)
+**License**: CC BY 4.0 — ExploDev (Eddie Plot)

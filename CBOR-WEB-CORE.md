@@ -6,11 +6,11 @@
 Status:       Proposed Standard
 Version:      2.1.3
 Date:         2026-03-22
-Authors:      ExploDev (Eddie Plot, Claude)
+Authors:      ExploDev (Eddie Plot)
 Format:       CBOR (RFC 8949)
 Schema:       CDDL (RFC 8610)
 License:      CC BY 4.0
-Repository:   https://github.com/explodev/cbor-web
+Repository:   https://github.com/ploteddie-bit/cbor-web
 Document:     1 of 6 — CBOR-WEB-CORE.md
 Companion:    CBOR-WEB-MULTIMEDIA.md, CBOR-WEB-GENERATIVE.md,
               CBOR-WEB-SECURITY.md, CBOR-WEB-ECONOMICS.md,
@@ -3000,7 +3000,7 @@ A crawler MUST:
 
 ### 14.7 Reference Implementation
 
-The reference crawler implementation is `cbor-crawl`, written in Rust. Source: `https://github.com/explodev/cbor-web` (directory `cbor-crawl/`).
+The reference crawler implementation is `cbor-crawl`, written in Rust. Source: `https://github.com/ploteddie-bit/cbor-web` (directory `cbor-crawl/`).
 
 ```bash
 # Inspect a site's CBOR-Web manifest

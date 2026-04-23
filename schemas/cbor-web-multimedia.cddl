@@ -1,0 +1,162 @@
+; ══════════════════════════════════════════════════════════
+; CBOR-Web Multimedia Specification v2.1 — CDDL Schema
+; Document: CBOR-WEB-MULTIMEDIA.md, Appendix A
+; ══════════════════════════════════════════════════════════
+
+; ── Multimedia Content Blocks ──
+; These extend the content-block choice in CBOR-WEB-CORE.md Appendix A
+
+multimedia-block = rich-image / video-block / audio-block /
+                   document-block / diagram-block / live-stream-block
+
+; ── Semantic Roles ──
+
+semantic-role = "logo" / "product_photo" / "hero" / "illustration" /
+                "screenshot" / "avatar" / "diagram" / "decorative" /
+                "infographic" / "photo_editorial" / tstr
+
+; ── Rich Image ──
+
+rich-image = {
+  "t" => "image",
+  "trust" => 0,
+  "src" => tstr,
+  "alt" => tstr,
+  "semantic_role" => semantic-role,
+  ? "dimensions" => { "w" => uint, "h" => uint },
+  ? "format" => tstr,
+  ? "file_size" => uint,
+  ? "dominant_color" => tstr,
+  ? "ai_description" => tstr,
+  ? "caption" => tstr,
+  ? "exif" => { * tstr => any },
+  ? "inline_data" => bstr / null,     ; raw image bytes, NOT base64
+  * tstr => any
+}
+
+; ── Transcription (split into conditional types) ──
+
+transcription = plain-transcription / timestamped-transcription
+
+plain-transcription = {
+  "format" => "plain",
+  "lang" => language-code,
+  "text" => tstr,                     ; REQUIRED for plain
+  * tstr => any
+}
+
+timestamped-transcription = {
+  "format" => "timestamped",
+  "lang" => language-code,
+  "segments" => [+ segment],         ; REQUIRED for timestamped
+  * tstr => any
+}
+
+segment = {
+  "start" => uint,
+  "end" => uint,
+  "text" => tstr
+}
+
+; language-code is defined in CBOR-WEB-CORE.md
+; language-code = tstr .regexp "[a-z]{2}(-[A-Z]{2})?"
+
+; ── Video ──
+
+video-block = {
+  "t" => "video",
+  "trust" => 0,
+  "src" => tstr,
+  "title" => tstr,
+  "duration_seconds" => uint,
+  ? "resolution" => { "w" => uint, "h" => uint },
+  ? "codec" => tstr,
+  ? "file_size" => uint,
+  ? "thumbnail_url" => tstr,
+  ? "transcription" => transcription,
+  ? "chapters" => [+ { "timestamp" => uint, "title" => tstr }],
+  * tstr => any
+}
+
+; ── Audio ──
+
+audio-block = {
+  "t" => "audio",
+  "trust" => 0,
+  "src" => tstr,
+  "title" => tstr,
+  "duration_seconds" => uint,
+  ? "format" => tstr,
+  ? "file_size" => uint,
+  ? "transcription" => transcription,
+  ? "speakers" => [+ { "id" => tstr, "name" => tstr, ? "role" => tstr }],
+  ? "diarization" => [+ { "start" => uint, "end" => uint, "speaker" => tstr, "text" => tstr }],
+  * tstr => any
+}
+
+; ── Document ──
+
+document-block = {
+  "t" => "document",
+  "trust" => 0,
+  "src" => tstr,
+  "title" => tstr,
+  "mime_type" => tstr,
+  ? "file_size" => uint,
+  ? "page_count" => uint,
+  ? "text_extract" => tstr,
+  ? "table_of_contents" => [+ { "page" => uint, "title" => tstr }],
+  ? "lang" => language-code,
+  * tstr => any
+}
+
+; ── Diagram ──
+
+diagram-block = {
+  "t" => "diagram",
+  "trust" => 0,
+  ? "src" => tstr,
+  ? "format" => tstr,
+  "description" => tstr,
+  ? "diagram_type" => diagram-type,
+  ? "entities" => [+ tstr],
+  ? "relationships" => [+ { "from" => tstr, "to" => tstr, ? "label" => tstr }],
+  * tstr => any
+}
+
+diagram-type = "flowchart" / "sequence" / "entity_relationship" /
+               "architecture" / "timeline" / "mindmap" / "organizational" / tstr
+
+; ── Live Stream ──
+
+live-stream-block = {
+  "t" => "live_stream",
+  "trust" => 0,
+  "title" => tstr,
+  "stream_url" => tstr,
+  "stream_format" => "hls" / "dash" / "icecast" / "rtmp" / "webrtc" / tstr,
+  ? "current_show" => {
+    "title" => tstr,
+    ? "host" => tstr,
+    ? "started_at" => #6.1(uint),
+    ? "description" => tstr,
+    * tstr => any
+  },
+  ? "schedule" => [+ { "time" => tstr, "title" => tstr, ? "host" => tstr }],
+  * tstr => any
+}
+
+; ── Streaming Channels (manifest key 8) ──
+
+channel = {
+  "channel_id" => tstr,
+  "url" => tstr,
+  "purpose" => tstr,
+  "protocol" => "cbor-web-stream",
+  ? "auth" => { "type" => tstr, ? "description" => tstr, * tstr => any },
+  "message_schema" => { + tstr => tstr },
+  "frequency" => "on_change" / "event_driven" / "periodic",
+  ? "periodic_interval_ms" => uint,
+  ? "example_message" => { + tstr => any },
+  * tstr => any
+}

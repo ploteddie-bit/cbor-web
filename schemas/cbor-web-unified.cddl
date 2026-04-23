@@ -1,0 +1,526 @@
+; ══════════════════════════════════════════════════════════════════════
+; CBOR-Web Specification v2.1 — UNIFIED CDDL SCHEMA
+; Document: CBOR-WEB-REFERENCE.md §1
+;
+; This is the SINGLE authoritative CDDL for the ENTIRE specification.
+; All corrections from v2.1 review applied.
+; Cross-validated against: cddl-rs (Rust CDDL validator)
+; ══════════════════════════════════════════════════════════════════════
+
+
+; ═══════════════════════════════
+; PART 1: DOCUMENT TYPES
+; (from CBOR-WEB-CORE.md)
+; ═══════════════════════════════
+
+cbor-web-document = #6.55799(manifest / sub-manifest / page / bundle)
+
+; ── Manifest ──
+
+manifest = {
+  0 => "cbor-web-manifest",
+  1 => uint,                          ; @version: MUST be 2
+  2 => site-metadata,
+  3 => [+ page-entry],
+  ? 4 => navigation,
+  5 => manifest-meta,
+  ? 6 => bstr,                        ; COSE_Sign1 signature (serialized)
+  ? 7 => capabilities,
+  ? 8 => [+ channel],
+  ? 9 => diff-manifest,
+  ? 10 => manifest-security,
+  * int => any
+}
+
+sub-manifest = {
+  0 => "cbor-web-manifest",
+  1 => uint,
+  ? 2 => site-metadata,              ; OPTIONAL in sub-manifests
+  3 => [+ page-entry],
+  ? 4 => navigation,                  ; OPTIONAL in sub-manifests
+  5 => manifest-meta,
+  ? 6 => bstr,
+  ? 7 => capabilities,
+  ? 8 => [+ channel],
+  ? 9 => diff-manifest,
+  ? 10 => manifest-security,
+  * int => any
+}
+
+site-metadata = {
+  "domain" => tstr,
+  "name" => tstr,
+  ? "description" => tstr,
+  "languages" => [+ language-code],
+  "default_language" => language-code,
+  ? "contact" => { ? "email" => tstr, ? "phone" => tstr, * tstr => any },
+  ? "geo" => {
+    ? "country" => tstr,
+    ? "region" => tstr,
+    ? "coordinates" => [float .ge -90.0 .le 90.0, float .ge -180.0 .le 180.0],
+    * tstr => any
+  },
+  * tstr => any
+}
+
+language-code = tstr .regexp "[a-z]{2}(-[A-Z]{2})?"
+
+page-entry = {
+  "path" => tstr,
+  "title" => tstr,
+  "lang" => language-code,
+  "access" => "public" / "token",
+  "size" => uint,
+  ? "updated" => #6.1(uint),
+  ? "hash" => bstr .size 32,
+  ? "alternates" => { + language-code => tstr },
+  ? "category" => tstr,
+  ? "content_type" => "article" / "product" / "landing" / "documentation" / tstr,
+  ? "has_multimedia" => bool,
+  ? "has_generative" => bool,
+  ? "has_forms" => bool,
+  ? "has_commerce" => bool,
+  ? "media_size" => uint,
+  * tstr => any
+}
+
+navigation = {
+  "main" => [+ tstr],
+  ? "footer" => [+ tstr],
+  ? "hierarchy" => { + tstr => [+ tstr] },
+  ? "breadcrumbs" => { + tstr => [+ tstr] },
+  * tstr => any
+}
+
+manifest-meta = {
+  ? "generator" => tstr,
+  "generated_at" => #6.1(uint),
+  "total_pages" => uint,
+  "total_size" => uint,
+  "bundle_available" => bool,
+  ? "bundle_url" => tstr,
+  ? "rate_limit" => {
+    ? "requests_per_second" => uint,
+    ? "bundle_cooldown_seconds" => uint,
+    * tstr => any
+  },
+  ? "next" => tstr,
+  * tstr => any
+}
+
+diff-manifest = {
+  "diff_version" => uint,
+  "base_version_hash" => bstr .size 32,
+  "base_generated_at" => #6.1(uint),
+  "current_generated_at" => #6.1(uint),
+  "changes" => [+ diff-change],
+  ? "stats" => {
+    ? "pages_added" => uint,
+    ? "pages_modified" => uint,
+    ? "pages_removed" => uint,
+    ? "total_pages_now" => uint,
+    * tstr => any
+  },
+  * tstr => any
+}
+
+diff-change = {
+  "path" => tstr,
+  "action" => "added" / "modified" / "removed",
+  ? "hash" => bstr .size 32,
+  ? "previous_hash" => bstr .size 32,
+  ? "size" => uint,
+  ? "title" => tstr,
+  ? "fields_changed" => [+ tstr],
+  * tstr => any
+}
+
+
+; ── Page ──
+
+page = {
+  0 => "cbor-web-page",
+  1 => uint,
+  2 => page-identity,
+  3 => page-metadata,
+  4 => [+ content-block],
+  ? 5 => page-links,
+  ? 6 => structured-data,
+  ? 7 => [+ generative-block],
+  ? 8 => [+ form-block],
+  ? 9 => commerce-data,
+  * int => any
+}
+
+page-identity = {
+  "path" => tstr,
+  "canonical" => tstr,
+  "lang" => language-code,
+  ? "alternates" => { + language-code => tstr },
+  * tstr => any
+}
+
+page-metadata = {
+  "title" => tstr,
+  ? "description" => tstr,
+  ? "author" => tstr,
+  ? "published" => #6.1(uint),
+  ? "updated" => #6.1(uint),
+  ? "tags" => [+ tstr],
+  ? "category" => tstr,
+  ? "reading_time_seconds" => uint,
+  ? "word_count" => uint,
+  * tstr => any
+}
+
+page-links = {
+  ? "internal" => [* { "path" => tstr, "text" => tstr, * tstr => any }],
+  ? "external" => [* { "url" => tstr, "text" => tstr, * tstr => any }],
+  * tstr => any
+}
+
+structured-data = { "type" => tstr, * tstr => any }
+
+
+; ── Bundle ──
+
+bundle = {
+  0 => "cbor-web-bundle",
+  1 => uint,
+  2 => manifest,
+  3 => { + tstr => page },
+  * int => any
+}
+
+
+; ═══════════════════════════════
+; PART 2: CONTENT BLOCKS — CORE
+; (from CBOR-WEB-CORE.md §8)
+; ═══════════════════════════════
+
+content-block = heading / paragraph / unordered-list / ordered-list /
+                quote / code-block / data-table / image-ref /
+                call-to-action / embed / separator / definition-list /
+                note-block /
+                ; multimedia (CBOR-WEB-MULTIMEDIA.md)
+                rich-image / video-block / audio-block / document-block /
+                diagram-block / live-stream-block
+
+heading = { "t" => "h", "l" => uint .ge 1 .le 6, "v" => tstr }
+paragraph = { "t" => "p", "v" => tstr }
+unordered-list = { "t" => "ul", "v" => [+ tstr] }
+ordered-list = { "t" => "ol", "v" => [+ tstr] }
+quote = { "t" => "q", "v" => tstr, ? "attr" => tstr }
+code-block = { "t" => "code", "v" => tstr, ? "lang" => tstr }
+data-table = { "t" => "table", "headers" => [+ tstr], "rows" => [+ [+ tstr]] }
+image-ref = { "t" => "img", "alt" => tstr, "src" => tstr, ? "caption" => tstr }
+call-to-action = { "t" => "cta", "v" => tstr, "href" => tstr }
+embed = { "t" => "embed", "src" => tstr, ? "description" => tstr }
+separator = { "t" => "sep" }
+definition-list = { "t" => "dl", "v" => [+ { "term" => tstr, "def" => tstr }] }
+note-block = { "t" => "note", "v" => tstr, ? "level" => "info" / "warn" / "important" }
+
+
+; ═══════════════════════════════
+; PART 3: MULTIMEDIA BLOCKS
+; (from CBOR-WEB-MULTIMEDIA.md)
+; ═══════════════════════════════
+
+semantic-role = "logo" / "product_photo" / "hero" / "illustration" /
+                "screenshot" / "avatar" / "diagram" / "decorative" /
+                "infographic" / "photo_editorial" / tstr
+
+rich-image = {
+  "t" => "image", "trust" => 0,
+  "src" => tstr, "alt" => tstr, "semantic_role" => semantic-role,
+  ? "dimensions" => { "w" => uint, "h" => uint },
+  ? "format" => tstr, ? "file_size" => uint,
+  ? "dominant_color" => tstr, ? "ai_description" => tstr,
+  ? "caption" => tstr, ? "exif" => { * tstr => any },
+  ? "inline_data" => bstr / null,
+  * tstr => any
+}
+
+transcription = plain-transcription / timestamped-transcription
+
+plain-transcription = {
+  "format" => "plain",
+  "lang" => language-code,
+  "text" => tstr,
+  * tstr => any
+}
+
+timestamped-transcription = {
+  "format" => "timestamped",
+  "lang" => language-code,
+  "segments" => [+ segment],
+  * tstr => any
+}
+
+segment = { "start" => uint, "end" => uint, "text" => tstr }
+
+video-block = {
+  "t" => "video", "trust" => 0,
+  "src" => tstr, "title" => tstr, "duration_seconds" => uint,
+  ? "resolution" => { "w" => uint, "h" => uint },
+  ? "codec" => tstr, ? "file_size" => uint, ? "thumbnail_url" => tstr,
+  ? "transcription" => transcription,
+  ? "chapters" => [+ { "timestamp" => uint, "title" => tstr }],
+  * tstr => any
+}
+
+audio-block = {
+  "t" => "audio", "trust" => 0,
+  "src" => tstr, "title" => tstr, "duration_seconds" => uint,
+  ? "format" => tstr, ? "file_size" => uint,
+  ? "transcription" => transcription,
+  ? "speakers" => [+ { "id" => tstr, "name" => tstr, ? "role" => tstr }],
+  ? "diarization" => [+ { "start" => uint, "end" => uint, "speaker" => tstr, "text" => tstr }],
+  * tstr => any
+}
+
+document-block = {
+  "t" => "document", "trust" => 0,
+  "src" => tstr, "title" => tstr, "mime_type" => tstr,
+  ? "file_size" => uint, ? "page_count" => uint,
+  ? "text_extract" => tstr,
+  ? "table_of_contents" => [+ { "page" => uint, "title" => tstr }],
+  ? "lang" => language-code,
+  * tstr => any
+}
+
+diagram-block = {
+  "t" => "diagram", "trust" => 0,
+  ? "src" => tstr, ? "format" => tstr,
+  "description" => tstr,
+  ? "diagram_type" => "flowchart" / "sequence" / "entity_relationship" /
+                      "architecture" / "timeline" / "mindmap" / "organizational" / tstr,
+  ? "entities" => [+ tstr],
+  ? "relationships" => [+ { "from" => tstr, "to" => tstr, ? "label" => tstr }],
+  * tstr => any
+}
+
+live-stream-block = {
+  "t" => "live_stream", "trust" => 0,
+  "title" => tstr, "stream_url" => tstr,
+  "stream_format" => "hls" / "dash" / "icecast" / "rtmp" / "webrtc" / tstr,
+  ? "current_show" => { "title" => tstr, ? "host" => tstr, ? "started_at" => #6.1(uint), ? "description" => tstr, * tstr => any },
+  ? "schedule" => [+ { "time" => tstr, "title" => tstr, ? "host" => tstr }],
+  * tstr => any
+}
+
+channel = {
+  "channel_id" => tstr, "url" => tstr, "purpose" => tstr,
+  "protocol" => "cbor-web-stream",
+  ? "auth" => { "type" => tstr, ? "description" => tstr, * tstr => any },
+  "message_schema" => { + tstr => tstr },
+  "frequency" => "on_change" / "event_driven" / "periodic",
+  ? "periodic_interval_ms" => uint,
+  ? "example_message" => { + tstr => any },
+  * tstr => any
+}
+
+
+; ═══════════════════════════════
+; PART 4: GENERATIVE BLOCKS
+; (from CBOR-WEB-GENERATIVE.md)
+; ═══════════════════════════════
+
+variable-def = {
+  "type" => "string" / "number" / "integer" / "boolean" / "array" / "object",
+  "required" => bool,
+  "description" => tstr,
+  ? "default" => any, ? "enum" => [+ any], ? "items" => tstr,
+  ? "min" => number, ? "max" => number,
+  ? "min_length" => uint, ? "max_length" => uint,
+  ? "pattern" => tstr, ? "format" => tstr,
+  ? "fields" => { + tstr => variable-def },
+  * tstr => any
+}
+
+generative-block = template-block / schema-block / api-endpoint-block /
+                   executable-block / workflow-block / constraint-block
+
+template-block = {
+  "t" => "template", "trust" => 1,
+  "template_id" => tstr, "purpose" => tstr,
+  "variables" => { + tstr => variable-def },
+  ? "output_template" => tstr,
+  ? "example_instantiation" => { * tstr => any },
+  * tstr => any
+}
+
+schema-block = {
+  "t" => "schema", "trust" => 0,
+  "schema_id" => tstr, "purpose" => tstr,
+  ? "version" => uint,
+  "fields" => { + tstr => variable-def },
+  ? "primary_key" => tstr,
+  ? "required" => [+ tstr],
+  ? "indexes" => [+ tstr],
+  * tstr => any
+}
+
+api-endpoint-block = {
+  "t" => "api_endpoint", "trust" => 3,
+  "endpoint_id" => tstr, "purpose" => tstr,
+  "method" => "GET" / "POST" / "PUT" / "PATCH" / "DELETE",
+  "url" => tstr,
+  ? "url_params" => { + tstr => variable-def },
+  ? "query_params" => { + tstr => variable-def },
+  ? "body" => { + tstr => variable-def },
+  ? "headers" => { + tstr => tstr },
+  ? "auth" => { "type" => tstr, ? "description" => tstr, * tstr => any },
+  "response" => { "content_type" => tstr, ? "schema_ref" => tstr, ? "example" => { * tstr => any }, * tstr => any },
+  ? "rate_limit" => { * tstr => uint },
+  ? "errors" => [+ { "code" => uint, "description" => tstr }],
+  * tstr => any
+}
+
+sandbox-requirements = {
+  ? "network" => bool, ? "filesystem" => bool,
+  ? "max_execution_time_ms" => uint, ? "max_memory_mb" => uint,
+  ? "required_packages" => [+ tstr],
+  * tstr => any
+}
+
+test-case = { "inputs" => { * tstr => any }, "expected_output" => { * tstr => any }, * tstr => any }
+
+executable-block = {
+  "t" => "executable", "trust" => 2,
+  "exec_id" => tstr, "purpose" => tstr, "lang" => tstr,
+  "inputs" => { + tstr => variable-def },
+  "outputs" => { + tstr => variable-def },
+  "code" => tstr,
+  ? "test_cases" => [+ test-case],
+  "sandbox_requirements" => sandbox-requirements,
+  * tstr => any
+}
+
+workflow-step = {
+  "step_id" => tstr,
+  "action" => "api_call" / "execute" / "transform" / "user_choice" / "user_confirmation" / "validate",
+  "purpose" => tstr,
+  ? "endpoint_ref" => tstr, ? "exec_ref" => tstr, ? "schema_ref" => tstr,
+  ? "params" => { * tstr => any }, ? "body" => { * tstr => any },
+  ? "input_var" => tstr, ? "output_var" => tstr,
+  ? "condition" => tstr, ? "display" => tstr,
+  * tstr => any
+}
+
+workflow-block = {
+  "t" => "workflow", "trust" => 3,
+  "workflow_id" => tstr, "purpose" => tstr,
+  "steps" => [+ workflow-step],
+  ? "error_handling" => { * tstr => tstr },
+  * tstr => any
+}
+
+constraint-rule = {
+  "rule_id" => tstr, "condition" => tstr,
+  "action" => "reject" / "apply" / "require" / "warn",
+  ? "effect" => tstr, "message" => tstr,
+  * tstr => any
+}
+
+constraint-block = {
+  "t" => "constraint", "trust" => 0,
+  "constraint_id" => tstr, "purpose" => tstr,
+  "rules" => [+ constraint-rule],
+  * tstr => any
+}
+
+form-field = {
+  "name" => tstr,
+  "type" => "text" / "textarea" / "email" / "tel" / "number" / "select" /
+            "multi_select" / "checkbox" / "date" / "file" / "hidden",
+  "label" => tstr, "required" => bool,
+  ? "max_length" => uint, ? "min_length" => uint,
+  ? "min" => number, ? "max" => number, ? "step" => number,
+  ? "pattern" => tstr, ? "validation" => tstr,
+  ? "placeholder" => tstr, ? "default" => any,
+  ? "options" => [+ { "value" => tstr, "label" => tstr }],
+  ? "min_selections" => uint, ? "max_selections" => uint,
+  ? "accepted_types" => [+ tstr], ? "max_size" => uint,
+  ? "value" => any, ? "min_date" => tstr, ? "max_date" => tstr,
+  * tstr => any
+}
+
+form-block = {
+  "t" => "form", "trust" => 3,
+  "form_id" => tstr, "purpose" => tstr,
+  "action" => tstr, "method" => "POST" / "PUT" / "PATCH",
+  "submit_format" => "cbor" / "json" / "form",
+  "fields" => [+ form-field],
+  ? "success_message" => tstr,
+  ? "captcha" => { "type" => tstr, ? "note" => tstr },
+  * tstr => any
+}
+
+availability-status = "in_stock" / "low_stock" / "out_of_stock" / "pre_order" / "discontinued"
+
+product-variant = {
+  "variant_id" => tstr, "name" => tstr,
+  "price" => number, "availability" => availability-status,
+  ? "quantity_available" => uint, * tstr => any
+}
+
+product-block = {
+  "t" => "product", "trust" => 0,
+  "product_id" => tstr, "name" => tstr, "slug" => tstr,
+  "description" => tstr, "price" => number, "currency" => tstr,
+  "availability" => availability-status,
+  ? "quantity_available" => uint,
+  ? "variants" => [+ product-variant],
+  ? "images" => [+ { "src" => tstr, "semantic_role" => tstr, "alt" => tstr }],
+  ? "categories" => [+ tstr], ? "specs" => { * tstr => any },
+  ? "certifications" => [+ tstr],
+  ? "rating" => { "average" => number, "count" => uint },
+  * tstr => any
+}
+
+cart-action-block = {
+  "t" => "cart_action", "trust" => 3,
+  "action" => tstr, "endpoint" => tstr, "method" => "POST" / "PUT",
+  "body_schema" => { + tstr => variable-def },
+  ? "auth" => { "type" => tstr, ? "description" => tstr, * tstr => any },
+  * tstr => any
+}
+
+commerce-data = {
+  ? "products" => [+ product-block],
+  ? "cart_actions" => [+ cart-action-block],
+  ? "checkout_url" => tstr,
+  ? "payment_methods" => [+ tstr],
+  ? "shipping_zones" => [+ { "zone" => tstr, "countries" => [+ tstr], "base_cost" => number, ? "free_above" => number / null }],
+  * tstr => any
+}
+
+capabilities = {
+  ? "static_content" => bool,
+  ? "multimedia" => { ? "images" => bool, ? "video" => bool, ? "audio" => bool, ? "documents" => bool, ? "live_streams" => bool, * tstr => any },
+  ? "api" => { ? "available" => bool, ? "auth_required" => bool, ? "endpoint_count" => uint, ? "docs_url" => tstr, * tstr => any },
+  ? "generative" => { ? "templates" => bool, ? "schemas" => bool, ? "executables" => bool, ? "workflows" => bool, ? "constraints" => bool, * tstr => any },
+  ? "live" => bool,
+  ? "commerce" => { ? "available" => bool, ? "currencies" => [+ tstr], ? "checkout_type" => tstr, ? "product_count" => uint, * tstr => any },
+  ? "forms" => { ? "available" => bool, ? "types" => [+ tstr], * tstr => any },
+  ? "languages" => [+ tstr],
+  ? "conformance" => "minimal" / "standard" / "full",
+  * tstr => any
+}
+
+
+; ═══════════════════════════════
+; PART 5: SECURITY
+; (from CBOR-WEB-SECURITY.md)
+; ═══════════════════════════════
+
+manifest-security = {
+  "security_level" => "S0" / "S1" / "S2",
+  "token_required" => bool,
+  ? "contract_address" => tstr,
+  ? "chain" => "ethereum",
+  ? "signing_algorithm" => "EdDSA" / "ES256" / "ES384",
+  ? "public_key_url" => tstr,
+  * tstr => any
+}

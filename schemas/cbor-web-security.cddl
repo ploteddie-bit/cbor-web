@@ -1,0 +1,50 @@
+; ══════════════════════════════════════════════════════════
+; CBOR-Web Security Specification v2.1.1 — CDDL Schema
+; Document: CBOR-WEB-SECURITY.md, Appendix A
+; ══════════════════════════════════════════════════════════
+
+; ── Manifest Security Declaration (Key 10) ──
+
+manifest-security = {
+  "security_level" => "S0" / "S1" / "S2",
+  "token_required" => bool,
+  ? "contract_address" => tstr,       ; ERC-20 contract. REQUIRED if token_required
+  ? "chain" => "ethereum",            ; blockchain. REQUIRED if token_required
+  ? "signing_algorithm" => "EdDSA" / "ES256" / "ES384",
+  ? "public_key_url" => tstr,         ; URL to keys.cbor
+  ? "public_key_dns" => tstr,         ; DNS TXT record name
+  ? "conformity_seal" => bstr .size 64, ; SHA-512 seal issued by Deltopide (§13)
+  ? "seal_issuer" => tstr,            ; certification authority domain
+  ? "seal_expires" => #6.1(uint),     ; seal expiration timestamp
+  * tstr => any
+}
+
+; ── CBOR Key Set (served at /.well-known/cbor-web/keys.cbor) ──
+
+cbor-web-key-set = {
+  "type" => "CborWebKeySet",
+  "keys" => [+ cbor-web-key],
+  * tstr => any
+}
+
+cbor-web-key = {
+  "kid" => tstr,                      ; key identifier
+  "kty" => "OKP" / "EC",             ; key type
+  "crv" => "Ed25519" / "P-256" / "P-384",
+  "x" => bstr,                        ; public key bytes (32 bytes for Ed25519)
+  "use" => "sig",
+  "valid_from" => #6.1(uint),
+  "valid_until" => #6.1(uint),
+  * tstr => any
+}
+
+; ── Error Responses ──
+
+token-error-response = {
+  "error" => "token_required" / "invalid_signature" / "nonce_expired" / "nonce_replay",
+  "message" => tstr,
+  ? "contract_address" => tstr,
+  ? "get_token_url" => tstr,
+  ? "storefront_url" => tstr,
+  * tstr => any
+}
