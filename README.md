@@ -7,6 +7,18 @@
 [![Status](https://img.shields.io/badge/status-production%20%7C%2038%20sites-brightgreen.svg)]()
 [![npm](https://img.shields.io/npm/v/%40deltopide_edy%2Fcborweb?label=npm)](https://www.npmjs.com/package/@deltopide_edy/cborweb)
 
+[![Rust](https://img.shields.io/badge/Rust-1.93-000000?logo=rust&logoColor=white)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.npmjs.com/package/@deltopide_edy/cborweb)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](clients/react/)
+[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](clients/python/)
+[![Go](https://img.shields.io/badge/Go-1.21%2B-00ADD8?logo=go&logoColor=white)](clients/go/cborweb.go)
+[![C++](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=c%2B%2B&logoColor=white)](clients/cpp/cborweb.hpp)
+[![PHP](https://img.shields.io/badge/PHP-8.0%2B-777BB4?logo=php&logoColor=white)](clients/php/CborWeb.php)
+[![Ruby](https://img.shields.io/badge/Ruby-3.0%2B-CC342D?logo=ruby&logoColor=white)](clients/ruby/cborweb.rb)
+[![Java](https://img.shields.io/badge/Java-11%2B-ED8B00?logo=openjdk&logoColor=white)](clients/java/CborWebClient.java)
+[![Cloudflare](https://img.shields.io/badge/edge-Cloudflare-F38020?logo=cloudflare&logoColor=white)](https://cbor-web.explodev.workers.dev)
+[![IETF](https://img.shields.io/badge/spec-IETF%20RFC%208949-000?logo=ietf&logoColor=white)](spec/draft-plot-cbor-web-00.md)
+
 **Binary Web Content for Autonomous AI Agents — CBOR (RFC 8949)**
 
 ## What Is CBOR-Web?
