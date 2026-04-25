@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// License: MIT — Copyright (c) 2026 ExploDev / Deltopide SL
+// Repository: https://github.com/ploteddie-bit/cbor-web
+
 import React, { type ReactNode } from "react";
 
 type CBORValue = Record<string, unknown> | unknown[] | string | number | boolean | null | Uint8Array;

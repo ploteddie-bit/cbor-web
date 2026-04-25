@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// License: MIT — Copyright (c) 2026 ExploDev / Deltopide SL
+// Repository: https://github.com/ploteddie-bit/cbor-web
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;

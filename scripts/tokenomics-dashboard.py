@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# License: MIT — Copyright (c) 2026 ExploDev
+
 #!/usr/bin/env python3
 """
 CBOR-Web Tokenomics Dashboard

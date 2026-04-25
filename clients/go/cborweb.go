@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// License: MIT — Copyright (c) 2026 ExploDev / Deltopide SL
+// Repository: https://github.com/ploteddie-bit/cbor-web
+
 // Package cborweb provides a minimal CBOR-Web client SDK for Go (stdlib only).
 // Endpoints: manifest (/.well-known/cbor-web), page (/.well-known/cbor-web/pages/{file}.cbor), bundle (/.well-known/cbor-web/bundle).
 package cborweb

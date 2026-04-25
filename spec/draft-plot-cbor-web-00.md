@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: CC-BY-4.0
+# License: Creative Commons Attribution 4.0 International (CC BY 4.0)
 ```text
 CBOR-Web Working Group                                        E. Plot
 Internet-Draft                                              ExploDev

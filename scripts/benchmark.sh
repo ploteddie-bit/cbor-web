@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# License: MIT — Copyright (c) 2026 ExploDev
+
 #!/usr/bin/env bash
 # CBOR-Web Compression Benchmark Suite
 # Measures HTML→CBOR compression ratios on test fixtures

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# License: MIT — Copyright (c) 2026 ExploDev / Deltopide SL
+
 """Tests for the CBOR-Web Python client — cborweb/__init__.py"""
 
 import struct

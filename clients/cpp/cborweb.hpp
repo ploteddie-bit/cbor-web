@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// License: MIT — Copyright (c) 2026 ExploDev / Deltopide SL
+// Repository: https://github.com/ploteddie-bit/cbor-web
+
 // cborweb.hpp — Minimal C++17 CBOR-Web SDK (header-only, zero deps, POSIX sockets)
 #ifndef CBORWEB_HPP
 #define CBORWEB_HPP

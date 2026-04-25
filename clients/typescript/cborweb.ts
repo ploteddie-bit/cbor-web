@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// License: MIT — Copyright (c) 2026 ExploDev / Deltopide SL
+// Repository: https://github.com/ploteddie-bit/cbor-web
+
 // CBOR-Web TypeScript Client SDK — v2.1
 // Zero dependencies. Uses fetch() and a minimal CBOR decoder.
 // Protocol: GET {base}/.well-known/cbor-web (manifest),

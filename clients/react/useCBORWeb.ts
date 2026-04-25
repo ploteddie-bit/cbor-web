@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// License: MIT — Copyright (c) 2026 ExploDev / Deltopide SL
+// Repository: https://github.com/ploteddie-bit/cbor-web
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CBORWebClient } from "../typescript/cborweb";
 
