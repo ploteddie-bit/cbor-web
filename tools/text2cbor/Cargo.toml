@@ -9,7 +9,7 @@ license = "MIT"
 ciborium = "0.2"
 sha2 = "0.10"
 hex = "0.4"
-scraper = "0.22"
+scraper = "0.26"
 clap = { version = "4", features = ["derive"] }
 walkdir = "2"
 serde = { version = "1", features = ["derive"] }
