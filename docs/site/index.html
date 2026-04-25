@@ -14,7 +14,7 @@
 <style>
 :root{--h-bg:#f7f4ed;--h-text:#1a1a1a;--h-accent:#d4540b;--h-muted:#8b8580;--h-border:#e0d8cc;--h-statbg:#fafaf7;
   --m-bg:#05080f;--m-text:#b3e5ff;--m-accent:#00e5ff;--m-muted:#4a5a72;--m-glow:rgba(0,229,255,.1);
-  --nav-bg:#0a0d16;--nav-text:#ccc;--purple:#8b5cf6;--emerald:#10b981;--nav-border:#222;--fg:#e8ecf4;--fg2:#8892b0}
+  --nav-bg:#0a0d16;--nav-text:#ccc;--purple:#8b5cf6;--emerald:#10b981;--amber:#f59e0b;--rose:#f43f5e;--nav-border:#222;--fg:#e8ecf4;--fg2:#8892b0}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:Georgia,serif;background:#000;overflow-x:hidden}
 
@@ -314,8 +314,8 @@ curl -X POST https://api.cborweb.com/register \
 
 <!-- AUDIT -->
 <section class="content" id="audit-page">
-  <h2>🔍 <span>Web Audit Tool</span> — Chrome Extension</h2>
-  <p class="lead">Audit any website: SEO, GEO, CBOR-Web readiness, Core Web Vitals. Powered by Rust/WASM.</p>
+  <h2>🔍 <span>Web Audit v2.0</span> — Chrome · Firefox · Safari</h2>
+  <p class="lead">Full site crawl, competitor analysis, backlinks, export PDF — powered by Rust/WASM.</p>
   
   <div class="grid2">
     <div class="card" style="border-left:3px solid var(--orange)">
@@ -331,8 +331,20 @@ curl -X POST https://api.cborweb.com/register \
       <p>Scans for <code>/.well-known/cbor-web</code>, verifies manifest format, checks content blocks, validates CBOR encoding.</p>
     </div>
     <div class="card" style="border-left:3px solid var(--emerald)">
-      <h3>⚡ Core Web Vitals</h3>
-      <p>LCP, FID, CLS, TTFB. Performance scoring. Lighthouse-compatible metrics. Page weight analysis.</p>
+      <h3>🔄 Full Site Crawl</h3>
+      <p>Follows all internal links, audits every page. Detects 404s, broken links, thin content, missing meta. Scores 0-100.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--amber)">
+      <h3>⚔️ Competitor Compare</h3>
+      <p>Side-by-side with any competitor. Content gaps, keyword overlap, CBOR-Web advantage, score comparison.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--rose)">
+      <h3>🔗 Backlink Analysis</h3>
+      <p>Estimated backlinks, indexed pages, domain authority signals. Full API integration for Ahrefs/Moz/SEMrush.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--h-accent)">
+      <h3>📄 Export Reports</h3>
+      <p>Download audit as PDF, CSV, or HTML. Professional report with score, prioritized fixes, and recommendations.</p>
     </div>
   </div>
   
