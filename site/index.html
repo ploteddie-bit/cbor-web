@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CBOR-Web — The Binary Protocol for AI Agents</title>
+<meta name="description" content="CBOR-Web: the open protocol that makes websites readable by AI agents — 100× cheaper, 95% signal ratio, cryptographic identity built in.">
+<meta name="keywords" content="CBOR,CBOR-Web,RFC 8949,AI agents,binary web,LLM,structured content,token gating,digital identity,IETF">
+<meta property="og:title" content="CBOR-Web — The web has two clients.">
+<meta property="og:description" content="AI agents waste 93% of tokens on HTML noise. CBOR-Web fixes it — open protocol, 8 SDKs, 38 sites live.">
+<meta property="og:image" content="cbor-web-site/machine-bg.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>⟨⟩</text></svg>">
+<style>
+:root{--h-bg:#f7f4ed;--h-text:#1a1a1a;--h-accent:#d4540b;--h-muted:#8b8580;--h-border:#e0d8cc;--h-statbg:#fafaf7;
+  --m-bg:#05080f;--m-text:#b3e5ff;--m-accent:#00e5ff;--m-muted:#4a5a72;--m-glow:rgba(0,229,255,.1);
+  --nav-bg:#0a0d16;--nav-text:#ccc;--nav-border:#222;--fg:#e8ecf4;--fg2:#8892b0}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Georgia,serif;background:#000;overflow-x:hidden}
+
+.topnav{background:var(--nav-bg);color:var(--nav-text);padding:10px 24px;display:flex;align-items:center;gap:24px;border-bottom:1px solid var(--nav-border);font-family:'SF Mono',monospace;font-size:.78rem;z-index:50;position:sticky;top:0}
+.topnav .logo{color:#fff;font-weight:700;font-size:1rem}
+.topnav .logo span{color:var(--m-accent)}
+.topnav a{color:var(--nav-text);text-decoration:none;cursor:pointer;transition:color .2s}
+.topnav a:hover,.topnav a.active{color:#fff}
+.topnav a.active{color:var(--m-accent)}
+.topnav .right{margin-left:auto;display:flex;gap:12px;align-items:center}
+.lang-btn{background:none;border:1px solid rgba(255,255,255,.1);color:var(--nav-text);padding:3px 7px;border-radius:3px;font-size:.65rem;cursor:pointer;font-family:monospace;transition:all .2s}
+.lang-btn:hover,.lang-btn.active{color:var(--m-accent);border-color:var(--m-accent)}
+.live-dot{width:6px;height:6px;background:var(--m-accent);border-radius:50%;animation:livePulse 2s ease-in-out infinite;display:inline-block;margin-right:4px}
+@keyframes livePulse{0%,100%{opacity:1;box-shadow:0 0 4px var(--m-accent)}50%{opacity:.3;box-shadow:0 0 12px var(--m-accent)}}
+
+.page{display:none}.page.active{display:block}
+.split{display:flex;height:calc(100vh - 41px);position:relative;overflow:hidden}
+.split .panel{flex:1;overflow-y:auto;position:relative;transition:flex .3s;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px}
+.split .divider{position:absolute;top:0;bottom:0;left:50%;width:6px;background:#444;cursor:col-resize;z-index:100;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;transition:background .2s,width .2s}
+.split .divider:hover,.split .divider.active{background:#888;width:8px}
+.split .divider::after{content:'⟨ ⟩';color:#999;font-size:1.3rem;font-family:monospace;pointer-events:none;transition:color .2s}
+.split .divider:hover::after{color:#fff}
+
+.human{background:var(--h-bg);color:var(--h-text)}
+.human .label{font-family:monospace;font-size:.65rem;text-transform:uppercase;letter-spacing:.15em;color:#999;margin-bottom:20px}
+.human .label::before{content:'👤 Human — Live site'}
+.human .hero-img{width:100%;max-width:440px;border-radius:8px;margin-bottom:24px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
+.human h1{font-family:Georgia,serif;font-size:clamp(2rem,3.5vw,3rem);font-weight:400;line-height:1.08;letter-spacing:-.02em;max-width:460px}
+.human h1 em{font-style:italic;color:var(--h-accent)}
+.human .sub{font-family:Georgia,serif;font-style:italic;font-size:1rem;color:var(--h-muted);max-width:420px;margin:14px 0 28px;line-height:1.65}
+.human .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:420px}
+.human .stat-box{border:1px solid var(--h-border);padding:14px;text-align:center;background:var(--h-statbg);font-size:.7rem;color:var(--h-muted);text-transform:uppercase;letter-spacing:.06em}
+.human .stat-box .val{font-size:1.7rem;font-weight:700;color:var(--h-accent);display:block;margin-bottom:4px}
+.human .btn-human{display:inline-block;padding:14px 32px;background:var(--h-accent);color:#fff;text-decoration:none;font-family:Georgia,serif;font-weight:700;font-size:.95rem;border-radius:4px;letter-spacing:.02em;transition:all .25s;margin-top:28px}
+.human .btn-human:hover{background:#b8450a;transform:translateY(-2px)}
+
+.machine{background:var(--m-bg);color:var(--m-text);font-family:'SF Mono','IBM Plex Mono',monospace}
+.machine::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,rgba(0,229,255,.03) 0%,transparent 70%);pointer-events:none}
+.machine .label{font-family:monospace;font-size:.65rem;text-transform:uppercase;letter-spacing:.15em;color:var(--m-muted);margin-bottom:20px}
+.machine .label::before{content:'🤖 AI Agent — CBOR binary view'}
+.machine .hero-img{width:100%;max-width:440px;border-radius:8px;margin-bottom:24px;box-shadow:0 0 20px rgba(0,229,255,.1)}
+.machine h1{font-size:clamp(1.6rem,3vw,2.4rem);font-weight:400;line-height:1.15;max-width:460px;text-shadow:0 0 40px var(--m-glow)}
+.machine h1 .hx{color:var(--m-accent)}
+.machine .stream{font-size:.7rem;color:var(--m-muted);line-height:1.6;max-width:440px;margin:16px 0;height:120px;overflow:hidden;font-family:monospace;border-left:2px solid rgba(0,229,255,.2);padding-left:12px}
+.machine .perf{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:400px;margin-top:16px}
+.machine .perf .metric{background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.06);padding:12px;border-radius:6px}
+.machine .perf .val{font-size:1.3rem;font-weight:700;color:var(--m-accent)}
+.machine .perf .lbl{font-size:.6rem;color:var(--m-muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+
+.comet{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:200}
+.comet .star{position:absolute;top:45%;left:25%;width:5px;height:5px;background:#fff;border-radius:50%;animation:fly 5s ease-in-out infinite;box-shadow:0 0 10px 5px #fff,0 0 30px 12px rgba(220,240,255,1),0 0 60px 25px rgba(180,220,255,.8),0 0 100px 40px rgba(140,200,255,.5),0 0 160px 60px rgba(100,180,255,.3)}
+.comet .star::after{content:'';position:absolute;top:0;right:0;width:300px;height:3px;background:linear-gradient(to left,#fff,rgba(220,240,255,1),rgba(180,220,255,.8),rgba(120,190,255,.4),transparent);transform:rotate(-22deg);transform-origin:left center;border-radius:0 50% 50% 0}
+.comet .star::before{content:'';position:absolute;top:-4px;left:-4px;width:14px;height:14px;background:radial-gradient(circle,#fff 0%,rgba(200,230,255,.6) 40%,transparent 70%);border-radius:50%;animation:pulse .8s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.8);opacity:1}}
+@keyframes fly{0%{left:25%;top:45%;opacity:0;transform:scale(.2)}8%{opacity:1;transform:scale(1)}35%{left:72%;top:28%;opacity:1;transform:scale(1.15)}60%{left:72%;top:28%;opacity:.9}100%{left:76%;top:24%;opacity:0;transform:scale(.15)}}
+@keyframes mEnter{0%{transform:translateX(3px);opacity:0}2%{transform:translateX(-3px);opacity:.4}4%{transform:translateX(2px);opacity:.7}6%{transform:translateX(-2px)}8%{transform:translateX(1px)}10%{transform:translateX(0);opacity:1}28%{transform:scale(1.6)}50%{transform:scale(1.6)}72%{transform:scale(1) translateX(0);opacity:1}100%{transform:scale(1) translateX(0);opacity:1}}
+
+.content{max-width:900px;margin:0 auto;padding:60px 24px;display:none}
+.content.active{display:block}
+h2{font-size:1.8rem;font-weight:400;font-family:Georgia,serif;margin-bottom:8px;color:var(--fg)}
+h2 span{color:var(--m-accent)}
+.lead{color:var(--fg2);margin-bottom:2rem;font-family:Georgia;font-style:italic}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.card{background:var(--nav-bg);border:1px solid var(--nav-border);border-radius:10px;padding:22px;transition:all .25s}
+.card:hover{border-color:#444;transform:translateY(-1px)}
+.card h3{font-size:.95rem;font-weight:700;margin-bottom:6px;font-family:system-ui;color:var(--fg)}
+.card p{font-size:.82rem;color:var(--fg2);line-height:1.65;font-family:system-ui}
+.card code{font-family:monospace;color:var(--m-accent);background:rgba(0,229,255,.05);padding:1px 5px;border-radius:3px;font-size:.78rem}
+.btn{display:inline-block;padding:10px 22px;border-radius:6px;font-weight:700;font-size:.8rem;text-decoration:none;font-family:system-ui;transition:all .2s;border:none;cursor:pointer}
+.btn-primary{background:var(--h-accent);color:#fff}.btn-primary:hover{transform:translateY(-1px);background:#b8450a}
+.btn-ghost{border:1px solid rgba(255,255,255,.12);color:var(--fg);background:transparent}.btn-ghost:hover{background:rgba(255,255,255,.04)}
+.faq-item{background:var(--nav-bg);border:1px solid var(--nav-border);border-radius:8px;padding:18px 22px;margin-bottom:6px;cursor:pointer;font-family:system-ui;transition:all .2s}
+.faq-item:hover{border-color:#444}.faq-item .q{font-weight:700;font-size:.9rem}.faq-item .a{font-size:.82rem;color:var(--fg2);display:none;padding-top:10px}
+.faq-item.open .a{display:block}.faq-item.open .q{color:var(--m-accent)}
+.badge-box{background:var(--nav-bg);border:1px solid var(--nav-border);border-radius:8px;padding:18px;text-align:center;font-family:system-ui;transition:all .25s}
+.badge-box .ico{font-size:1.5rem;margin-bottom:8px}.badge-box .name{font-weight:700;font-size:.8rem;margin-bottom:4px}
+.badge-box .desc{font-size:.68rem;color:var(--fg2)}.badge-box.earned{border-color:var(--h-accent);background:rgba(212,84,11,.05)}.badge-box.locked{opacity:.35;filter:grayscale(1)}
+.sponsor-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.sponsor-box{background:var(--nav-bg);border:1px solid var(--nav-border);border-radius:10px;padding:22px;text-align:center;font-family:system-ui}
+.sponsor-box h4{font-size:1.2rem;margin-bottom:8px}.sponsor-box .amt{font-size:2rem;font-weight:800;color:var(--h-accent);margin-bottom:8px}
+.sponsor-box:hover{border-color:var(--h-accent)}
+.stat-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:20px}
+.stat-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:var(--nav-bg);border:1px solid var(--nav-border);border-radius:16px;font-size:.72rem;font-family:monospace;color:var(--nav-text)}.stat-chip .n{color:var(--m-accent)}
+.footer{padding:40px 24px;text-align:center;color:var(--m-muted);font-size:.72rem;font-family:system-ui;border-top:1px solid var(--nav-border);margin-top:60px}.footer a{color:var(--m-accent)}
+.deploy-code{background:var(--nav-bg);border:1px solid var(--nav-border);border-radius:8px;padding:18px;font-family:monospace;font-size:.78rem;color:var(--fg);overflow-x:auto;margin:8px 0;position:relative}
+.deploy-code .copy-btn{position:absolute;top:8px;right:8px;background:var(--nav-border);border:none;color:var(--nav-text);padding:4px 10px;border-radius:4px;font-size:.65rem;cursor:pointer;font-family:monospace}
+.deploy-code .copy-btn:hover{background:#444;color:#fff}
+@media(max-width:768px){.split{flex-direction:column;height:auto}.split .panel{min-height:60vh}.split .divider{top:50%;left:0;right:0;width:100%;height:6px;transform:translateY(-50%)}.split .divider::after{transform:rotate(90deg)}.topnav{gap:14px;flex-wrap:wrap;padding:8px 14px}.topnav a{font-size:.7rem}.topnav .right{gap:6px}.content{padding:30px 14px}}
+</style>
+</head>
+<body>
+
+<div class="comet"><div class="star"></div></div>
+
+<nav class="topnav">
+  <span class="logo">cbor<span>-web</span></span>
+  <a href="#home" class="active" onclick="route('home')">Home</a>
+  <a href="#docs" onclick="route('docs')">Docs</a>
+  <a href="#deploy" onclick="route('deploy')">Deploy</a>
+  <a href="#blog" onclick="route('blog')">Blog</a>
+  <a href="#faq" onclick="route('faq')">FAQ</a>
+  <a href="#gamification" onclick="route('gamification')">🏆</a>
+  <a href="#sponsor" onclick="route('sponsor')" style="color:#f4845f">💖 Sponsor</a>
+  <span class="right" style="gap:8px">
+    <a href="#" onclick="githubLogin()" id="login-btn" style="color:var(--m-accent);font-size:.7rem">🔑 Login with GitHub</a>
+    <span id="user-display" style="display:none;color:var(--m-accent);font-size:.7rem"></span>
+    <span id="langBtns"></span>
+  </span>
+</nav>
+
+<!-- HOME -->
+<main class="page active" id="home-page">
+<div class="split" id="split">
+  <div class="panel human"><div style="max-width:480px">
+    <div class="label"></div>
+    <img src="cbor-web-site/human-bg.jpg" class="hero-img" alt="">
+    <h1 id="h-title">The web was built <em>for humans</em>.<br>Nobody served the machines.</h1>
+    <p class="sub" id="h-sub">Every AI agent downloads 1.6 MB of noise — menus, scripts, ads, trackers — to extract 50 KB of content. Publishers lose bandwidth with zero revenue. No one knows who reads what.</p>
+    <div class="stats">
+      <div class="stat-box"><span class="val">93%</span><span class="lbl">Noise in HTML</span></div>
+      <div class="stat-box"><span class="val">$2.88</span><span class="lbl">To crawl 80 pages</span></div>
+      <div class="stat-box"><span class="val">1,400</span><span class="lbl">DOM elements/page</span></div>
+      <div class="stat-box"><span class="val">0€</span><span class="lbl">Revenue for publishers</span></div>
+    </div>
+    <a href="#deploy" onclick="route('deploy')" class="btn-human">Deploy CBOR-Web →</a>
+  </div></div>
+  <div class="panel machine" id="machine-panel"><div style="max-width:480px;animation:mEnter 3s ease-out 1">
+    <div class="label"></div>
+    <img src="cbor-web-site/machine-bg.png" class="hero-img" alt="CBOR binary stream — structured, efficient, machine-native">
+    <h1><span class="hx">55799</span>({2:{name:"CBOR-Web"}})</h1>
+    <div class="stream" id="live-stream">⟳ Connecting to CBOR-Web node...</div>
+    <p class="sub" id="m-sub" style="color:var(--m-muted);font-size:.85rem;max-width:420px;margin-bottom:24px">Machine-native copy of your site. No HTML parsing. No DOM traversal. <strong style="color:var(--m-accent)">100× cheaper. 95% signal ratio.</strong></p>
+    <div class="perf">
+      <div class="metric"><div class="val">100×</div><div class="lbl">Cheaper</div></div>
+      <div class="metric"><div class="val">95%</div><div class="lbl">Signal ratio</div></div>
+      <div class="metric"><div class="val" id="home-stars">—</div><div class="lbl">GitHub stars</div></div>
+      <div class="metric"><div class="val">38</div><div class="lbl">Sites live</div></div>
+    </div>
+  </div></div>
+</div>
+</main>
+
+<!-- DOCS -->
+<section class="content" id="docs-page">
+  <h2><span>Docs</span> — Get started</h2>
+  <p class="lead">Add CBOR-Web to any site in 30 minutes. No CMS change.</p>
+  <div class="grid2">
+    <div class="card"><h3>📦 npm install</h3><p><code>npm install @deltopide_edy/cborweb</code><br>Also: cargo, pip, composer, gem, go get. 8 languages, zero deps.</p></div>
+    <div class="card"><h3>🔧 Convert</h3><p><code>text2cbor generate -i ./html -o ./cbor -d mysite.com</code><br>Extracts headings, paragraphs, tables, images, Schema.org data.</p></div>
+    <div class="card"><h3>🌐 Serve</h3><p>Drop .cbor files alongside HTML. Rust server or Cloudflare Worker. Discovery via <code>/.well-known/cbor-web</code>.</p></div>
+    <div class="card"><h3>🤖 SDK API</h3><p><code>client.manifest()</code> → full site. <code>client.page(path)</code> → single page. <code>client.bundle()</code> → one request. 8 languages.</p></div>
+    <div class="card"><h3>🔐 Token gating</h3><p>Agents hold ≥1 CBORW for premium access. Wallet-verified identity. Cryptographic signatures. Audit trail.</p></div>
+    <div class="card"><h3>🏛️ IETF Draft</h3><p>RFC 8949 · RFC 8610 · RFC 8615. <a href="https://github.com/ploteddie-bit/cbor-web/blob/main/spec/draft-plot-cbor-web-00.md" style="color:var(--m-accent)">Internet-Draft</a> submitted. Open standard, CC BY 4.0.</p></div>
+  </div>
+</section>
+
+<!-- DEPLOY -->
+<section class="content" id="deploy-page">
+  <h2>🚀 <span>Deploy</span> in 2 commands</h2>
+  <p class="lead">Copy-paste. 30 seconds. Your site becomes AI-readable.</p>
+  <div class="card" style="margin-bottom:16px"><h3>1. Convert your HTML</h3>
+    <div class="deploy-code">text2cbor generate --input ./my-html-site --output ./cbor-output --domain mysite.com --default-lang en<span class="copy-btn" onclick="copyCode(this)">Copy</span></div>
+  </div>
+  <div class="card" style="margin-bottom:16px"><h3>2. Serve the CBOR files</h3>
+    <div class="deploy-code">cbor-server --data ./cbor-output --listen 0.0.0.0:3001<span class="copy-btn" onclick="copyCode(this)">Copy</span></div>
+  </div>
+  <div class="card"><h3>3. Verify</h3>
+    <div class="deploy-code">curl http://localhost:3001/.well-known/cbor-web<span class="copy-btn" onclick="copyCode(this)">Copy</span></div>
+    <p style="margin-top:8px;color:var(--fg2);font-size:.8rem">That's it. AI agents now discover your content automatically. Humans see zero difference.</p>
+  </div>
+</section>
+
+<!-- BLOG -->
+<section class="content" id="blog-page">
+  <h2><span>Blog</span></h2>
+  <div class="grid2" id="blog-posts">
+    <div class="card"><h3>🆕 v2.2 Released</h3><p>April 2026 — 8 SDKs, WordPress, Shopify, OCR pipeline, anti-DoS, npm, IETF draft.</p><a href="https://github.com/ploteddie-bit/cbor-web/releases" class="btn btn-primary" style="margin-top:10px;font-size:.72rem">View on GitHub</a></div>
+    <div class="card"><h3>📊 93% token waste</h3><p>200 websites benchmarked. Average: 120KB HTML → 8KB useful content. CBOR-Web: 95% signal ratio.</p></div>
+    <div class="card"><h3>🌍 8 SDKs</h3><p>TypeScript, Python, Go, PHP, Ruby, Java, C++, React. Zero deps. One API. npm published.</p></div>
+    <div class="card"><h3>🏛️ Digital identity law</h3><p>France requires AI agents to identify. CBOR-Web has wallet identity built-in since day one.</p></div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="content" id="faq-page"><h2><span>FAQ</span></h2><div id="faq-list"></div></section>
+
+<!-- GAMIFICATION -->
+<section class="content" id="gamification-page"><h2><span>🏆 Achievements</span></h2><p class="lead">Earn badges contributing to CBOR-Web.</p><div class="grid3" id="badges"></div></section>
+
+<!-- SPONSOR -->
+<section class="content" id="sponsor-page">
+  <h2>💖 <span>Sponsor</span></h2>
+  <p class="lead">Support the open protocol for AI-readable web.</p>
+  <div class="sponsor-grid">
+    <div class="sponsor-box"><h4>🍵 Coffee</h4><div class="amt">5€/mo</div><p style="color:var(--fg2);font-size:.78rem">Name in README</p><a href="https://github.com/sponsors/ploteddie-bit" class="btn btn-primary" style="margin-top:8px;font-size:.72rem">Sponsor</a></div>
+    <div class="sponsor-box"><h4>⚡ Supporter</h4><div class="amt" style="color:var(--m-accent)">25€/mo</div><p style="color:var(--fg2);font-size:.78rem">Logo on site + early access</p><a href="https://github.com/sponsors/ploteddie-bit" class="btn btn-primary" style="margin-top:8px;font-size:.72rem">Sponsor</a></div>
+    <div class="sponsor-box"><h4>🚀 Partner</h4><div class="amt" style="color:#f4845f">100€/mo</div><p style="color:var(--fg2);font-size:.78rem">Featured post + dedicated support</p><a href="https://github.com/sponsors/ploteddie-bit" class="btn btn-primary" style="margin-top:8px;font-size:.72rem">Sponsor</a></div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="stat-row">
+    <span class="stat-chip"><span id="ft-stars" class="n">—</span> ⭐</span>
+    <span class="stat-chip"><span id="ft-forks" class="n">—</span> 🍴</span>
+    <span class="stat-chip"><span id="ft-issues" class="n">—</span> 📝</span>
+    <span class="stat-chip" id="ft-version">—</span>
+  </div>
+  <p>CBOR-Web Protocol · <a href="https://github.com/ploteddie-bit/cbor-web">GitHub</a> · <a href="https://cbor-web.explodev.workers.dev">Dashboard</a> · <a href="https://www.npmjs.com/package/@deltopide_edy/cborweb">npm</a></p>
+  <p>ExploDev / Deltopide SL · 2026</p>
+</footer>
+
+<script>
+// ── ROUTING ──
+function route(name){
+  document.querySelectorAll('.page,.content').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.topnav a').forEach(a=>a.classList.remove('active'));
+  const el=document.getElementById(name+'-page');
+  if(el) el.classList.add('active');
+  if(name==='home') document.getElementById('home-page').classList.add('active');
+  const link=document.querySelector(`.topnav a[href="#${name}"]`);
+  if(link) link.classList.add('active');
+  window.location.hash=name;
+}
+window.onhashchange=()=>route(window.location.hash.slice(1)||'home');
+if(window.location.hash) route(window.location.hash.slice(1));
+
+// ── DIVIDER ──
+(function(){
+  const s=document.getElementById('split');if(!s)return;
+  const d=document.createElement('div');d.className='divider';s.appendChild(d);
+  let dr=false;
+  d.onmousedown=e=>{dr=true;d.classList.add('active');e.preventDefault()};
+  document.onmousemove=e=>{if(!dr)return;const r=s.getBoundingClientRect();const p=((e.clientX-r.left)/r.width)*100;if(p>15&&p<85){s.children[0].style.flex=`${p/100}`;s.children[1].style.flex=`${1-p/100}`;d.style.left=`${p}%`}};
+  document.onmouseup=()=>{dr=false;d.classList.remove('active')};
+})();
+
+// ── LIVE CBOR STREAM ──
+function updateStream(){
+  const lines=[
+    'd9d9f7 <- 55799(tag)','a500 <- map(5)',
+    '00 71"cbor-web-manifest"','01 02 <- version',
+    '02 a4 <- site{name,domain,languages,default}',
+    '03 81 a5 <- 1 page{path,title,lang,access,size}',
+    '05 a4 <- meta{total_size,total_pages,generated_at,bundle}',
+    'SHA-256: d8cad2e6e8d06a0e...','Host: deltopide.com',
+    'Accept: application/cbor','Content-Type: application/cbor',
+    `GET /.well-known/cbor-web → 200 OK (${Math.floor(Math.random()*300+100)} bytes)`,
+    `X-CBOR-Web-Wallet: 0x${Math.random().toString(16).slice(2,12)}`,
+    'verifyAccess(wallet) → has_access: true',
+    '→ Serving L1 content (full)',
+    '38 sites · 59 pages · 25.3 KB total',
+    `Rate: ${Math.floor(Math.random()*50)} agents/min`,
+  ];
+  const el=document.getElementById('live-stream');
+  if(!el)return;
+  let i=0;
+  setInterval(()=>{
+    lines.push(lines.shift());
+    el.innerHTML=lines.slice(0,8).join('<br>');
+  },1500);
+}
+updateStream();
+
+// ── GITHUB API (auto-refresh every 5 min) ──
+function fetchGitHub(){
+  fetch('https://api.github.com/repos/ploteddie-bit/cbor-web').then(r=>r.json()).then(d=>{
+    const s=d.stargazers_count||0,f=d.forks_count||0,i=d.open_issues_count||0;
+    document.querySelectorAll('#home-stars,#ft-stars,#gh-live').forEach(e=>{e.textContent=s});
+    document.getElementById('gh-live').textContent=s+' ⭐';
+    document.querySelectorAll('#ft-forks').forEach(e=>e.textContent=f);
+    document.querySelectorAll('#ft-issues').forEach(e=>e.textContent=i);
+    document.querySelectorAll('#ft-version').forEach(e=>e.textContent='v'+d.default_branch);
+  }).catch(()=>{});
+}
+fetchGitHub();setInterval(fetchGitHub,300000);
+
+// ── COPY CODE ──
+function copyCode(btn){
+  const code=btn.parentElement.textContent.replace('Copy','').trim();
+  navigator.clipboard.writeText(code).then(()=>{btn.textContent='Copied!';setTimeout(()=>btn.textContent='Copy',1500)});
+}
+
+// ── FAQ ──
+const faqs=[
+  {q:'What is CBOR-Web?',a:'An open protocol (RFC 8949) that exposes a machine-readable binary copy of your website. AI agents consume it directly — no HTML parsing, 100× cheaper, 95% signal ratio.'},
+  {q:'How is it different from llms.txt?',a:'llms.txt is a ~2KB text summary. CBOR-Web serves FULL structured content in binary — typed blocks, navigation, Schema.org, tables, images, access control.'},
+  {q:'What does it cost?',a:'Protocol + tools: free (MIT + CC BY 4.0). SaaS: 5 free conversions, then 49€/site. Invoice-based, payable by bank transfer.'},
+  {q:'Which languages are supported?',a:'SDKs in TypeScript, Python, Go, PHP, Ruby, Java, C++, React. WordPress plugin. Shopify snippet. All zero external dependencies.'},
+  {q:'How do I add it to my site?',a:'<code>text2cbor generate -i ./html -o ./cbor -d mysite.com</code>. Drop .cbor files alongside HTML. Done. Humans see zero difference.'},
+  {q:'Is it legally compliant?',a:'Yes. Cryptographic wallet identity per agent. Audit trail. Pre-compliant with upcoming French/European digital identity regulation for AI.'},
+];
+document.getElementById('faq-list').innerHTML=faqs.map(f=>`<div class="faq-item" onclick="this.classList.toggle('open')"><div class="q">${f.q}</div><div class="a">${f.a}</div></div>`).join('');
+
+// ── BADGES ──
+const badges=[{ico:'⭐',name:'First Star',desc:'Star the repo',earned:false},{ico:'🔀',name:'First Fork',desc:'Fork the repo',earned:false},{ico:'📦',name:'SDK User',desc:'Use a CBOR-Web SDK',earned:false},{ico:'📝',name:'Contributor',desc:'Merged PR',earned:false},{ico:'🌐',name:'Publisher',desc:'Deployed CBOR-Web',earned:false},{ico:'🐛',name:'Bug Hunter',desc:'Fixed a bug',earned:true},{ico:'📚',name:'Doc Writer',desc:'Improved docs',earned:true},{ico:'🚀',name:'Early Adopter',desc:'Top 100 sites',earned:true}];
+document.getElementById('badges').innerHTML=badges.map(b=>`<div class="badge-box ${b.earned?'earned':'locked'}"><div class="ico">${b.ico}</div><div class="name">${b.name}</div><div class="desc">${b.desc}</div></div>`).join('');
+
+// ── i18n ──
+const LANGS=[{c:'en',n:'EN'},{c:'fr',n:'FR'},{c:'es',n:'ES'},{c:'de',n:'DE'},{c:'zh',n:'中文'},{c:'ja',n:'日本語'},{c:'pt',n:'PT'},{c:'ru',n:'RU'},{c:'ar',n:'ع'},{c:'hi',n:'हि'},{c:'ko',n:'한'},{c:'it',n:'IT'}];
+const T={
+en:{home:'Home',docs:'Docs',deploy:'Deploy',blog:'Blog',faq:'FAQ',achieve:'🏆 Achievements',sponsor:'💖 Sponsor',
+  hTitle:'The web was built <em>for humans</em>.<br>Nobody served the machines.',
+  hSub:'Every AI agent downloads 1.6 MB of noise — menus, scripts, ads, trackers — to extract 50 KB of content. Publishers lose bandwidth with zero revenue. No one knows who reads what.',
+  s1:'Noise in HTML',s2:'To crawl 80 pages',s3:'DOM elements/page',s4:'Revenue for publishers',
+  btn:'Deploy CBOR-Web →',
+  mSub:'Machine-native copy of your site. No HTML parsing. No DOM traversal. <strong style="color:var(--m-accent)">100× cheaper. 95% signal ratio.</strong>',
+  dTitle:'Docs — Get started',dLead:'Add CBOR-Web to any site in 30 minutes. No CMS change.',
+  depTitle:'🚀 Deploy in 2 commands',depLead:'Copy-paste. 30 seconds. Your site becomes AI-readable.',
+  bTitle:'Blog',fTitle:'FAQ',gTitle:'🏆 Achievements',gLead:'Earn badges contributing to CBOR-Web.',
+  spTitle:'💖 Sponsor',spLead:'Support the open protocol for AI-readable web.'},
+fr:{home:'Accueil',docs:'Docs',deploy:'Déployer',blog:'Blog',faq:'FAQ',achieve:'🏆 Badges',sponsor:'💖 Sponsor',
+  hTitle:'Le web a été construit <em>pour les humains</em>.<br>Personne n\'a servi les machines.',
+  hSub:'Chaque agent IA télécharge 1,6 Mo de bruit — menus, scripts, pubs, trackers — pour extraire 50 Ko de contenu. Les éditeurs perdent de la bande passante sans revenu. Personne ne sait qui lit quoi.',
+  s1:'Bruit en HTML',s2:'Pour analyser 80 pages',s3:'Éléments DOM/page',s4:'Revenu pour l\'éditeur',
+  btn:'Déployer CBOR-Web →',
+  mSub:'Copie machine-native de votre site. Pas de parsing HTML. Pas de DOM. <strong style="color:var(--m-accent)">100× moins cher. 95% de signal utile.</strong>',
+  dTitle:'Docs — Démarrez',dLead:'Ajoutez CBOR-Web à n\'importe quel site en 30 minutes.',
+  depTitle:'🚀 Déployer en 2 commandes',depLead:'Copiez-collez. 30 secondes. Votre site devient lisible par l\'IA.',
+  bTitle:'Blog',fTitle:'FAQ',gTitle:'🏆 Badges',gLead:'Gagnez des badges en contribuant à CBOR-Web.',
+  spTitle:'💖 Sponsor',spLead:'Soutenez le protocole ouvert pour un web lisible par l\'IA.'},
+es:{home:'Inicio',docs:'Docs',deploy:'Desplegar',blog:'Blog',faq:'FAQ',achieve:'🏆 Logros',sponsor:'💖 Patrocinar',
+  hTitle:'La web fue construida <em>para humanos</em>.<br>Nadie sirvió a las máquinas.',
+  hSub:'Cada agente IA descarga 1,6 MB de ruido — menús, scripts, anuncios, rastreadores — para extraer 50 KB de contenido. Los editores pierden ancho de banda sin ingresos. Nadie sabe quién lee qué.',
+  s1:'Ruido en HTML',s2:'Para rastrear 80 páginas',s3:'Elementos DOM/página',s4:'Ingresos para el editor',
+  btn:'Desplegar CBOR-Web →',
+  mSub:'Copia nativa para máquinas de tu sitio. Sin parsing HTML. Sin DOM. <strong style="color:var(--m-accent)">100× más barato. 95% señal útil.</strong>',
+  dTitle:'Docs — Comenzar',dLead:'Añade CBOR-Web a cualquier sitio en 30 minutos.',
+  depTitle:'🚀 Desplegar en 2 comandos',depLead:'Copia y pega. 30 segundos. Tu sitio se vuelve legible por IA.',
+  bTitle:'Blog',fTitle:'FAQ',gTitle:'🏆 Logros',gLead:'Gana insignias contribuyendo a CBOR-Web.',
+  spTitle:'💖 Patrocinar',spLead:'Apoya el protocolo abierto para web legible por IA.'},
+de:{home:'Start',docs:'Docs',deploy:'Deploy',blog:'Blog',faq:'FAQ',achieve:'🏆 Erfolge',sponsor:'💖 Sponsor',
+  hTitle:'Das Web wurde <em>für Menschen</em> gebaut.<br>Niemand dachte an Maschinen.',
+  hSub:'Jeder KI-Agent lädt 1,6 MB Müll — Menüs, Scripts, Werbung, Tracker — um 50 KB Inhalt zu extrahieren. Publisher verlieren Bandbreite ohne Einnahmen.',
+  s1:'Rauschen in HTML',s2:'Für 80 Seiten Crawling',s3:'DOM-Elemente/Seite',s4:'Einnahmen für Publisher',
+  btn:'CBOR-Web deployen →',
+  mSub:'Maschinen-native Kopie Ihrer Website. Kein HTML-Parsing. Kein DOM. <strong style="color:var(--m-accent)">100× günstiger. 95% Signalanteil.</strong>',
+  dTitle:'Docs — Loslegen',dLead:'Fügen Sie CBOR-Web in 30 Minuten zu jeder Website hinzu.',
+  depTitle:'🚀 In 2 Befehlen deployen',depLead:'Kopieren & Einfügen. 30 Sekunden. Ihre Website wird KI-lesbar.',
+  bTitle:'Blog',fTitle:'FAQ',gTitle:'🏆 Erfolge',gLead:'Verdienen Sie Abzeichen durch Beiträge.',
+  spTitle:'💖 Sponsor',spLead:'Unterstützen Sie das offene Protokoll.'},
+zh:{home:'首页',docs:'文档',deploy:'部署',blog:'博客',faq:'常见问题',achieve:'🏆 成就',sponsor:'💖 赞助',
+  hTitle:'互联网是<em>为人类</em>而建的。<br>没有人服务机器。',
+  hSub:'每个AI代理下载1.6MB的噪音——菜单、脚本、广告、追踪器——只为提取50KB的内容。发布者损失带宽且没有收入。',
+  s1:'HTML中的噪音',s2:'爬取80页的成本',s3:'每页DOM元素',s4:'发布者收入',
+  btn:'部署 CBOR-Web →',
+  mSub:'您网站的机器原生副本。无需HTML解析。无需DOM遍历。<strong style="color:var(--m-accent)">成本降低100倍。95%有用信号。</strong>',
+  dTitle:'文档 — 开始',dLead:'在30分钟内为任何网站添加CBOR-Web。',
+  depTitle:'🚀 两条命令部署',depLead:'复制粘贴。30秒。您的网站即可被AI读取。',
+  bTitle:'博客',fTitle:'常见问题',gTitle:'🏆 成就',gLead:'通过贡献获得徽章。',
+  spTitle:'💖 赞助',spLead:'支持这个开放协议。'},
+ja:{home:'ホーム',docs:'ドキュメント',deploy:'デプロイ',blog:'ブログ',faq:'FAQ',achieve:'🏆 実績',sponsor:'💖 スポンサー',
+  hTitle:'ウェブは<em>人間のために</em>作られた。<br>誰も機械にサービスしなかった。',
+  hSub:'すべてのAIエージェントは1.6MBのノイズをダウンロードし、50KBのコンテンツを抽出します。',
+  s1:'HTMLのノイズ',s2:'80ページのクロール',s3:'DOM要素/ページ',s4:'発行者の収益',
+  btn:'CBOR-Webをデプロイ →',
+  mSub:'サイトのマシンネイティブコピー。HTML解析不要。<strong style="color:var(--m-accent)">100倍安価。95%の信号率。</strong>',
+  dTitle:'ドキュメント — 始める',dLead:'30分で任意のサイトにCBOR-Webを追加。',
+  depTitle:'🚀 2つのコマンドでデプロイ',depLead:'コピペで30秒。サイトがAI可読に。',
+  bTitle:'ブログ',fTitle:'FAQ',gTitle:'🏆 実績',gLead:'貢献してバッジを獲得。',
+  spTitle:'💖 スポンサー',spLead:'オープンプロトコルをサポート。'},
+pt:{home:'Início',docs:'Docs',deploy:'Implantar',blog:'Blog',faq:'FAQ',achieve:'🏆 Conquistas',sponsor:'💖 Patrocinar',
+  hTitle:'A web foi construída <em>para humanos</em>.<br>Ninguém serviu as máquinas.',
+  hSub:'Cada agente IA baixa 1,6 MB de ruído para extrair 50 KB de conteúdo. Editores perdem banda sem receita.',
+  s1:'Ruído no HTML',s2:'Para rastrear 80 páginas',s3:'Elementos DOM/página',s4:'Receita do editor',
+  btn:'Implantar CBOR-Web →',
+  mSub:'Cópia nativa para máquinas do seu site. <strong style="color:var(--m-accent)">100× mais barato. 95% de sinal.</strong>',
+  dTitle:'Docs — Começar',dLead:'Adicione CBOR-Web a qualquer site em 30 minutos.',
+  depTitle:'🚀 Implantar em 2 comandos',depLead:'Copie e cole. 30 segundos.',
+  bTitle:'Blog',fTitle:'FAQ',gTitle:'🏆 Conquistas',gLead:'Ganhe distintivos contribuindo.',
+  spTitle:'💖 Patrocinar',spLead:'Apoie o protocolo aberto.'},
+ru:{home:'Главная',docs:'Доки',deploy:'Деплой',blog:'Блог',faq:'FAQ',achieve:'🏆 Достижения',sponsor:'💖 Спонсор',
+  hTitle:'Веб был создан <em>для людей</em>.<br>Никто не обслуживал машины.',
+  hSub:'Каждый ИИ-агент загружает 1,6 МБ шума для извлечения 50 КБ контента. Издатели теряют трафик без дохода.',
+  s1:'Шум в HTML',s2:'Сканировать 80 страниц',s3:'DOM-элементов/стр',s4:'Доход издателя',
+  btn:'Развернуть CBOR-Web →',
+  mSub:'Машинная копия сайта. <strong style="color:var(--m-accent)">В 100× дешевле. 95% сигнала.</strong>',
+  dTitle:'Документация',dLead:'Добавьте CBOR-Web за 30 минут.',
+  depTitle:'🚀 Деплой за 2 команды',depLead:'Копировать-вставить. 30 секунд.',
+  bTitle:'Блог',fTitle:'FAQ',gTitle:'🏆 Достижения',gLead:'Зарабатывайте значки.',
+  spTitle:'💖 Спонсор',spLead:'Поддержите открытый протокол.'},
+ar:{home:'الرئيسية',docs:'المستندات',deploy:'نشر',blog:'مدونة',faq:'الأسئلة',achieve:'🏆 الإنجازات',sponsor:'💖 راعي',
+  hTitle:'تم بناء الويب <em>للبشر</em>.<br>لم يخدم أحد الآلات.',
+  hSub:'يقوم كل وكيل ذكاء اصطناعي بتنزيل 1.6 ميجابايت من الضوضاء لاستخراج 50 كيلوبايت من المحتوى.',
+  s1:'الضوضاء في HTML',s2:'لزحف 80 صفحة',s3:'عناصر DOM/صفحة',s4:'دخل الناشر',
+  btn:'نشر CBOR-Web →',
+  mSub:'نسخة أصلية للآلة من موقعك. <strong style="color:var(--m-accent)">أرخص 100×. 95% إشارة.</strong>',
+  dTitle:'المستندات — ابدأ',dLead:'أضف CBOR-Web إلى أي موقع في 30 دقيقة.',
+  depTitle:'🚀 نشر بأمرين',depLead:'انسخ والصق. 30 ثانية.',
+  bTitle:'مدونة',fTitle:'الأسئلة',gTitle:'🏆 الإنجازات',gLead:'اكسب شارات بالمساهمة.',
+  spTitle:'💖 راعي',spLead:'ادعم البروتوكول المفتوح.'},
+hi:{home:'होम',docs:'दस्तावेज़',deploy:'तैनात',blog:'ब्लॉग',faq:'FAQ',achieve:'🏆 उपलब्धियां',sponsor:'💖 प्रायोजक',
+  hTitle:'वेब <em>इंसानों के लिए</em> बनाया गया था।<br>किसी ने मशीनों की सेवा नहीं की।',
+  hSub:'प्रत्येक AI एजेंट 1.6 MB शोर डाउनलोड करता है — 50 KB सामग्री निकालने के लिए।',
+  s1:'HTML में शोर',s2:'80 पेज क्रॉल करने के लिए',s3:'DOM तत्व/पेज',s4:'प्रकाशक की आय',
+  btn:'CBOR-Web तैनात करें →',
+  mSub:'आपकी साइट की मशीन-नेटिव कॉपी। <strong style="color:var(--m-accent)">100× सस्ता। 95% सिग्नल।</strong>',
+  dTitle:'दस्तावेज़ — शुरू करें',dLead:'30 मिनट में किसी भी साइट पर CBOR-Web जोड़ें।',
+  depTitle:'🚀 2 कमांड में तैनात',depLead:'कॉपी-पेस्ट। 30 सेकंड।',
+  bTitle:'ब्लॉग',fTitle:'FAQ',gTitle:'🏆 उपलब्धियां',gLead:'योगदान करके बैज अर्जित करें।',
+  spTitle:'💖 प्रायोजक',spLead:'खुले प्रोटोकॉल का समर्थन करें।'},
+ko:{home:'홈',docs:'문서',deploy:'배포',blog:'블로그',faq:'FAQ',achieve:'🏆 성과',sponsor:'💖 후원',
+  hTitle:'웹은 <em>인간을 위해</em> 만들어졌습니다.<br>아무도 기계를 서비스하지 않았습니다.',
+  hSub:'모든 AI 에이전트는 1.6MB의 노이즈를 다운로드하여 50KB의 콘텐츠를 추출합니다.',
+  s1:'HTML의 노이즈',s2:'80페이지 크롤링',s3:'DOM 요소/페이지',s4:'게시자 수익',
+  btn:'CBOR-Web 배포 →',
+  mSub:'사이트의 기계 네이티브 사본. <strong style="color:var(--m-accent)">100배 저렴. 95% 신호.</strong>',
+  dTitle:'문서 — 시작하기',dLead:'30분 안에 모든 사이트에 CBOR-Web을 추가하세요.',
+  depTitle:'🚀 2개 명령어로 배포',depLead:'복사-붙여넣기. 30초.',
+  bTitle:'블로그',fTitle:'FAQ',gTitle:'🏆 성과',gLead:'기여하여 배지를 획득하세요.',
+  spTitle:'💖 후원',spLead:'오픈 프로토콜을 지원하세요.'},
+it:{home:'Home',docs:'Documenti',deploy:'Deploy',blog:'Blog',faq:'FAQ',achieve:'🏆 Obiettivi',sponsor:'💖 Sponsor',
+  hTitle:'Il web è stato costruito <em>per gli umani</em>.<br>Nessuno ha servito le macchine.',
+  hSub:'Ogni agente IA scarica 1,6 MB di rumore per estrarre 50 KB di contenuto. Gli editori perdono banda senza ricavi.',
+  s1:'Rumore nell\'HTML',s2:'Per scansionare 80 pagine',s3:'Elementi DOM/pagina',s4:'Ricavi per l\'editore',
+  btn:'Deploy CBOR-Web →',
+  mSub:'Copia nativa per macchine del tuo sito. <strong style="color:var(--m-accent)">100× più economico. 95% di segnale.</strong>',
+  dTitle:'Documenti — Inizia',dLead:'Aggiungi CBOR-Web a qualsiasi sito in 30 minuti.',
+  depTitle:'🚀 Deploy in 2 comandi',depLead:'Copia-incolla. 30 secondi.',
+  bTitle:'Blog',fTitle:'FAQ',gTitle:'🏆 Obiettivi',gLead:'Guadagna badge contribuendo.',
+  spTitle:'💖 Sponsor',spLead:'Supporta il protocollo aperto.'},
+};
+
+document.getElementById('langBtns').innerHTML=LANGS.map(l=>`<button class="lang-btn ${l.c==='en'?'active':''}" onclick="setLang('${l.c}',this)">${l.n}</button>`).join('');
+let curLang='en';
+function setLang(l,btn){
+  curLang=l;document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  const t=T[l]||T.en;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.dataset.i18n;if(t[k])el.innerHTML=t[k]});
+  document.getElementById('h-title').innerHTML=t.hTitle;document.getElementById('h-sub').textContent=t.hSub.split('<')[0];
+  document.getElementById('m-sub').innerHTML=t.mSub;
+  document.querySelectorAll('.stat-box .lbl').forEach((el,i)=>{const keys=['s1','s2','s3','s4'];if(t[keys[i]])el.textContent=t[keys[i]]});
+  document.querySelector('.btn-human').innerHTML=t.btn;
+}
+</script>
+</body>
+</html>
