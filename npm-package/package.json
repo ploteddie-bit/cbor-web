@@ -1,5 +1,5 @@
 {
-  "name": "cborweb",
+  "name": "@deltopide_edy/cborweb",
   "version": "2.2.0",
   "description": "CBOR-Web client SDK — binary web content for AI agents. Zero dependencies.",
   "main": "cborweb.ts",
