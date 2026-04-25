@@ -1396,3 +1396,95 @@ async fn main() {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sha256_bytes() {
+        let hash = sha256_bytes(b"hello");
+        assert_eq!(hex::encode(&hash), "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+    }
+
+    #[test]
+    fn test_heading_describe() {
+        let block = cmap(vec![
+            (t("t"), t("h")),
+            (ii(1), t("Hello World")),
+            (t("v"), t("Hello World")),
+            (t("l"), u(2)),
+        ]);
+        let enriched = enrich_block_with_describe(&block);
+        if let Value::Map(ref pairs) = enriched {
+            let text = pairs.iter().find(|(k, _)| matches!(k, Value::Text(s) if s == "_describe"));
+            assert!(text.is_some());
+        } else {
+            panic!("Expected map");
+        }
+    }
+
+    #[test]
+    fn test_paragraph_describe() {
+        let block = cmap(vec![
+            (t("t"), t("p")),
+            (t("v"), t("This is a short paragraph.")),
+        ]);
+        let enriched = enrich_block_with_describe(&block);
+        if let Value::Map(ref pairs) = enriched {
+            let describe = pairs.iter().find(|(k, _)| matches!(k, Value::Text(s) if s == "_describe"));
+            // Short paragraphs have no _describe (line 837)
+            assert!(describe.is_none());
+        }
+    }
+
+    #[test]
+    fn test_image_describe() {
+        let block = cmap(vec![
+            (t("t"), t("img")),
+            (t("alt"), t("A beautiful sunset")),
+            (t("src"), t("/sunset.jpg")),
+        ]);
+        let enriched = enrich_block_with_describe(&block);
+        if let Value::Map(ref pairs) = enriched {
+            let describe = pairs.iter().find(|(k, _)| matches!(k, Value::Text(s) if s == "_describe"));
+            assert!(describe.is_some());
+        }
+    }
+
+    #[test]
+    fn test_utf8_safe_describe() {
+        // Test that multibyte characters don't panic
+        let long_french = "é".repeat(100);
+        let block = cmap(vec![
+            (t("t"), t("h")),
+            (ii(1), t(&long_french)),
+            (t("v"), t(&long_french)),
+            (t("l"), u(1)),
+        ]);
+        let enriched = enrich_block_with_describe(&block);
+        assert!(matches!(enriched, Value::Map(_)));
+    }
+
+    #[test]
+    fn test_build_page_entry_structure() {
+        let page = PageEntry {
+            path: "/test".into(),
+            title: "Test".into(),
+            description: "".into(),
+            lang: "fr".into(),
+            access: "T2".into(),
+            blocks: vec![],
+            hash: vec![0u8; 32],
+            content_size: 100,
+            internal_links: vec![],
+            external_links: vec![],
+            alternates: std::collections::HashMap::new(),
+            structured_data: None,
+            priority: 0.5,
+            freshness: "monthly".into(),
+        };
+        let val = build_page_entry(&page);
+        assert!(matches!(val, Value::Map(_)));
+    }
+}

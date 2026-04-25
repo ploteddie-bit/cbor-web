@@ -1228,3 +1228,81 @@ fn truncate(s: &str, max: usize) -> String {
         s.chars().take(max).collect::<String>() + "..."
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_truncate_short() {
+        assert_eq!(truncate("hello", 10), "hello");
+    }
+
+    #[test]
+    fn test_truncate_ascii() {
+        assert_eq!(truncate("hello world this is long", 10), "hello worl...");
+    }
+
+    #[test]
+    fn test_truncate_utf8() {
+        assert_eq!(truncate("héllo wörld très long", 10), "héllo wörl...");
+    }
+
+    #[test]
+    fn test_truncate_emoji() {
+        // Simple emojis (1 codepoint each)
+        let r = truncate("😀😀😀😀😀", 3);
+        assert!(r.starts_with("😀😀😀"));
+    }
+
+    #[test]
+    fn test_path_to_filename_root() {
+        assert_eq!(path_to_filename("/"), "_index.cbor");
+    }
+
+    #[test]
+    fn test_path_to_filename_simple() {
+        assert_eq!(path_to_filename("/about"), "about.cbor");
+    }
+
+    #[test]
+    fn test_path_to_filename_nested() {
+        assert_eq!(path_to_filename("/blog/article"), "blog_article.cbor");
+    }
+
+    #[test]
+    fn test_path_to_filename_underscore() {
+        assert_eq!(path_to_filename("/my_page"), "my%5Fpage.cbor");
+    }
+
+    #[test]
+    fn test_sha256_hex() {
+        assert_eq!(sha256_hex(b"hello"), "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+    }
+
+    #[test]
+    fn test_cbor_to_json_integer() {
+        let v = ciborium::Value::Integer(42.into());
+        assert_eq!(cbor_to_json(&v), serde_json::json!(42));
+    }
+
+    #[test]
+    fn test_cbor_to_json_text() {
+        let v = ciborium::Value::Text("hello".into());
+        assert_eq!(cbor_to_json(&v), serde_json::json!("hello"));
+    }
+
+    #[test]
+    fn test_cbor_to_json_bool() {
+        assert_eq!(cbor_to_json(&ciborium::Value::Bool(true)), serde_json::json!(true));
+    }
+
+    #[test]
+    fn test_cbor_to_json_array() {
+        let v = ciborium::Value::Array(vec![
+            ciborium::Value::Integer(1.into()),
+            ciborium::Value::Text("two".into()),
+        ]);
+        assert_eq!(cbor_to_json(&v), serde_json::json!([1, "two"]));
+    }
+}

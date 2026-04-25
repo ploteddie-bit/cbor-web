@@ -502,11 +502,29 @@ fn host_dir(state: &AppState, headers: &HeaderMap) -> PathBuf {
         .next()
         .unwrap_or("")
         .to_string();
-    // Look for sites/<hostname>/ — relative to the data dir's parent
     let base = state.data_dir.parent().unwrap_or(&state.data_dir);
+
+    // Try exact hostname first
     let site_dir = base.join("sites").join(&host);
     if site_dir.exists() {
         return site_dir;
+    }
+    // Try stripping www. prefix
+    if let Some(stripped) = host.strip_prefix("www.") {
+        let site_dir = base.join("sites").join(stripped);
+        if site_dir.exists() {
+            return site_dir;
+        }
+    }
+    // Try stripping subdomain (e.g. cbor.deltopide.com → deltopide.com)
+    if let Some(dot_pos) = host.find('.') {
+        let parent_domain = &host[dot_pos + 1..];
+        if !parent_domain.is_empty() {
+            let site_dir = base.join("sites").join(parent_domain);
+            if site_dir.exists() {
+                return site_dir;
+            }
+        }
     }
     state.data_dir.clone()
 }
@@ -564,6 +582,61 @@ fn cbor_to_json(value: &ciborium::Value) -> serde_json::Value {
     }
 }
 
+// ── Dashboard (GET /) ──
+
+async fn serve_dashboard(State(state): State<Arc<AppState>>) -> Response {
+    let base = state.data_dir.parent().unwrap_or(&state.data_dir);
+    let sites_dir = base.join("sites");
+    let mut sites = Vec::new();
+
+    if let Ok(mut entries) = tokio::fs::read_dir(&sites_dir).await {
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') { continue; }
+            let manifest = entry.path().join(".well-known/cbor-web/manifest.cbor");
+            let index = entry.path().join("index.cbor");
+            let has_manifest = manifest.exists();
+            let has_index = index.exists();
+            if has_manifest || has_index {
+                let size = if has_manifest {
+                    tokio::fs::metadata(&manifest).await.map(|m| m.len()).unwrap_or(0)
+                } else {
+                    tokio::fs::metadata(&index).await.map(|m| m.len()).unwrap_or(0)
+                };
+                let format = if has_manifest { "v2.1 full" } else { "index.cbor" };
+                sites.push((name, format.to_string(), size));
+            }
+        }
+    }
+    sites.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut html = String::from(r#"<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>CBOR-Web Server</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,monospace;background:#0a0a0a;color:#e0e0e0;padding:2rem}h1{color:#f97316;margin-bottom:.5rem}h1 span{color:#fff}.sub{color:#888;margin-bottom:2rem}table{width:100%;border-collapse:collapse;margin:1rem 0}th{text-align:left;padding:.5rem;color:#888;border-bottom:1px solid #333;font-size:.8rem}td{padding:.5rem;border-bottom:1px solid #1a1a1a;font-size:.9rem}td a{color:#f97316;text-decoration:none}td a:hover{text-decoration:underline}.g{color:#28c840}.w{color:#f97316}.foot{margin-top:3rem;color:#444;font-size:.7rem}</style></head><body><h1>CBOR-<span>Web</span> Server</h1><p class="sub">Binary Web Content for Autonomous AI Agents — RFC 8949</p>"#);
+
+    html.push_str(&format!(
+        "<p>{} sites — <a href=\"/.well-known/cbor-web\">manifest</a> · <a href=\"/health\">health</a> · <a href=\"https://github.com/ploteddie-bit/cbor-web\">GitHub</a></p><table><tr><th>Domain</th><th>Format</th><th>Size</th><th>Endpoints</th></tr>",
+        sites.len()
+    ));
+
+    for (domain, format, size) in &sites {
+        html.push_str(&format!(
+            "<tr><td><a href=\"https://{0}\">{0}</a></td><td>{1}</td><td>{2}</td><td><a href=\"/.well-known/cbor-web\">manifest</a> · <a href=\"/.well-known/cbor-web/bundle\">bundle</a></td></tr>",
+            domain, format, format_size(*size)
+        ));
+    }
+
+    html.push_str("</table><div class=\"foot\">CBOR-Web Server v");
+    html.push_str(env!("CARGO_PKG_VERSION"));
+    html.push_str(" — ExploDev 2026</div></body></html>");
+
+    (StatusCode::OK, [(header::CONTENT_TYPE, "text/html; charset=utf-8")], html).into_response()
+}
+
+fn format_size(bytes: u64) -> String {
+    if bytes >= 1_000_000 { format!("{:.1} MB", bytes as f64 / 1_000_000.0) }
+    else if bytes >= 1_000 { format!("{:.1} KB", bytes as f64 / 1_000.0) }
+    else { format!("{} B", bytes) }
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
@@ -602,6 +675,7 @@ async fn main() {
         .allow_origin(Any);
 
     let app = Router::new()
+        .route("/", get(serve_dashboard))
         .route("/health", get(health_check).head(health_check))
         .route("/doleance", axum::routing::post(receive_doleance))
         .route("/diff", get(serve_diff).head(serve_diff))
