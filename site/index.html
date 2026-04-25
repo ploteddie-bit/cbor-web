@@ -117,6 +117,7 @@ h2 span{color:var(--m-accent)}
   <a href="#deploy" onclick="route('deploy')">Deploy</a>
   <a href="#blog" onclick="route('blog')">Blog</a>
   <a href="#faq" onclick="route('faq')">FAQ</a>
+  <a href="#api" onclick="route('api')">🔑 API</a>
   <a href="#gamification" onclick="route('gamification')">🏆</a>
   <a href="#sponsor" onclick="route('sponsor')" style="color:#f4845f">💖 Sponsor</a>
   <a href="#github" onclick="route('github')">📂 GitHub</a>
@@ -219,6 +220,48 @@ h2 span{color:var(--m-accent)}
     <div class="card"><h3>🛠️ Tools</h3><p>text2cbor (Rust) · cbor-crawl (Rust) · cbor-server (Rust) · cbor-vectors · worker.js (Cloudflare) · benchmark.sh · OCR pipeline</p><a href="https://github.com/ploteddie-bit/cbor-web/tree/main/tools" class="btn btn-primary" style="margin-top:8px;font-size:.72rem">View tools</a></div>
     <div class="card"><h3>📦 SDKs (8 languages)</h3><p>TypeScript · Python · Go · PHP · Ruby · Java · C++ · React · WordPress plugin · Shopify snippet</p><a href="https://github.com/ploteddie-bit/cbor-web/tree/main/clients" class="btn btn-primary" style="margin-top:8px;font-size:.72rem">View SDKs</a></div>
     <div class="card"><h3>🏛️ IETF Draft</h3><p>Internet-Draft submitted. RFC 8949 (CBOR) · RFC 8610 (CDDL) · RFC 8615 (Well-Known URIs)</p><a href="https://github.com/ploteddie-bit/cbor-web/blob/main/spec/draft-plot-cbor-web-00.md" class="btn btn-primary" style="margin-top:8px;font-size:.72rem">Read Draft</a></div>
+  </div>
+</section>
+
+<!-- API -->
+<section class="content" id="api-page">
+  <h2>🔑 <span>API & Token Access</span></h2>
+  <p class="lead">Get your API key, token, and programmatic access to CBOR-Web services.</p>
+  
+  <div class="grid2">
+    <div class="card" style="border-left:3px solid var(--h-accent)">
+      <h3>1. Create your account</h3>
+      <p>Register on the <strong>text2cbor SaaS</strong>. You'll get an API key immediately. The first 5 conversions are free — then invoice-based billing (49€/site).</p>
+      <div class="deploy-code" style="margin-top:10px"># Coming soon at api.cborweb.com
+curl -X POST https://api.cborweb.com/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"..."}'<span class="copy-btn" onclick="copyCode(this)">Copy</span></div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--m-accent)">
+      <h3>2. Get your API key</h3>
+      <p>Once registered, your API key is available at <code>/api/key</code>. Use it in the <code>Authorization</code> header for all API calls.</p>
+      <div class="deploy-code" style="margin-top:10px">curl https://api.cborweb.com/api/key \
+  -H "Cookie: session=YOUR_SESSION_TOKEN"<span class="copy-btn" onclick="copyCode(this)">Copy</span></div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--purple)">
+      <h3>3. Upload HTML → CBOR</h3>
+      <p>Send your HTML site as a zip file. Get back a zip of .cbor files ready to deploy.</p>
+      <div class="deploy-code" style="margin-top:10px">curl -X POST https://api.cborweb.com/api/upload \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "domain=mysite.com" \
+  -F "file=@mysite.zip"<span class="copy-btn" onclick="copyCode(this)">Copy</span></div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--emerald)">
+      <h3>4. CBORW Token (Hold-to-Access)</h3>
+      <p>Agents hold <strong>≥1 CBORW</strong> token to access premium L1 content. Tokens are verified on-chain via <code>verifyAccess(address)</code>. When an agent visits your site with <code>X-CBOR-Web-Wallet</code> header, the server checks their balance.</p>
+      <div class="deploy-code" style="margin-top:10px">curl https://api.cborweb.com/verify-access?address=0x...<span class="copy-btn" onclick="copyCode(this)">Copy</span></div>
+      <p style="font-size:.75rem;color:var(--fg2);margin-top:6px">Token contract: 100M CBORW · ERC-20 · Hold-to-access · 12-month founder cliff</p>
+    </div>
+  </div>
+  
+  <div class="card" style="margin-top:16px">
+    <h3>📊 Token stats (live)</h3>
+    <div id="token-stats" style="font-size:.8rem;color:var(--fg2)">Token server: offline (prototype mode). Available on MiniPC/MacPro at port 3002.</div>
   </div>
 </section>
 
