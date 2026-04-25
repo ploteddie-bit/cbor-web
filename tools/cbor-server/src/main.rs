@@ -237,6 +237,32 @@ async fn serve_manifest(
     (StatusCode::NOT_FOUND, "Not Found").into_response()
 }
 
+async fn serve_manifest_json(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Response {
+    let dir = host_dir(&state, &headers);
+    let paths = [
+        dir.join(".well-known/cbor-web/manifest.cbor"),
+        dir.join("index.cbor"),
+    ];
+    for p in &paths {
+        if let Ok(data) = tokio::fs::read(p).await {
+            if let Ok(value) = ciborium::from_reader::<ciborium::Value, _>(data.as_slice()) {
+                let json_val = cbor_to_json(&value);
+                let json_str = serde_json::to_string_pretty(&json_val).unwrap_or_default();
+                return (
+                    StatusCode::OK,
+                    [(header::CONTENT_TYPE, "application/json; charset=utf-8")],
+                    json_str,
+                )
+                    .into_response();
+            }
+        }
+    }
+    (StatusCode::NOT_FOUND, "Not Found").into_response()
+}
+
 // ── Page endpoint ──
 
 async fn serve_page(
@@ -782,7 +808,7 @@ async fn serve_dashboard(State(state): State<Arc<AppState>>) -> Response {
     let style = "*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,monospace;background:#0a0a0a;color:#e0e0e0;padding:2rem}h1{color:#f97316;margin-bottom:.5rem}h1 span{color:#fff}.sub{color:#888;margin-bottom:1.5rem}.statb{display:flex;gap:2rem;flex-wrap:wrap;margin:1rem 0}.stat{background:#111;padding:1rem;border-radius:8px;min-width:120px}.stat .n{font-size:2rem;color:#f97316;font-weight:700}.stat .l{color:#666;font-size:.8rem}table{width:100%;border-collapse:collapse;margin:1.5rem 0}th{text-align:left;padding:.5rem .8rem;color:#888;border-bottom:1px solid #333;font-size:.75rem;text-transform:uppercase}td{padding:.5rem .8rem;border-bottom:1px solid #1a1a1a;font-size:.85rem}td a,a{color:#f97316;text-decoration:none}td a:hover,a:hover{text-decoration:underline}.code{background:#1a1a1a;color:#28c840;padding:1px 6px;border-radius:3px;font-size:.75rem;font-family:monospace}.nav{margin-bottom:1.5rem}.nav a{margin-right:1.5rem}.foot{margin-top:3rem;color:#444;font-size:.7rem}";
 
     let mut html = format!(
-        "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"><title>CBOR-Web Server</title><style>{style}</style></head><body><h1>CBOR-<span>Web</span></h1><p class=\"sub\">Binary Web Content for AI Agents — RFC 8949 — 38 sites live</p><div class=\"nav\"><a href=\"/\">Dashboard</a><a href=\"/codes\">Short Codes</a><a href=\"/health\">Health</a><a href=\"/.well-known/cbor-web\">Manifest</a><a href=\"https://github.com/ploteddie-bit/cbor-web\">GitHub</a></div><div class=\"statb\"><div class=\"stat\"><div class=\"n\">{}</div><div class=\"l\">Sites</div></div><div class=\"stat\"><div class=\"n\">{}</div><div class=\"l\">Pages CBOR</div></div><div class=\"stat\"><div class=\"n\">{}</div><div class=\"l\">Total</div></div><div class=\"stat\"><div class=\"n\">{}</div><div class=\"l\">Requests</div></div></div>",
+        "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"><title>CBOR-Web Server</title><style>{style}</style></head><body><h1>CBOR-<span>Web</span></h1><p class=\"sub\">Binary Web Content for AI Agents — RFC 8949 — 38 sites live</p><div class=\"nav\"><a href=\"/\">Dashboard</a><a href=\"/codes\">Short Codes</a><a href=\"/health\">Health</a><a href=\"/.well-known/cbor-web/manifest.json\">Manifest (JSON)</a><a href=\"https://github.com/ploteddie-bit/cbor-web\">GitHub</a></div><div class=\"statb\"><div class=\"stat\"><div class=\"n\">{}</div><div class=\"l\">Sites</div></div><div class=\"stat\"><div class=\"n\">{}</div><div class=\"l\">Pages CBOR</div></div><div class=\"stat\"><div class=\"n\">{}</div><div class=\"l\">Total</div></div><div class=\"stat\"><div class=\"n\">{}</div><div class=\"l\">Requests</div></div></div>",
         sites.len(), total_pages, format_size(total_size), hits
     );
 
@@ -997,6 +1023,7 @@ async fn main() {
             "/.well-known/cbor-web",
             Router::new()
                 .route("/", get(serve_manifest).head(serve_manifest))
+                .route("/manifest.json", get(serve_manifest_json))
                 .route("/pages/:filename", get(serve_page).head(serve_page))
                 .route("/bundle", get(serve_bundle).head(serve_bundle))
                 .route("/doleance", axum::routing::post(receive_doleance))
@@ -1068,6 +1095,7 @@ mod tests {
                 "/.well-known/cbor-web",
                 Router::new()
                     .route("/", get(serve_manifest).head(serve_manifest))
+                .route("/manifest.json", get(serve_manifest_json))
                     .route("/pages/:filename", get(serve_page).head(serve_page))
                     .route("/bundle", get(serve_bundle).head(serve_bundle))
                     .route("/doleance", axum::routing::post(receive_doleance))
