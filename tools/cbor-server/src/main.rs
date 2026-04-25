@@ -78,7 +78,9 @@ struct AppState {
     token: Option<String>,
     limiter: RateLimiter,
     doléances: Mutex<Vec<serde_json::Value>>,
+    doléance_path: PathBuf,
     page_snapshots: Mutex<HashMap<String, HashMap<String, String>>>,
+    started_at: std::time::Instant,
 }
 
 // ── Rate-limit middleware ──
@@ -222,6 +224,12 @@ async fn receive_doleance(
         if dols.len() > 10_000 {
             dols.drain(..1_000);
         }
+        // Persist to disk every 10 doléances
+        if dols.len() % 10 == 0 {
+            let path = state.doléance_path.clone();
+            let data = serde_json::to_vec_pretty(&dols.clone()).unwrap_or_default();
+            tokio::spawn(async move { let _ = tokio::fs::write(&path, &data).await; });
+        }
     }
     (StatusCode::ACCEPTED, "Doléance received").into_response()
 }
@@ -247,6 +255,27 @@ async fn list_doleances(
     let body = serde_json::json!({
         "count": dols.len(),
         "doleances": result,
+    });
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "application/json")],
+        serde_json::to_vec_pretty(&body).unwrap_or_default(),
+    ).into_response()
+}
+
+// ── Health endpoint (GET /health) ──
+
+async fn health_check(State(state): State<Arc<AppState>>, method: Method) -> Response {
+    if method != Method::GET && method != Method::HEAD {
+        return (StatusCode::METHOD_NOT_ALLOWED, "Method Not Allowed").into_response();
+    }
+    let uptime = state.started_at.elapsed().as_secs();
+    let dol_count = state.doléances.lock().await.len();
+    let body = serde_json::json!({
+        "status": "ok",
+        "version": env!("CARGO_PKG_VERSION"),
+        "uptime_secs": uptime,
+        "doleances_received": dol_count,
     });
     (
         StatusCode::OK,
@@ -515,12 +544,25 @@ async fn main() {
     std::fs::create_dir_all(cli.data.join(".well-known/cbor-web/pages"))
         .expect("Failed to create data directories");
 
+    let doléance_path = cli.data.join(".doleances.json");
+    let doléances = if doléance_path.exists() {
+        std::fs::read_to_string(&doléance_path)
+            .ok()
+            .and_then(|s| serde_json::from_str::<Vec<serde_json::Value>>(&s).ok())
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    tracing::info!("Loaded {} persisted doléances", doléances.len());
+
     let state = Arc::new(AppState {
         data_dir: cli.data.clone(),
         token: cli.token.clone(),
         limiter: RateLimiter::new(cli.rate_limit),
-        doléances: Mutex::new(Vec::new()),
+        doléances: Mutex::new(doléances),
+        doléance_path: doléance_path.clone(),
         page_snapshots: Mutex::new(HashMap::new()),
+        started_at: std::time::Instant::now(),
     });
 
     let cors = CorsLayer::new()
@@ -529,6 +571,7 @@ async fn main() {
         .allow_origin(Any);
 
     let app = Router::new()
+        .route("/health", get(health_check).head(health_check))
         .route("/doleance", axum::routing::post(receive_doleance))
         .route("/diff", get(serve_diff).head(serve_diff))
         .nest("/.well-known/cbor-web", Router::new()
@@ -573,7 +616,9 @@ mod tests {
             token: None,
             limiter: RateLimiter::new(1000),
             doléances: Mutex::new(Vec::new()),
+            doléance_path: PathBuf::from("data/.doleances.json"),
             page_snapshots: Mutex::new(HashMap::new()),
+            started_at: std::time::Instant::now(),
         })
     }
 
