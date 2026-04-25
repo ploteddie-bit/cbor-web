@@ -20,6 +20,21 @@
 
 ---
 
+## The six problems CBOR-Web solves
+
+The web was designed for humans in 1993. AI agents today face **six fundamental frictions** that CBOR-Web eliminates:
+
+| # | Problem | The cost | CBOR-Web fix |
+|---|---------|----------|---------------|
+| 💸 | **Token waste** | Agents pay for 93% noise (CSS, ads, trackers). ~$36/day/agent | 95% signal ratio. 100x cheaper. |
+| 🧩 | **Chaotic parsing** | 1,400 DOM elements per page. Agents guess what is content | Typed blocks (`h`, `p`, `table`). Zero ambiguity |
+| 🔍 | **Blind discovery** | No standard to tell AI "here's my full site" | `/.well-known/cbor-web`. Entire site, one request |
+| 🪪 | **No identity** | Publishers don't know which agent reads their site | Cryptographic wallet per agent. Access control |
+| 🤑 | **Economic plunder** | Content scraped for free. Zero revenue for publishers | Token-gated premium. Agent pays to read |
+| 🏛️ | **Legal blind spot** | Digital identity law incoming. Nobody is compliant | Identity built in. Day-1 compliance |
+
+---
+
 ## The opportunity
 
 Every day, millions of AI agents — ChatGPT, Claude, Gemini, Perplexity, enterprise RAG pipelines — crawl the web to extract information. They all face the same problem: **HTML was designed for humans in 1993.**

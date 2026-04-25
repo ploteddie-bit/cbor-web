@@ -102,15 +102,49 @@
 
 <section class="hero">
   <p class="welcome">🇫🇷 Bienvenue &nbsp;|&nbsp; 🇬🇧 Welcome</p>
-  <h1>Convert Your Website to <span class="accent">CBOR-Web</span>.<br>Make it readable by AI agents.</h1>
-  <p class="sub">Transform any HTML site into compact, structured CBOR — the binary format purpose-built for LLM ingestion, edge delivery, and agentic web.</p>
+  <h1>The web has two clients.<br><span class="accent">Only one of them is served.</span></h1>
+  <p class="sub">AI agents waste 93% of tokens on HTML noise. Publishers lose bandwidth with zero revenue. Nobody knows who reads what. CBOR-Web fixes all three — with identity, payment, and compliance built in.</p>
   <a href="#" class="btn accent-bg">Start Free Trial</a>
-  <a href="#how" class="btn btn-outline">See How It Works</a>
+  <a href="#frictions" class="btn btn-outline">See the 6 problems we solve</a>
+</section>
+
+<section class="container" id="frictions">
+  <h2>6 problems. <span class="accent">One protocol.</span></h2>
+  <div class="pillars" style="grid-template-columns:repeat(3,1fr)">
+    <div class="pillar glass">
+      <div class="icon">💸</div>
+      <h3>Token waste</h3>
+      <p>Agents pay for 93% noise (CSS, ads, menus). <strong>$36/day/agent</strong> wasted. CBOR-Web: 100x cheaper.</p>
+    </div>
+    <div class="pillar glass">
+      <div class="icon">🧩</div>
+      <h3>Chaotic parsing</h3>
+      <p>1,400 DOM elements per page. Agents guess what's content. CBOR-Web: <strong>typed blocks</strong>, zero ambiguity.</p>
+    </div>
+    <div class="pillar glass">
+      <div class="icon">🔍</div>
+      <h3>Blind discovery</h3>
+      <p>No standard to tell an AI "here's my site". CBOR-Web: <code>/.well-known/cbor-web</code> — <strong>entire site, one request</strong>.</p>
+    </div>
+    <div class="pillar glass">
+      <div class="icon">🪪</div>
+      <h3>No identity</h3>
+      <p>Publishers can't know <strong>which agent</strong> reads their site. CBOR-Web: cryptographic wallet per agent. Access control.</p>
+    </div>
+    <div class="pillar glass">
+      <div class="icon">🤑</div>
+      <h3>Economic plunder</h3>
+      <p>Content scraped for free. <strong>Zero revenue</strong> for publishers. CBOR-Web: token-gated premium. Agent pays to read.</p>
+    </div>
+    <div class="pillar glass">
+      <div class="icon">🏛️</div>
+      <h3>Legal blind spot</h3>
+      <p>Digital identity law coming. <strong>No one is compliant</strong>. CBOR-Web: identity built in. Day-1 compliance.</p>
+    </div>
+  </div>
 </section>
 
 <section class="container" id="pillars">
-  <h2>Why <span class="accent">text2cbor</span>?</h2>
-  <div class="pillars">
     <div class="pillar glass">
       <div class="icon">&#x1F916;</div>
       <h3>AI Identity</h3>
