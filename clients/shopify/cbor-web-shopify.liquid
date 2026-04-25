@@ -1,0 +1,137 @@
+{%- comment -%}
+  CBOR-Web Shopify Snippet v2.1
+  ExploDev / Deltopide SL — https://github.com/ploteddie-bit/cbor-web
+  License: MIT
+
+  Usage:
+    1. Copy this file to your theme's snippets/ folder
+    2. Create templates/page.cbor-web.liquid (see README)
+    3. Include in layout/theme.liquid <head> for JSON-LD on product pages
+{%- endcomment -%}
+
+{%- if template == 'page.cbor-web' -%}
+
+  {%- comment -%}=== CBOR-Web Manifest JSON ==={%- endcomment -%}
+  {%- liquid
+    assign domain = shop.domain | strip
+    assign lang = shop.locale | slice: 0, 2
+    assign now = 'now' | date: '%s' | plus: 0
+    assign page_count = 1
+  -%}
+{
+  "@type": "cbor-web-manifest",
+  "@version": 2,
+  "site": {
+    "domain": {{ domain | json }},
+    "name": {{ shop.name | json }},
+    {%- if shop.description != blank %}
+    "description": {{ shop.description | json }},
+    {%- endif %}
+    "languages": [{{ lang | json }}],
+    "default_language": {{ lang | json }}
+  },
+  "pages": [
+    {
+      "path": "/",
+      "title": "Home",
+      "lang": {{ lang | json }},
+      "access": "public",
+      "content_type": "landing"
+    }
+    {%- for collection in collections %}
+      {%- for product in collection.products limit: 250 %}
+        {%- assign page_count = page_count | plus: 1 %}
+    ,{
+      "path": {{ product.url | json }},
+      "title": {{ product.title | json }},
+      "lang": {{ lang | json }},
+      "access": "public",
+      "content_type": "product",
+      "has_commerce": true,
+      "size": 0,
+      "updated": {%- if product.published_at -%}{{ product.published_at | date: '%s' | plus: 0 }}{%- else -%}{{ now }}{%- endif -%}
+    }
+      {%- endfor %}
+    {%- endfor %}
+    {%- for collection in collections %}
+      {%- assign page_count = page_count | plus: 1 %}
+    ,{
+      "path": {{ collection.url | json }},
+      "title": {{ collection.title | json }},
+      "lang": {{ lang | json }},
+      "access": "public",
+      "content_type": "landing",
+      "size": 0
+    }
+    {%- endfor %}
+    {%- for blog in blogs %}
+      {%- for article in blog.articles %}
+        {%- assign page_count = page_count | plus: 1 %}
+    ,{
+      "path": {{ article.url | json }},
+      "title": {{ article.title | json }},
+      "lang": {{ lang | json }},
+      "access": "public",
+      "content_type": "article",
+      "size": 0,
+      "updated": {%- if article.published_at -%}{{ article.published_at | date: '%s' | plus: 0 }}{%- else -%}{{ now }}{%- endif -%}
+    }
+      {%- endfor %}
+    {%- endfor %}
+  ],
+  "navigation": {
+    "main": [
+      {%- for link in linklists['main-menu'].links -%}
+      {{ link.url | json }}{% unless forloop.last %},{% endunless %}
+      {%- endfor -%}
+    ]
+  },
+  "meta": {
+    "generator": "cbor-web-shopify/2.1",
+    "generated_at": {{ now }},
+    "total_pages": {{ page_count }},
+    "total_size": 0,
+    "bundle_available": false
+  }
+}
+
+{%- elsif template.name == 'product' -%}
+
+  {%- comment -%}=== JSON-LD Structured Data (CBOR-Web Compatible) ==={%- endcomment -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": {{ product.title | json }},
+  "description": {{ product.description | strip_html | truncate: 5000 | json }},
+  "sku": {{ product.selected_or_first_available_variant.sku | json }},
+  "gtin": {{ product.selected_or_first_available_variant.barcode | json }},
+  "url": "{{ shop.url }}{{ product.url }}",
+  "brand": { "@type": "Brand", "name": {{ product.vendor | json }} }{% if product.featured_image %},
+  "image": "https:{{ product.featured_image | image_url }}"{% endif %},
+  "offers": {
+    "@type": "Offer",
+    "url": "{{ shop.url }}{{ product.url }}",
+    "priceCurrency": {{ shop.currency | json }},
+    "price": {{ product.selected_or_first_available_variant.price | divided_by: 100.0 | json }},
+    "availability": {% if product.available %}"https://schema.org/InStock"{% else %}"https://schema.org/OutOfStock"{% endif %},
+    "priceValidUntil": "{{ 'now' | date: '%s' | plus: 31536000 | date: '%Y-%m-%d' }}"
+  }
+  ,
+  "cborWeb": {
+    "content_type": "product",
+    "has_commerce": true,
+    "product_id": {{ product.id | json }},
+    "slug": {{ product.handle | json }},
+    "name": {{ product.title | json }},
+    "price": {{ product.selected_or_first_available_variant.price | divided_by: 100.0 | json }}{% if product.selected_or_first_available_variant.compare_at_price and product.selected_or_first_available_variant.compare_at_price > product.selected_or_first_available_variant.price %},
+    "compare_at_price": {{ product.selected_or_first_available_variant.compare_at_price | divided_by: 100.0 | json }}{% endif %},
+    "currency": {{ shop.currency | json }},
+    "availability": {% if product.available %}"in_stock"{% else %}"out_of_stock"{% endif %},
+    "images": [{% for image in product.images limit: 10 %}{"src": "https:{{ image | image_url }}", "semantic_role": "product_photo", "alt": {{ image.alt | default: product.title | json }}}{% unless forloop.last %},{% endunless %}{% endfor %}],
+    "categories": [{% for collection in product.collections limit: 10 %}{{ collection.title | json }}{% unless forloop.last %},{% endunless %}{% endfor %}]
+  }
+}
+</script>
+
+{%- endif -%}
