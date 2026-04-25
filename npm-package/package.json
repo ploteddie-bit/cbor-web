@@ -1,0 +1,37 @@
+{
+  "name": "cborweb",
+  "version": "2.2.0",
+  "description": "CBOR-Web client SDK — binary web content for AI agents. Zero dependencies.",
+  "main": "cborweb.ts",
+  "types": "cborweb.ts",
+  "exports": {
+    ".": "./cborweb.ts"
+  },
+  "files": [
+    "cborweb.ts",
+    "README.md"
+  ],
+  "keywords": [
+    "cbor",
+    "cbor-web",
+    "ai",
+    "llm",
+    "agent",
+    "binary",
+    "web",
+    "rfc8949",
+    "machine-to-machine",
+    "structured-content"
+  ],
+  "author": "Eddie Plot — ExploDev",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ploteddie-bit/cbor-web.git",
+    "directory": "npm-package"
+  },
+  "homepage": "https://cbor.deltopide.com",
+  "engines": {
+    "node": ">=16"
+  }
+}
