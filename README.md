@@ -49,12 +49,29 @@ text2cbor --input ./my-site --output ./cbor --domain mysite.com
 
 ## Why this matters now
 
-| Signal | Source |
-|---|---|
-| **AI agent market** | $150B+ by 2027. Every agent needs web content. |
-| **LLM token costs** | Dropping but still $3-15 per 1M tokens. Crawling 80 pages = $2.88. In CBOR-Web = $0.02. |
-| **Google A2A** | Google is building agent-to-agent protocols. CBOR-Web is the content layer they'll need. |
-| **EU AI Act** | Mandates transparency for AI training data. CBOR-Web provides clean, auditable content signatures. |
+CBOR-Web is built on three strategic pillars aligned with the biggest shifts in AI and digital regulation.
+
+### 1. Trust & Identity — Know who reads your content
+
+**No other protocol lets a webmaster know which AI agent is accessing their site.** With CBOR-Web, every agent carries a cryptographic wallet identity. The publisher can:
+
+- Allow or block specific agents
+- Set access tiers (public L0 vs token-gated L1)
+- Audit exactly which agent read which page, when
+
+This is critical as the French **digital identity regulation** extends to AI agents. The upcoming law will require all automated agents accessing web content to be identifiable. CBOR-Web is already compliant — your site will be, too, without any additional work.
+
+### 2. Token economics — Billions saved per day
+
+Every AI agent crawling the web wastes **93% of the tokens it pays for** just stripping HTML noise. For inference alone, a single agent reading 1000 pages/day wastes ~$36/day. At scale — millions of agents — this represents **billions of tokens wasted daily**, including during fine-tuning where clean training data is critical.
+
+CBOR-Web reduces token consumption by **100x**. An agent reading a CBOR-Web site pays only for the content — not the markup. For AI companies training foundation models, clean structured data means higher-quality fine-tuning at a fraction of the cost.
+
+### 3. Regulatory readiness — Digital identity for AI
+
+France is advancing legislation on **digital identity for automated systems**. Every AI agent accessing public web services will need to prove its identity. CBOR-Web is the only protocol with native cryptographic identity built in — from day one.
+
+Your site adopting CBOR-Web today means you are **pre-compliant** with the regulation before it even passes.
 
 ---
 
