@@ -14,7 +14,7 @@
 <style>
 :root{--h-bg:#f7f4ed;--h-text:#1a1a1a;--h-accent:#d4540b;--h-muted:#8b8580;--h-border:#e0d8cc;--h-statbg:#fafaf7;
   --m-bg:#05080f;--m-text:#b3e5ff;--m-accent:#00e5ff;--m-muted:#4a5a72;--m-glow:rgba(0,229,255,.1);
-  --nav-bg:#0a0d16;--nav-text:#ccc;--nav-border:#222;--fg:#e8ecf4;--fg2:#8892b0}
+  --nav-bg:#0a0d16;--nav-text:#ccc;--purple:#8b5cf6;--emerald:#10b981;--nav-border:#222;--fg:#e8ecf4;--fg2:#8892b0}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:Georgia,serif;background:#000;overflow-x:hidden}
 
@@ -118,6 +118,7 @@ h2 span{color:var(--m-accent)}
   <a href="#blog" onclick="route('blog')">Blog</a>
   <a href="#faq" onclick="route('faq')">FAQ</a>
   <a href="#api" onclick="route('api')">🔑 API</a>
+  <a href="#audit" onclick="route('audit')">🔍 Audit</a>
   <a href="#start" onclick="route('start')" style="background:var(--h-accent);color:#fff;padding:4px 12px;border-radius:4px;font-weight:700">Get Started</a>
   <a href="#gamification" onclick="route('gamification')">🏆</a>
   <a href="#sponsor" onclick="route('sponsor')" style="color:#f4845f">💖 Sponsor</a>
@@ -308,6 +309,43 @@ curl -X POST https://api.cborweb.com/register \
     <h3>🔑 Your API key</h3>
     <div id="api-key-display" style="font-size:.7rem;color:var(--fg2);margin:8px 0;font-family:monospace">Register to get your key</div>
     <p style="font-size:.72rem;color:var(--fg2)">Use with: <code>curl -H "Authorization: Bearer YOUR_KEY" -F "file=@site.zip" https://api.cborweb.com/api/upload</code></p>
+  </div>
+</section>
+
+<!-- AUDIT -->
+<section class="content" id="audit-page">
+  <h2>🔍 <span>Web Audit Tool</span> — Chrome Extension</h2>
+  <p class="lead">Audit any website: SEO, GEO, CBOR-Web readiness, Core Web Vitals. Powered by Rust/WASM.</p>
+  
+  <div class="grid2">
+    <div class="card" style="border-left:3px solid var(--orange)">
+      <h3>📊 SEO Audit</h3>
+      <p>Meta tags, headings structure, schema.org, sitemap, robots.txt, canonical URLs, alt texts, internal links.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--m-accent)">
+      <h3>🤖 GEO / AI Readiness</h3>
+      <p>Checks if your site is optimized for AI agents. CBOR-Web detection, llms.txt, structured data quality, content-to-noise ratio.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--purple)">
+      <h3>📦 CBOR-Web Detection</h3>
+      <p>Scans for <code>/.well-known/cbor-web</code>, verifies manifest format, checks content blocks, validates CBOR encoding.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--emerald)">
+      <h3>⚡ Core Web Vitals</h3>
+      <p>LCP, FID, CLS, TTFB. Performance scoring. Lighthouse-compatible metrics. Page weight analysis.</p>
+    </div>
+  </div>
+  
+  <div class="card" style="margin-top:16px;text-align:center">
+    <h3>🧩 Install the extension</h3>
+    <div class="deploy-code" style="margin:12px auto;max-width:600px">
+1. Open Chrome → chrome://extensions
+2. Enable "Developer mode" (top right)
+3. Click "Load unpacked" 
+4. Select the clients/chrome-extension/ folder
+    </div>
+    <p style="font-size:.78rem;color:var(--fg2)">Rust/WASM engine · Manifest V3 · Side Panel UI · Open source (MIT)</p>
+    <a href="https://github.com/ploteddie-bit/cbor-web/tree/main/clients/chrome-extension" class="btn btn-primary" style="margin-top:8px;font-size:.75rem">View on GitHub</a>
   </div>
 </section>
 

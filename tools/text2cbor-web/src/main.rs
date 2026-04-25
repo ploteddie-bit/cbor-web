@@ -13,6 +13,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use tower_http::cors::{CorsLayer, Any};
+use axum::http::Method;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use tracing_subscriber::EnvFilter;
@@ -84,6 +86,7 @@ async fn main() {
     });
 
     let app = Router::new()
+        .layer(CorsLayer::new().allow_origin(Any).allow_methods([Method::GET, Method::POST]).allow_headers(Any)),
         .route("/", get(serve_dashboard))
         .route("/login", get(serve_login_page).post(handle_login))
         .route("/register", get(serve_register_page).post(handle_register))

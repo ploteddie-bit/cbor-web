@@ -2,277 +2,198 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>text2cbor — Make Your Website AI-Readable</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CBOR-Web — The Binary Protocol for AI Agents</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: #0a0a0a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    line-height: 1.6; -webkit-font-smoothing: antialiased;
+  :root {
+    --bg: #03050a;
+    --bg2: #080c18;
+    --bg3: #0d1229;
+    --fg: #e8ecf4;
+    --fg2: #8892b0;
+    --fg3: #4a5578;
+    --orange: #f97316;
+    --blue: #3b82f6;
+    --purple: #8b5cf6;
+    --emerald: #10b981;
+    --rose: #f43f5e;
+    --amber: #f59e0b;
+    --cyan: #06b6d4;
+    --radius: 12px;
+    --max-w: 1100px;
   }
-  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
-  .accent { color: #f97316; }
-  .accent-bg { background: #f97316; color: #0a0a0a; border: none; cursor: pointer; font-weight: 700; }
-  .glass { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; }
-  a { color: #f97316; text-decoration: none; }
-  h2 { font-size: 1.8rem; margin-bottom: 1rem; text-align: center; }
-  header {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 18px 24px; border-bottom: 1px solid rgba(255,255,255,0.05);
-  }
-  header .logo { font-weight: 800; font-size: 1.3rem; letter-spacing: -0.5px; }
-  header nav a { margin-left: 28px; font-size: 0.9rem; color: #999; transition: color .2s; }
-  header nav a:hover { color: #f97316; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg);line-height:1.6;overflow-x:hidden}
+  body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(ellipse at 20% 20%,rgba(139,92,246,.06) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(59,130,246,.06) 0%,transparent 50%),radial-gradient(ellipse at 50% 50%,rgba(249,115,22,.04) 0%,transparent 60%);z-index:-1;pointer-events:none}
 
-  .hero { text-align: center; padding: 100px 24px 80px; }
-  .hero h1 { font-size: 2.8rem; font-weight: 800; line-height: 1.2; max-width: 720px; margin: 0 auto 12px; }
-  .hero .sub { font-size: 1rem; color: #888; margin-bottom: 32px; }
-  .hero .welcome { font-size: 0.85rem; color: #555; margin-bottom: 8px; }
-  .btn {
-    display: inline-block; padding: 14px 36px; border-radius: 8px; font-size: 1rem;
-    font-weight: 700; transition: transform .15s, box-shadow .15s;
-  }
-  .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(249,115,22,0.35); }
-  .btn-outline {
-    border: 1px solid rgba(255,255,255,0.2); color: #e0e0e0; background: transparent;
-    margin-left: 14px;
-  }
+  .container{max-width:var(--max-w);margin:0 auto;padding:0 24px}
+  header{display:flex;justify-content:space-between;align-items:center;padding:20px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+  .logo{font-size:1.3rem;font-weight:800;color:var(--fg);text-decoration:none;letter-spacing:-.02em}
+  .logo span{background:linear-gradient(135deg,var(--orange),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  nav a{color:var(--fg2);text-decoration:none;margin-left:28px;font-size:.85rem;font-weight:500;transition:color .2s}
+  nav a:hover{color:var(--fg)}
 
-  .pillars { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; padding: 60px 0 80px; }
-  .pillar { padding: 32px 24px; text-align: center; }
-  .pillar .icon { font-size: 2.4rem; margin-bottom: 16px; }
-  .pillar h3 { font-size: 1.15rem; margin-bottom: 8px; }
-  .pillar p { font-size: 0.9rem; color: #999; }
+  .hero{text-align:center;padding:100px 0 60px}
+  .hero .pre{display:inline-block;background:rgba(139,92,246,.1);color:var(--purple);padding:4px 14px;border-radius:20px;font-size:.75rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:20px;border:1px solid rgba(139,92,246,.2)}
+  .hero h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;line-height:1.15;letter-spacing:-.03em;margin-bottom:18px}
+  .hero h1 .g1{background:linear-gradient(135deg,var(--orange),var(--rose));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .hero h1 .g2{background:linear-gradient(135deg,var(--blue),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .hero .sub{color:var(--fg2);font-size:1.1rem;max-width:600px;margin:0 auto 32px;line-height:1.7}
+  .hero .cta{display:inline-flex;gap:12px}
+  .btn{padding:12px 28px;border-radius:8px;font-weight:700;font-size:.9rem;cursor:pointer;text-decoration:none;transition:all .2s;border:none;font-family:inherit}
+  .btn-primary{background:linear-gradient(135deg,var(--orange),var(--rose));color:#fff;box-shadow:0 4px 20px rgba(249,115,22,.25)}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(249,115,22,.35)}
+  .btn-ghost{border:1px solid rgba(255,255,255,.12);color:var(--fg);background:transparent}
+  .btn-ghost:hover{background:rgba(255,255,255,.04)}
 
-  .steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; padding: 40px 0 70px; }
-  .step { padding: 28px 20px; text-align: center; }
-  .step .num {
-    display: inline-flex; width: 44px; height: 44px; border-radius: 50%;
-    align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem;
-    margin-bottom: 14px;
-  }
-  .step h4 { font-size: 1rem; margin-bottom: 6px; }
-  .step p { font-size: 0.85rem; color: #999; }
+  .section{padding:80px 0}
+  .section h2{font-size:2rem;font-weight:800;letter-spacing:-.02em;margin-bottom:12px;text-align:center}
+  .section .lead{color:var(--fg2);text-align:center;max-width:500px;margin:0 auto 48px;font-size:1rem}
 
-  .pricing { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; padding: 40px 0 70px; }
-  .plan { padding: 32px 20px; text-align: center; }
-  .plan h3 { font-size: 1.2rem; margin-bottom: 8px; }
-  .plan .price { font-size: 1.8rem; font-weight: 800; margin: 12px 0 4px; }
-  .plan .detail { font-size: 0.85rem; color: #777; margin-bottom: 16px; }
-  .plan ul { list-style: none; font-size: 0.88rem; color: #aaa; margin-bottom: 20px; }
-  .plan ul li { padding: 4px 0; }
-  .plan .btn-sm { padding: 10px 28px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; display: inline-block; }
+  .frictions{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .fric{background:var(--bg3);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);padding:28px;transition:all .25s}
+  .fric:hover{border-color:rgba(255,255,255,.12);transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,.3)}
+  .fric .ico{font-size:1.6rem;margin-bottom:12px}
+  .fric h3{font-size:1rem;font-weight:700;margin-bottom:6px;letter-spacing:-.01em}
+  .fric p{font-size:.85rem;color:var(--fg2);line-height:1.65}
+  .fric.p0{border-left:3px solid var(--orange)}
+  .fric.p1{border-left:3px solid var(--blue)}
+  .fric.p2{border-left:3px solid var(--purple)}
+  .fric.p3{border-left:3px solid var(--emerald)}
+  .fric.p4{border-left:3px solid var(--amber)}
+  .fric.p5{border-left:3px solid var(--cyan)}
 
-  .badges { text-align: center; padding: 50px 0 60px; }
-  .badges .tags { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 20px; }
-  .badges .tag {
-    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
-    padding: 6px 16px; border-radius: 20px; font-size: 0.82rem; color: #aaa;
-  }
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;text-align:center}
+  .step .num{width:48px;height:48px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:1.2rem;margin-bottom:14px}
+  .step .num.n1{background:rgba(249,115,22,.15);color:var(--orange)}
+  .step .num.n2{background:rgba(139,92,246,.15);color:var(--purple)}
+  .step .num.n3{background:rgba(59,130,246,.15);color:var(--blue)}
+  .step h4{font-weight:700;margin-bottom:6px}
+  .step p{font-size:.85rem;color:var(--fg2)}
 
-  .trust { text-align: center; padding: 50px 0 60px; }
-  .trust .stats { display: flex; justify-content: center; gap: 48px; flex-wrap: wrap; margin-top: 24px; }
-  .trust .stat { text-align: center; }
-  .trust .stat .num { font-size: 2rem; font-weight: 800; display: block; }
-  .trust .stat .label { font-size: 0.82rem; color: #888; }
+  .pricing{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .plan{background:var(--bg3);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);padding:32px;text-align:center;transition:all .25s}
+  .plan.highlight{background:linear-gradient(180deg,rgba(139,92,246,.08),var(--bg3));border-color:rgba(139,92,246,.2)}
+  .plan h4{font-size:1rem;margin-bottom:16px}
+  .plan .price{font-size:2.5rem;font-weight:800;letter-spacing:-.03em;margin-bottom:12px}
+  .plan .price span{font-size:.9rem;font-weight:400;color:var(--fg2)}
+  .plan ul{list-style:none;font-size:.85rem;color:var(--fg2);margin-bottom:24px}
+  .plan ul li{padding:6px 0}
+  .plan ul li::before{content:'✓ ';color:var(--emerald);font-weight:700}
 
-  .cta { text-align: center; padding: 80px 24px 100px; }
-  .cta h2 { font-size: 2rem; margin-bottom: 24px; }
+  .badges{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .badge{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:6px 14px;border-radius:20px;font-size:.75rem;font-weight:600;color:var(--fg2);letter-spacing:.02em}
+  .badge:hover{border-color:rgba(255,255,255,.15);color:var(--fg)}
 
-  footer { border-top: 1px solid rgba(255,255,255,0.05); padding: 24px; text-align: center; font-size: 0.78rem; color: #555; }
+  .trust{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .trust .stat{background:var(--bg3);border-radius:var(--radius);padding:28px;text-align:center;border:1px solid rgba(255,255,255,.04)}
+  .trust .stat .n{font-size:2rem;font-weight:800;letter-spacing:-.02em}
+  .trust .stat .n.c1{color:var(--orange)}
+  .trust .stat .n.c2{color:var(--blue)}
+  .trust .stat .n.c3{color:var(--emerald)}
+  .trust .stat .n.c4{color:var(--purple)}
+  .trust .stat .l{font-size:.8rem;color:var(--fg2);margin-top:4px}
 
-  @media (max-width: 768px) {
-    .pillars, .steps, .pricing { grid-template-columns: 1fr; }
-    .hero h1 { font-size: 2rem; }
-    header nav { display: none; }
+  footer{padding:40px 0;border-top:1px solid rgba(255,255,255,.06);text-align:center;color:var(--fg3);font-size:.8rem}
+
+  @media(max-width:768px){
+    .frictions,.steps,.pricing,.trust{grid-template-columns:1fr}
+    nav a{display:none}
+    .hero{padding:60px 0 40px}
+    .section{padding:50px 0}
   }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="logo"><span class="accent">text2</span>cbor</div>
+<header class="container">
+  <a href="#" class="logo">cbor<span>-web</span></a>
   <nav>
-    <a href="#how">How it Works</a>
+    <a href="#frictions">Why</a>
+    <a href="#how">How</a>
     <a href="#pricing">Pricing</a>
-    <a href="#trust">Trust</a>
-    <a href="https://github.com/themaximehardy/cbor-web">GitHub</a>
+    <a href="https://github.com/ploteddie-bit/cbor-web">GitHub</a>
   </nav>
 </header>
 
-<section class="hero">
-  <p class="welcome">🇫🇷 Bienvenue &nbsp;|&nbsp; 🇬🇧 Welcome</p>
-  <h1>The web has two clients.<br><span class="accent">Only one of them is served.</span></h1>
-  <p class="sub">AI agents waste 93% of tokens on HTML noise. Publishers lose bandwidth with zero revenue. Nobody knows who reads what. CBOR-Web fixes all three — with identity, payment, and compliance built in.</p>
-  <a href="#" class="btn accent-bg">Start Free Trial</a>
-  <a href="#frictions" class="btn btn-outline">See the 6 problems we solve</a>
+<section class="hero container">
+  <div class="pre">Protocol · RFC 8949 · IETF Draft</div>
+  <h1>The web has two clients.<br><span class="g1">Only one</span> of them is <span class="g2">served</span>.</h1>
+  <p class="sub">AI agents waste 93% of their tokens reading HTML noise. Publishers lose bandwidth with zero revenue. Nobody knows who reads what. <strong>CBOR-Web fixes all three</strong> — with identity, payment, and compliance built in.</p>
+  <div class="cta">
+    <a href="https://github.com/ploteddie-bit/cbor-web" class="btn btn-primary">Get Started — It's Open Source</a>
+    <a href="#frictions" class="btn btn-ghost">See the 6 problems →</a>
+  </div>
 </section>
 
-<section class="container" id="frictions">
-  <h2>6 problems. <span class="accent">One protocol.</span></h2>
-  <div class="pillars" style="grid-template-columns:repeat(3,1fr)">
-    <div class="pillar glass">
-      <div class="icon">💸</div>
-      <h3>Token waste</h3>
-      <p>Agents pay for 93% noise (CSS, ads, menus). <strong>$36/day/agent</strong> wasted. CBOR-Web: 100x cheaper.</p>
-    </div>
-    <div class="pillar glass">
-      <div class="icon">🧩</div>
-      <h3>Chaotic parsing</h3>
-      <p>1,400 DOM elements per page. Agents guess what's content. CBOR-Web: <strong>typed blocks</strong>, zero ambiguity.</p>
-    </div>
-    <div class="pillar glass">
-      <div class="icon">🔍</div>
-      <h3>Blind discovery</h3>
-      <p>No standard to tell an AI "here's my site". CBOR-Web: <code>/.well-known/cbor-web</code> — <strong>entire site, one request</strong>.</p>
-    </div>
-    <div class="pillar glass">
-      <div class="icon">🪪</div>
-      <h3>No identity</h3>
-      <p>Publishers can't know <strong>which agent</strong> reads their site. CBOR-Web: cryptographic wallet per agent. Access control.</p>
-    </div>
-    <div class="pillar glass">
-      <div class="icon">🤑</div>
-      <h3>Economic plunder</h3>
-      <p>Content scraped for free. <strong>Zero revenue</strong> for publishers. CBOR-Web: token-gated premium. Agent pays to read.</p>
-    </div>
-    <div class="pillar glass">
-      <div class="icon">🏛️</div>
-      <h3>Legal blind spot</h3>
-      <p>Digital identity law coming. <strong>No one is compliant</strong>. CBOR-Web: identity built in. Day-1 compliance.</p>
+<section class="section" id="frictions">
+  <div class="container">
+    <h2>Six problems. One protocol.</h2>
+    <p class="lead">Every AI agent crawling the web today faces these. CBOR-Web eliminates them all.</p>
+    <div class="frictions">
+      <div class="fric p0"><div class="ico">💸</div><h3>Token waste</h3><p>Agents pay for CSS, ads, menus, trackers — 93% noise. ~$36/day per agent. CBOR-Web delivers 95% signal at 100x lower cost.</p></div>
+      <div class="fric p1"><div class="ico">🧩</div><h3>Chaotic parsing</h3><p>1,400 DOM elements per page. Every agent guesses what's content vs navigation. CBOR-Web types every block — zero ambiguity.</p></div>
+      <div class="fric p2"><div class="ico">🔍</div><h3>Blind discovery</h3><p>No standard to tell an AI "here's my full site". CBOR-Web: <code style="background:rgba(139,92,246,.1);padding:1px 5px;border-radius:3px;font-size:.8rem">/.well-known/cbor-web</code> — entire site, one request.</p></div>
+      <div class="fric p3"><div class="ico">🪪</div><h3>Zero identity</h3><p>Publishers can't identify which agent reads their site. No auth, no access control. CBOR-Web: cryptographic wallet per agent.</p></div>
+      <div class="fric p4"><div class="ico">🤑</div><h3>Economic plunder</h3><p>Content scraped for free. Zero revenue. Bandwidth stolen. CBOR-Web: token-gated premium access — the agent pays to read.</p></div>
+      <div class="fric p5"><div class="ico">🏛️</div><h3>Legal blind spot</h3><p>Digital identity law is coming. Nobody is prepared. CBOR-Web has cryptographic identity built in from day one. Compliant before it's required.</p></div>
     </div>
   </div>
 </section>
 
-<section class="container" id="pillars">
-    <div class="pillar glass">
-      <div class="icon">&#x1F916;</div>
-      <h3>AI Identity</h3>
-      <p>Make your content natively readable by LLMs, AI crawlers, and agentic systems. CBOR-Web is the open standard for machine-first content delivery.</p>
-    </div>
-    <div class="pillar glass">
-      <div class="icon">&#x26A1;</div>
-      <h3>Token Savings</h3>
-      <p>Binary CBOR eliminates HTML boilerplate bloat. AI agents consume your content with up to <strong>70% fewer tokens</strong> — slashing inference costs.</p>
-    </div>
-    <div class="pillar glass">
-      <div class="icon">&#x1F6E1;</div>
-      <h3>Regulatory Compliance</h3>
-      <p>With the EU AI Act and emerging agent-access mandates, CBOR-Web future-proofs your compliance. Structured, auditable, machine-readable by design.</p>
+<section class="section" id="how" style="background:var(--bg2)">
+  <div class="container">
+    <h2>How it works</h2>
+    <p class="lead">Add CBOR-Web to any site in 30 minutes. No CMS change. No redesign.</p>
+    <div class="steps">
+      <div class="step"><div class="num n1">1</div><h4>Upload your HTML</h4><p>Zip your static site or point the converter at your build folder. Works with any framework — React, WordPress, Shopify, plain HTML.</p></div>
+      <div class="step"><div class="num n2">2</div><h4>Auto-convert to CBOR</h4><p>text2cbor extracts structured content: headings, paragraphs, tables, images, schema.org data. Binary output — 95% signal ratio.</p></div>
+      <div class="step"><div class="num n3">3</div><h4>Deploy alongside HTML</h4><p>Drop the .cbor files next to your site. AI agents discover them automatically. Humans never see a difference. 38 sites already live.</p></div>
     </div>
   </div>
 </section>
 
-<section class="container" id="how">
-  <h2>How it <span class="accent">Works</span></h2>
-  <div class="steps">
-    <div class="step glass">
-      <div class="num accent-bg">1</div>
-      <h4>Upload HTML.zip</h4>
-      <p>Package your static site — or point us to your URL — and we extract the meaningful content structure.</p>
-    </div>
-    <div class="step glass">
-      <div class="num accent-bg">2</div>
-      <h4>Auto-Convert</h4>
-      <p>Our Rust engine transforms HTML into compact, typed CBOR — preserving semantics, stripping noise. Takes seconds.</p>
-    </div>
-    <div class="step glass">
-      <div class="num accent-bg">3</div>
-      <h4>Deploy Alongside</h4>
-      <p>Serve the .cbor file next to your site. AI agents fetch it via <code>Accept: application/cbor</code> — zero changes to your HTML.</p>
+<section class="section" id="pricing">
+  <div class="container">
+    <h2>Pricing</h2>
+    <p class="lead">Convert your first 5 sites free. Invoice-based billing after that.</p>
+    <div class="pricing">
+      <div class="plan"><h4>Trial</h4><div class="price" style="color:var(--emerald)">0<span>€</span></div><ul><li>5 conversions</li><li>All output formats</li><li>Community support</li></ul><span class="btn btn-ghost" style="display:inline-block;font-size:.8rem;padding:8px 20px">Free forever</span></div>
+      <div class="plan highlight"><h4>Standard</h4><div class="price" style="color:var(--purple)">49<span>€ / site</span></div><ul><li>Unlimited pages</li><li>Bundle + manifest</li><li>Email support</li><li>API access</li></ul><span class="btn btn-primary" style="display:inline-block;font-size:.8rem;padding:8px 20px;background:linear-gradient(135deg,var(--purple),var(--blue))">Start Converting</span></div>
+      <div class="plan"><h4>Business</h4><div class="price" style="color:var(--blue)">Custom<span></span></div><ul><li>Unlimited sites</li><li>White-label CBOR</li><li>Priority support</li><li>SLA guarantee</li></ul><span class="btn btn-ghost" style="display:inline-block;font-size:.8rem;padding:8px 20px">Contact us</span></div>
     </div>
   </div>
 </section>
 
-<section class="container" id="pricing">
-  <h2><span class="accent">Pricing</span></h2>
-  <div class="pricing">
-    <div class="plan glass">
-      <h3>Trial</h3>
-      <div class="price">Free</div>
-      <div class="detail">5 conversions included</div>
-      <ul>
-        <li>Up to 5 sites</li>
-        <li>1-week access</li>
-        <li>Standard quality</li>
-        <li>Community support</li>
-      </ul>
-      <a href="#" class="btn-sm btn-outline">Start Free</a>
-    </div>
-    <div class="plan glass">
-      <h3><span class="accent">Standard</span></h3>
-      <div class="price">49€</div>
-      <div class="detail">per conversion</div>
-      <ul>
-        <li>Unlimited pages per conversion</li>
-        <li>Cloudflare edge delivery</li>
-        <li>Priority processing</li>
-        <li>Email support</li>
-      </ul>
-      <a href="#" class="btn-sm accent-bg">Get Started</a>
-    </div>
-    <div class="plan glass">
-      <h3>Business</h3>
-      <div class="price">Custom</div>
-      <div class="detail">tailored to your scale</div>
-      <ul>
-        <li>Unlimited conversions</li>
-        <li>White-label SDK</li>
-        <li>SLA guarantee</li>
-        <li>Dedicated support</li>
-      </ul>
-      <a href="#" class="btn-sm btn-outline">Contact Us</a>
+<section class="section">
+  <div class="container">
+    <h2>Built for every stack</h2>
+    <p class="lead">8 SDKs. Zero dependencies. Drop-in for any language.</p>
+    <div class="badges">
+      <span class="badge">🦀 Rust</span><span class="badge">📘 TypeScript</span><span class="badge">⚛️ React</span>
+      <span class="badge">🐍 Python</span><span class="badge">🔵 Go</span><span class="badge">⚡ C++</span>
+      <span class="badge">🐘 PHP</span><span class="badge">💎 Ruby</span><span class="badge">☕ Java</span>
+      <span class="badge">☁️ Cloudflare</span><span class="badge">📄 IETF RFC 8949</span>
     </div>
   </div>
 </section>
 
-<section class="container badges">
-  <h2>Powered <span class="accent">By</span></h2>
-  <div class="tags">
-    <span class="tag">Rust</span>
-    <span class="tag">TypeScript</span>
-    <span class="tag">React</span>
-    <span class="tag">Python</span>
-    <span class="tag">Go</span>
-    <span class="tag">C++</span>
-    <span class="tag">PHP</span>
-    <span class="tag">Ruby</span>
-    <span class="tag">Java</span>
-    <span class="tag">Cloudflare</span>
-    <span class="tag">IETF</span>
-  </div>
-</section>
-
-<section class="container trust" id="trust">
-  <h2><span class="accent">Trusted</span> in Production</h2>
-  <div class="stats">
-    <div class="stat">
-      <span class="num accent">38</span>
-      <span class="label">Sites Live</span>
-    </div>
-    <div class="stat">
-      <span class="num accent">8</span>
-      <span class="label">SDKs Published</span>
-    </div>
-    <div class="stat">
-      <span class="num accent">1</span>
-      <span class="label">npm Package</span>
-    </div>
-    <div class="stat">
-      <span class="num accent">Cloudflare</span>
-      <span class="label">Edge Network</span>
+<section class="section" style="background:var(--bg2)">
+  <div class="container">
+    <h2>Trusted in production</h2>
+    <p class="lead">Not a prototype. Running on real infrastructure.</p>
+    <div class="trust">
+      <div class="stat"><div class="n c1">38</div><div class="l">Sites live</div></div>
+      <div class="stat"><div class="n c2">8</div><div class="l">SDK languages</div></div>
+      <div class="stat"><div class="n c3">300+</div><div class="l">Edge cities (Cloudflare)</div></div>
+      <div class="stat"><div class="n c4">npm</div><div class="l">Published package</div></div>
     </div>
   </div>
 </section>
 
-<section class="cta">
-  <h2>Ready to make your site <span class="accent">AI-friendly</span>?</h2>
-  <p style="color:#777;margin-bottom:28px;">Join teams already serving CBOR-Web to agents at the edge.</p>
-  <a href="#" class="btn accent-bg">Start Free Trial</a>
-</section>
-
-<footer>
-  &copy; 2026 text2cbor &mdash; An open standard by <a href="https://github.com/themaximehardy">ExploDev</a>
+<footer class="container">
+  <p>CBOR-Web Protocol — ExploDev / Deltopide SL — 2026</p>
+  <p style="margin-top:4px"><a href="https://github.com/ploteddie-bit/cbor-web" style="color:var(--orange)">GitHub</a> · <a href="https://cbor-web.explodev.workers.dev" style="color:var(--orange)">Live Dashboard</a> · <a href="https://www.npmjs.com/package/@deltopide_edy/cborweb" style="color:var(--orange)">npm</a></p>
 </footer>
 
 </body>
