@@ -51,14 +51,13 @@ jobs:
       - name: Check CONTRIBUTING.md exists
         run: test -f CONTRIBUTING.md && echo "CONTRIBUTING.md OK"
 
-      - name: Check PROOF.md has all 7 hashes
+      - name: Verify PROOF.md hashes with sha256sum
         run: |
-          COUNT=$(grep -c "CBOR-WEB-.*\.md" PROOF.md || true)
-          if [ "$COUNT" -lt 7 ]; then
-            echo "ERROR: PROOF.md only has $COUNT/7 document hashes"
-            exit 1
-          fi
-          echo "PROOF.md OK ($COUNT hashes)"
+          cd "$GITHUB_WORKSPACE"
+          # Extract hash block and verify all 7 documents
+          sed -n '/^```$/,/^```$/p' PROOF.md | grep '^[a-f0-9]\{64\} ' | tee /tmp/proof-hashes.txt
+          sha256sum --check /tmp/proof-hashes.txt --status || { echo "ERROR: PROOF.md hash mismatch"; sha256sum --check /tmp/proof-hashes.txt; exit 1; }
+          echo "PROOF.md all hashes OK"
 
   build-tools:
     runs-on: ubuntu-latest
@@ -70,15 +69,19 @@ jobs:
 
       - name: Build cbor-crawl
         working-directory: tools/cbor-crawl
-        run: cargo check
+        run: cargo check && cargo clippy -- -D warnings
 
       - name: Build text2cbor
         working-directory: tools/text2cbor
-        run: cargo check
+        run: cargo check && cargo clippy -- -D warnings
 
       - name: Build cbor-vectors
         working-directory: tools/cbor-vectors
-        run: cargo check
+        run: cargo check && cargo clippy -- -D warnings
+
+      - name: Check formatting
+        run: cargo fmt --check || true
+        working-directory: tools/cbor-crawl
 
       - name: Run cbor-vectors
         working-directory: tools/cbor-vectors

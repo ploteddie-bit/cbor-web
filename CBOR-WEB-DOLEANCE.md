@@ -11,7 +11,7 @@ Extends:      CBOR-Web Core v2.1.3 (Reading Contract, Manifest key 11)
 Format:       CBOR (RFC 8949)
 License:      CC BY 4.0
 Repository:   https://github.com/ploteddie-bit/cbor-web
-Document:     Companion to CBOR-WEB-CORE.md
+Document:     Companion to CBOR-WEB-CORE.md, part 7 of 7
 ```
 
 ---

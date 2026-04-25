@@ -21,7 +21,7 @@ Companion:    CBOR-WEB-CORE.md, CBOR-WEB-MULTIMEDIA.md,
 
 ## About This Document
 
-This document is **part 3 of 6** of the CBOR-Web v2.1 specification suite. It defines **generative blocks** — structured intelligence that enables an agent to create new content, interact with APIs, execute workflows, fill forms, and conduct commerce transactions.
+This document is **part 3 of 7** of the CBOR-Web v2.1 specification suite. It defines **generative blocks** — structured intelligence that enables an agent to create new content, interact with APIs, execute workflows, fill forms, and conduct commerce transactions.
 
 Generative blocks represent a paradigm shift: core blocks (CBOR-WEB-CORE.md §8) are **declarative** — they describe what exists. Generative blocks are **productive** — they describe how to create something new.
 

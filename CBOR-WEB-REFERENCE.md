@@ -21,7 +21,7 @@ Companion:    CBOR-WEB-CORE.md, CBOR-WEB-MULTIMEDIA.md,
 
 ## About This Document
 
-This document is **part 6 of 6** — the **reference companion** for the entire CBOR-Web v2.1 specification suite. It aggregates all schemas, test vectors, definitions, and cross-references into a single lookup document.
+This document is **part 6 of 7** — the **reference companion** for the entire CBOR-Web v2.1 specification suite. It aggregates all schemas, test vectors, definitions, and cross-references into a single lookup document.
 
 An implementer uses this document alongside whichever specific document covers their current task. When in doubt about a type definition, field name, or test vector, this document is the authoritative reference.
 

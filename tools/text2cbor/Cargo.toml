@@ -1,6 +1,6 @@
 [package]
 name = "text2cbor"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 description = "Convert HTML websites to CBOR-Web v3.0 index.cbor"
 license = "MIT"

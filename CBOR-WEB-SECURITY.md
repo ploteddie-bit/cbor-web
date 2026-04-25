@@ -22,7 +22,7 @@ Companion:    CBOR-WEB-CORE.md, CBOR-WEB-MULTIMEDIA.md,
 
 ## About This Document
 
-This document is **part 4 of 6** of the CBOR-Web v2.1 specification suite. It defines the **complete security architecture** for CBOR-Web: threat model, token-based access control on Ethereum, binary content protection, executable block sandboxing, injection prevention, and content signing.
+This document is **part 4 of 7** of the CBOR-Web v2.1 specification suite. It defines the **complete security architecture** for CBOR-Web: threat model, token-based access control on Ethereum, binary content protection, executable block sandboxing, injection prevention, and content signing.
 
 The security model is based on a single principle: **the token IS the identity, the payment, and the access control — all in one.**
 

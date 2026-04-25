@@ -1,2 +1,10 @@
 target/
 *.lock
+*.swp
+*.swo
+*.rs.bk
+.DS_Store
+.vscode/
+.idea/
+memory/
+business/

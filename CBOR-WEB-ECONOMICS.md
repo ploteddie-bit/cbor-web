@@ -19,7 +19,7 @@ Companion:    CBOR-WEB-CORE.md, CBOR-WEB-MULTIMEDIA.md,
 
 ## About This Document
 
-This document is **part 5 of 6** of the CBOR-Web v2.1 specification suite. It defines the **economic model** behind the CBOR-Web token (CBORW): allocation, pricing, stabilization, launch plan, regulation, and the smart contract interface.
+This document is **part 5 of 7** of the CBOR-Web v2.1 specification suite. It defines the **economic model** behind the CBOR-Web token (CBORW): allocation, pricing, stabilization, launch plan, regulation, and the smart contract interface.
 
 This is NOT a whitepaper or marketing document — it is a technical specification of the economic mechanisms that support the CBOR-Web access control model defined in CBOR-WEB-SECURITY.md §4.
 

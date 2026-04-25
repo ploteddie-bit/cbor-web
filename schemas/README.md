@@ -12,7 +12,7 @@ This directory contains standalone CDDL (RFC 8610) schema files extracted from t
 
 ## Validation
 
-Using [cddl-rs](https://github.com/anweiss/cddl):
+Using [cddl](https://github.com/anweiss/cddl):
 
 ```bash
 cargo install cddl

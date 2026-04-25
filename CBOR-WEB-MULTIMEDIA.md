@@ -21,7 +21,7 @@ Companion:    CBOR-WEB-CORE.md, CBOR-WEB-GENERATIVE.md,
 
 ## About This Document
 
-This document is **part 2 of 6** of the CBOR-Web v2.1 specification suite. It defines **multimedia content blocks** that extend the core content blocks defined in CBOR-WEB-CORE.md §8. It also defines real-time streaming channels.
+This document is **part 2 of 7** of the CBOR-Web v2.1 specification suite. It defines **multimedia content blocks** that extend the core content blocks defined in CBOR-WEB-CORE.md §8. It also defines real-time streaming channels.
 
 All multimedia blocks are placed in the page's content array (key 4), alongside core blocks. They share the same content block key namespace (`"t"`, `"v"`, `"src"`, etc.) and follow the same deterministic encoding rules (CBOR-WEB-CORE.md §3.1).
 

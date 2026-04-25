@@ -21,7 +21,7 @@ Companion:    CBOR-WEB-MULTIMEDIA.md, CBOR-WEB-GENERATIVE.md,
 
 ## About This Document
 
-This document is **part 1 of 6** of the CBOR-Web v2.1 specification suite. It defines the **core binary format**: document types, content blocks, discovery, transport, and caching. It is self-contained for the core format and references companion documents for extended features.
+This document is **part 1 of 7** of the CBOR-Web v2.1 specification suite. It defines the **core binary format**: document types, content blocks, discovery, transport, and caching. It is self-contained for the core format and references companion documents for extended features.
 
 | Document | Scope | Reference |
 |----------|-------|-----------|

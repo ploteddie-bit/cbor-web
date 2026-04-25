@@ -72,7 +72,7 @@ git clone https://github.com/ploteddie-bit/cbor-web.git
 cd cbor-web
 # Read the core specification first
 # Validate CDDL schemas
-cargo install cddl-rs && cddl validate schemas/cbor-web-core.cddl
+cargo install cddl && cddl validate schemas/cbor-web-core.cddl
 ```
 
 ## Alternatives Considered

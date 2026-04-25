@@ -17,6 +17,8 @@ Before submitting a PR, verify:
 - [ ] **CDDL validation** — CDDL schemas in the document match the prose description (REQUIRED fields have no `?`, OPTIONAL fields have `?`)
 - [ ] **No orphaned references** — every `§X.Y` cross-reference points to an existing section
 - [ ] **No internal artifacts** — no TODO, FIXME, or development notes remain in the text
+- [ ] **No bare unwrap or panic** — error handling uses proper propagation, not `unwrap()` or `panic!()` in non-test code
+- [ ] **UTF-8 safety** — all string slicing uses char boundaries (`.chars()` not `[..n]` byte indexing)
 - [ ] **Test vectors** — if you add or modify a data structure, update the corresponding test vector
 
 ## Commit Convention

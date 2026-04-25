@@ -818,7 +818,7 @@ fn enrich_block_with_describe(block: &Value) -> Value {
         let block_level = pairs.iter()
             .find(|(k, _)| matches!(k, Value::Text(s) if s == "l"))
             .and_then(|(_, v)| match v {
-                Value::Integer(i) => { let n: i128 = (*i).into(); Some(n as u64) }
+                Value::Integer(i) => { let n: i128 = (*i).into(); n.try_into().ok() }
                 _ => None
             })
             .unwrap_or(0);
@@ -995,9 +995,10 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
                 .unwrap_or(false)
         })
     {
-        let rel_path = entry.path().strip_prefix(&args.input).unwrap();
-        let url_path = if rel_path.file_stem().unwrap() == "index" {
-            let parent = rel_path.parent().unwrap();
+        let rel_path = entry.path().strip_prefix(&args.input)
+            .expect("WalkDir entry outside input directory");
+        let url_path = if rel_path.file_stem().is_some_and(|s| s == "index") {
+            let parent = rel_path.parent().unwrap_or(std::path::Path::new(""));
             if parent.as_os_str().is_empty() { "/".to_string() }
             else { format!("/{}", parent.display()).replace('\\', "/") }
         } else {
@@ -1007,8 +1008,13 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
 
         println!("  Processing: {} → {}", rel_path.display(), url_path);
 
-        let html = std::fs::read_to_string(entry.path())
-            .unwrap_or_else(|_| panic!("Failed to read {}", entry.path().display()));
+        let html = match std::fs::read_to_string(entry.path()) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("  WARNING: skipping {} — {}", entry.path().display(), e);
+                continue;
+            }
+        };
         let content = parse_html(&html, &args.default_lang);
 
         let access = if t0_paths.iter().any(|p| url_path.starts_with(p)) { "T0" }
@@ -1076,8 +1082,10 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
 
             let safe_path = page.path.trim_start_matches('/').replace('/', "_");
             let filename = if safe_path.is_empty() { "root.cbor".to_string() } else { format!("{}.cbor", safe_path) };
-            std::fs::write(pages_dir.join(&filename), &page_cbor)
-                .unwrap_or_else(|_| panic!("Failed to write page {}", filename));
+            if let Err(e) = std::fs::write(pages_dir.join(&filename), &page_cbor) {
+                eprintln!("  WARNING: failed to write page {} — {}", filename, e);
+                continue;
+            }
 
             page_cbor_list.push(cmap(vec![
                 (t("path"), t(&page.path)),
@@ -1186,12 +1194,11 @@ fn run_watch(args: &WatchArgs) {
     }
 
     let gen_args = args.to_generate_args();
-    let mut last_site_hash: Vec<u8> = Vec::new();
 
     // Initial build
     println!("[INIT] Building index.cbor...");
     let (bytes, pages) = run_generate(&gen_args);
-    last_site_hash = compute_site_hash(&args.site);
+    let mut last_site_hash = compute_site_hash(&args.site);
     println!("[INIT] Done — {} bytes, {} pages\n", bytes.len(), pages.len());
 
     // Watch loop
@@ -1270,9 +1277,7 @@ fn run_validate(args: &ValidateArgs) {
                     let enc = encode(k);
                     if let Some(ref prev) = prev_encoded {
                         if enc.len() < prev.len() || (enc.len() == prev.len() && &enc < prev) {
-                            issues.push(format!(
-                                "Key ordering violation (RFC 8949 §4.2.1): shorter keys must come first, then lexicographic"
-                            ));
+                            issues.push("Key ordering violation (RFC 8949 §4.2.1): shorter keys must come first, then lexicographic".to_string());
                             break;
                         }
                     }

@@ -63,7 +63,7 @@ site-metadata = {
   * tstr => any
 }
 
-language-code = tstr .regexp "[a-z]{2}(-[A-Z]{2})?"
+language-code = tstr .regexp "[a-z]{2,3}(-[A-Za-z]{2,8})*"  ; BCP 47 (RFC 5646)
 
 page-entry = {
   "path" => tstr,
