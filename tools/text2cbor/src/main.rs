@@ -826,7 +826,7 @@ fn enrich_block_with_describe(block: &Value) -> Value {
         // Generate _describe
         let describe = match block_type {
             "h" => {
-                let text = if block_value.len() > 50 { &block_value[..50] } else { block_value };
+                let text: String = if block_value.len() > 50 { block_value.chars().take(50).collect() } else { block_value.to_string() };
                 format!("Heading level {}: {}", block_level, text)
             }
             "p" => {
@@ -871,7 +871,7 @@ fn enrich_block_with_describe(block: &Value) -> Value {
                     .unwrap_or("Image");
                 format!("Image: {}", alt)
             }
-            "q" => format!("Quote: {}...", if block_value.len() > 40 { &block_value[..40] } else { block_value }),
+            "q" => format!("Quote: {}...", if block_value.len() > 40 { block_value.chars().take(40).collect::<String>() } else { block_value.to_string() }),
             "code" => {
                 let lang = pairs.iter()
                     .find(|(k, _)| matches!(k, Value::Text(s) if s == "lang"))
