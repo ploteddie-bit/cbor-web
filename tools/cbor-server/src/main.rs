@@ -502,7 +502,9 @@ fn host_dir(state: &AppState, headers: &HeaderMap) -> PathBuf {
         .next()
         .unwrap_or("")
         .to_string();
-    let site_dir = state.data_dir.join("sites").join(&host);
+    // Look for sites/<hostname>/ — relative to the data dir's parent
+    let base = state.data_dir.parent().unwrap_or(&state.data_dir);
+    let site_dir = base.join("sites").join(&host);
     if site_dir.exists() {
         return site_dir;
     }
