@@ -48,6 +48,19 @@ Maintainers will verify:
 - **Bug fixes and clarifications** — always welcome
 - **New features or block types** — open an issue for discussion first
 - **Structural changes** — require consensus before implementation
+- **Security vulnerabilities** — do NOT open a public issue. See [SECURITY.md](SECURITY.md) for private reporting.
+
+## Testing
+
+```bash
+# Rust tools
+for dir in tools/cbor-crawl tools/text2cbor tools/cbor-vectors tools/cbor-server; do
+  (cd "$dir" && cargo fmt --check && cargo clippy -- -D warnings && cargo test)
+done
+
+# Python client
+python3 -m pytest clients/python/tests/ -q
+```
 
 ## License
 

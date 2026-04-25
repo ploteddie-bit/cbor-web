@@ -175,6 +175,17 @@ Or pick your language: [Python](clients/python/) · [Go](clients/go/) · [PHP](c
 
 ---
 
+## Security
+
+- [SECURITY.md](SECURITY.md) — vulnerability reporting and production checklist
+- **DoS protection**: max 50MB input, depth 50, 100K items per structure
+- **CORS**: read-only (GET/HEAD) on edge worker, safe header forwarding only
+- **CI**: `cargo audit` blocks builds on critical vulnerabilities
+- **Secret scanning**: GitHub push protection blocks accidental credential leaks
+- **Depfu**: automatic security updates via Dependabot
+
+---
+
 ## License
 
 Specification: [CC BY 4.0](LICENSE) — open standard, attribution required.  
