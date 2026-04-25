@@ -4,7 +4,6 @@ After=network.target
 
 [Service]
 Type=simple
-User=eddie
 WorkingDirectory=/home/eddie/cbor-server
 ExecStart=/home/eddie/cbor-server/cbor-server \
     --data /home/eddie/cbor-server/data \
@@ -16,4 +15,4 @@ RestartSec=5
 # Environment=CBOR_TOKEN=your_token_here
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
