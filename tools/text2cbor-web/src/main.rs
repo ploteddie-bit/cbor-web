@@ -5,6 +5,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use regex::Regex;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io::Cursor;
@@ -801,7 +802,8 @@ async fn api_add_note(
 
 async fn api_trigger_scrape(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let conn = crm_db(&state);
-    // Simple built-in scraper for known tech sites
+    let mut added = 0u32;
+
     let sources: Vec<(&str, &str, &str)> = vec![
         ("techcrunch.com", "TechCrunch", "tech_blog"),
         ("theverge.com", "The Verge", "tech_blog"),
@@ -825,19 +827,94 @@ async fn api_trigger_scrape(State(state): State<Arc<AppState>>) -> impl IntoResp
         ("leboncoin.fr", "Leboncoin", "ecommerce"),
         ("ldlc.com", "LDLC", "ecommerce"),
     ];
-    let mut added = 0;
+
     for (domain, name, stype) in &sources {
-        let pages = match *stype { "tech_blog" => 500, "docs" => 200, "ecommerce" => 1000, _ => 50 };
-        let tokens = pages as i64 * 19000 * 1000 * 365;
-        let priority = match *stype { "tech_blog"|"agency" => 4, "docs"|"ecommerce" => 5, _ => 2 };
+        let url = format!("https://{domain}");
+        let html = match scrape_fetch(&url) {
+            Some(h) => h,
+            None => {
+                let html2 = match scrape_fetch(&format!("http://{domain}")) {
+                    Some(h) => h, None => continue,
+                };
+                html2
+            }
+        };
+
+        let pages_est = scrape_pages(&html);
+        let tokens = pages_est as i64 * 19000 * 1000 * 365;
+        let contact = scrape_email(&html, domain);
+        let has_blog = scrape_has_blog(&html);
+        let has_shop = scrape_has_shop(&html);
+
+        let resolved_type = if has_shop { "ecommerce" } else if has_blog { "tech_blog" } else { *stype };
+        let priority = calc_priority(resolved_type, pages_est);
+
         let result = conn.execute(
             "INSERT OR IGNORE INTO prospects (domain, name, site_type, pages_est, tokens_saved_year, contact_email, priority, source_url) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            rusqlite::params![domain, name, stype, pages, tokens, format!("contact@{domain}"), priority, format!("https://{domain}")],
+            rusqlite::params![domain, name, resolved_type, pages_est, tokens, contact, priority, format!("https://{domain}")],
         );
         if result.is_ok() && conn.changes() > 0 { added += 1; }
+
+        tracing::info!(
+            "Scraped {}: type={}, pages={}, tokens={}, contact={}, priority={}",
+            domain, resolved_type, pages_est, tokens, contact, priority
+        );
     }
-    tracing::info!("Scrape: added {} new prospects", added);
+
+    tracing::info!("Scrape: enriched {} prospects", added);
     Redirect::to("/crm")
+}
+
+fn scrape_fetch(url: &str) -> Option<String> {
+    let out = Command::new("curl")
+        .args(["-sL", "--max-time", "12", "-A", "Mozilla/5.0 (compatible; CBOR-Web CRM/1.0)", url])
+        .output()
+        .ok()?;
+    if out.status.success() { String::from_utf8(out.stdout).ok() } else { None }
+}
+
+fn scrape_pages(html: &str) -> usize {
+    let link_count = html.matches("<a ").count() + html.matches("<a>").count() + html.matches("href=").count() / 2;
+    let link_est = (link_count as f64 / 3.0).ceil() as usize;
+
+    let re_sitemap = Regex::new(r#"https?://[^"'\s<>]+sitemap[^"'\s<>]*\.xml"#).unwrap();
+    if let Some(sitemap_url) = re_sitemap.find(html) {
+        if let Some(sitemap_xml) = scrape_fetch(sitemap_url.as_str()) {
+            let url_count = sitemap_xml.matches("<url>").count();
+            if url_count > 0 { return url_count; }
+        }
+    }
+    link_est.max(1)
+}
+
+fn scrape_email(html: &str, domain: &str) -> String {
+    let re = Regex::new(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}").unwrap();
+    re.find(html).map(|m| m.as_str().to_string()).unwrap_or_else(|| format!("contact@{domain}"))
+}
+
+fn scrape_has_blog(html: &str) -> bool {
+    let lower = html.to_lowercase();
+    lower.contains("wp-content") || lower.contains("/blog/") || lower.contains("/articles/")
+        || lower.contains("wordpress") || lower.contains("ghost") || lower.contains("rss")
+}
+
+fn scrape_has_shop(html: &str) -> bool {
+    let lower = html.to_lowercase();
+    lower.contains("woocommerce") || lower.contains("shopify") || lower.contains("/shop/")
+        || lower.contains("/product/") || lower.contains("add-to-cart") || lower.contains("checkout")
+        || lower.contains("prestashop") || lower.contains("magento")
+}
+
+fn calc_priority(site_type: &str, pages: usize) -> i64 {
+    let mut p = 1i64;
+    if pages > 50 { p += 1; }
+    if pages > 200 { p += 1; }
+    match site_type {
+        "tech_blog" | "agency" | "ecommerce" => p += 1,
+        "docs" => p += 2,
+        _ => {}
+    }
+    p.min(5)
 }
 
 async fn api_export_csv(State(state): State<Arc<AppState>>) -> Response {
