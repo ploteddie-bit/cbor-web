@@ -81,12 +81,22 @@ const MAX_BUNDLE_SIZE: usize = 50 * 1024 * 1024;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     let client = Client::builder()
-        .user_agent("cbor-crawl/0.1.0 (cbor-web)")
+        .user_agent(concat!(
+            "cbor-crawl/",
+            env!("CARGO_PKG_VERSION"),
+            " (cbor-web)"
+        ))
+        .timeout(std::time::Duration::from_secs(30))
+        .connect_timeout(std::time::Duration::from_secs(10))
         .build()?;
 
     match cli.command {
         Commands::Inspect { url } => cmd_inspect(&client, &url).await,
-        Commands::Fetch { url, format, output } => cmd_fetch(&client, &url, &format, output).await,
+        Commands::Fetch {
+            url,
+            format,
+            output,
+        } => cmd_fetch(&client, &url, &format, output).await,
         Commands::Verify { file } => cmd_verify(&file),
         Commands::Search { url, query } => cmd_search(&client, &url, &query).await,
         Commands::Doleance { url, feedback } => cmd_doleance(&client, &url, &feedback).await,
@@ -133,17 +143,32 @@ async fn cmd_inspect(client: &Client, base_url: &str) -> Result<(), Box<dyn std:
     let pages = get_array_value(&manifest, &Value::Integer(pages_key.into()));
 
     println!("╔══════════════════════════════════════════════════╗");
-    println!("║  CBOR-Web Manifest — {}",  domain);
+    println!("║  CBOR-Web Manifest — {}", domain);
     println!("╠══════════════════════════════════════════════════╣");
     println!("║  Format:     {} ({})", type_name, spec_version);
     println!("║  Name:       {}", name);
     if !description.is_empty() {
         println!("║  Description:{}", truncate(description, 50));
     }
-    println!("║  Languages:  {} (default: {})", languages.join(", "), default_lang);
+    println!(
+        "║  Languages:  {} (default: {})",
+        languages.join(", "),
+        default_lang
+    );
     println!("║  Pages:      {}", total_pages);
-    println!("║  Total size: {} bytes ({:.1} KB)", total_size, total_size as f64 / 1024.0);
-    println!("║  Bundle:     {}", if bundle_available { "available" } else { "not available" });
+    println!(
+        "║  Total size: {} bytes ({:.1} KB)",
+        total_size,
+        total_size as f64 / 1024.0
+    );
+    println!(
+        "║  Bundle:     {}",
+        if bundle_available {
+            "available"
+        } else {
+            "not available"
+        }
+    );
     println!("║  Generator:  {}", generator);
     println!("╠══════════════════════════════════════════════════╣");
     println!("║  Pages:");
@@ -156,8 +181,14 @@ async fn cmd_inspect(client: &Client, base_url: &str) -> Result<(), Box<dyn std:
                 let access = find_text_in_map(entries, "access").unwrap_or("?");
                 let size = find_uint_in_map(entries, "size").unwrap_or(0);
                 let lang = find_text_in_map(entries, "lang").unwrap_or("?");
-                println!("║    {} [{}] ({}) — {} bytes, {}",
-                    path, lang, access, size, truncate(title, 40));
+                println!(
+                    "║    {} [{}] ({}) — {} bytes, {}",
+                    path,
+                    lang,
+                    access,
+                    size,
+                    truncate(title, 40)
+                );
             }
         }
     }
@@ -198,19 +229,39 @@ async fn cmd_fetch(
         None => vec![],
     };
 
-    eprintln!("Found {} pages, bundle: {}", page_entries.len(), bundle_available);
+    eprintln!(
+        "Found {} pages, bundle: {}",
+        page_entries.len(),
+        bundle_available
+    );
 
     // Try bundle first if available
     let mut page_contents: BTreeMap<String, JsonValue> = BTreeMap::new();
 
-    if bundle_available {
+    // v3.0 unified format: extract content directly from manifest page entries
+    if is_unified {
+        if let Some(pages_arr) = pages_arr {
+            for page_val in pages_arr {
+                if let Some(path) = get_text_field(Some(page_val), "path") {
+                    let content = extract_page_content(page_val);
+                    page_contents.insert(path.to_string(), content);
+                }
+            }
+        }
+        eprintln!(
+            "Unified format: {} pages extracted from manifest",
+            page_contents.len()
+        );
+    } else if bundle_available {
         let bundle_url = format!("{}{}", base, WELL_KNOWN_BUNDLE);
         eprintln!("Fetching bundle: {}", bundle_url);
         match fetch_cbor(client, &bundle_url, MAX_BUNDLE_SIZE).await {
             Ok(bundle_bytes) => {
                 let bundle = parse_cbor_document(&bundle_bytes)?;
                 // Bundle key 3 = pages map
-                if let Some(Value::Map(pages_map)) = get_map_value_owned(&bundle, &Value::Integer(3.into())) {
+                if let Some(Value::Map(pages_map)) =
+                    get_map_value_owned(&bundle, &Value::Integer(3.into()))
+                {
                     for (key, value) in pages_map {
                         if let Value::Text(path) = key {
                             let content = extract_page_content(&value);
@@ -221,7 +272,10 @@ async fn cmd_fetch(
                 eprintln!("Bundle parsed: {} pages extracted", page_contents.len());
             }
             Err(e) => {
-                eprintln!("Bundle fetch failed ({}), falling back to individual pages", e);
+                eprintln!(
+                    "Bundle fetch failed ({}), falling back to individual pages",
+                    e
+                );
             }
         }
     }
@@ -243,8 +297,10 @@ async fn cmd_fetch(
                     if let Some(ref expected_hash) = entry.hash {
                         let computed = sha256_hex(&page_bytes);
                         if computed != *expected_hash {
-                            eprintln!("  WARN: hash mismatch for {} (expected {}, got {})",
-                                entry.path, expected_hash, computed);
+                            eprintln!(
+                                "  WARN: hash mismatch for {} (expected {}, got {})",
+                                entry.path, expected_hash, computed
+                            );
                         }
                     }
                     let page = parse_cbor_document(&page_bytes)?;
@@ -291,11 +347,16 @@ async fn cmd_fetch(
     if let Some(ref dir) = output_dir {
         std::fs::create_dir_all(dir)?;
         for (path, content) in &page_contents {
-            let filename_str = path.trim_start_matches('/')
+            let filename_str = path
+                .trim_start_matches('/')
                 .replace('/', "_")
                 .trim_start_matches('_')
                 .to_string();
-            let filename = if filename_str.is_empty() { "index" } else { &filename_str };
+            let filename = if filename_str.is_empty() {
+                "index"
+            } else {
+                &filename_str
+            };
             let filepath = std::path::Path::new(dir).join(format!("{}.json", filename));
             std::fs::write(&filepath, serde_json::to_string_pretty(content)?)?;
             eprintln!("  Saved: {}", filepath.display());
@@ -533,7 +594,9 @@ struct PageEntry {
 fn parse_page_entry(value: &Value) -> Option<PageEntry> {
     if let Value::Map(entries) = value {
         let path = find_text_in_map(entries, "path")?.to_string();
-        let access = find_text_in_map(entries, "access").unwrap_or("T2").to_string();
+        let access = find_text_in_map(entries, "access")
+            .unwrap_or("T2")
+            .to_string();
         let hash = find_bytes_in_map(entries, "hash").map(hex::encode);
         Some(PageEntry { path, access, hash })
     } else {
@@ -559,6 +622,48 @@ fn find_bytes_in_map<'a>(entries: &'a [(Value, Value)], key: &str) -> Option<&'a
 fn extract_page_content(page: &Value) -> JsonValue {
     let mut result = Map::new();
 
+    if let Value::Map(entries) = page {
+        // Detect v3.0 unified format: text-keyed page embedded in manifest
+        let is_v3 = find_text_in_map(entries, "content").is_some();
+
+        if is_v3 {
+            if let Some(path) = find_text_in_map(entries, "path") {
+                result.insert("path".into(), json!(path));
+            }
+            if let Some(lang) = find_text_in_map(entries, "lang") {
+                result.insert("lang".into(), json!(lang));
+            }
+            if let Some(title) = find_text_in_map(entries, "title") {
+                result.insert("title".into(), json!(title));
+            }
+            if let Some(desc) = find_text_in_map(entries, "description") {
+                result.insert("description".into(), json!(desc));
+            }
+            // v3.0 content blocks at text key "content"
+            let mut blocks = Vec::new();
+            for (k, v) in entries {
+                if let (Value::Text(key), Value::Array(items)) = (k, v) {
+                    if key == "content" {
+                        for block in items {
+                            blocks.push(cbor_block_to_json(block));
+                        }
+                    }
+                }
+            }
+            result.insert("blocks".into(), json!(blocks));
+            // v3.0 structured data
+            for (k, v) in entries {
+                if let Value::Text(key) = k {
+                    if key == "structured_data" {
+                        result.insert("structured_data".into(), cbor_to_json(v));
+                    }
+                }
+            }
+            return JsonValue::Object(result);
+        }
+    }
+
+    // v2.1 format: integer-keyed page document
     // Identity (key 2)
     if let Some(identity) = get_map_value(page, &Value::Integer(2.into())) {
         if let Some(path) = get_text_field(Some(identity), "path") {
@@ -623,7 +728,13 @@ fn cbor_block_to_json(block: &Value) -> JsonValue {
                             if let Value::Array(items) = v {
                                 let strs: Vec<&str> = items
                                     .iter()
-                                    .filter_map(|i| if let Value::Text(s) = i { Some(s.as_str()) } else { None })
+                                    .filter_map(|i| {
+                                        if let Value::Text(s) = i {
+                                            Some(s.as_str())
+                                        } else {
+                                            None
+                                        }
+                                    })
                                     .collect();
                                 obj.insert("items".into(), json!(strs));
                             }
@@ -652,23 +763,40 @@ fn cbor_block_to_json(block: &Value) -> JsonValue {
                     if let Value::Text(key) = k {
                         if key == "headers" {
                             if let Value::Array(arr) = v {
-                                let strs: Vec<&str> = arr.iter()
-                                    .filter_map(|i| if let Value::Text(s) = i { Some(s.as_str()) } else { None })
+                                let strs: Vec<&str> = arr
+                                    .iter()
+                                    .filter_map(|i| {
+                                        if let Value::Text(s) = i {
+                                            Some(s.as_str())
+                                        } else {
+                                            None
+                                        }
+                                    })
                                     .collect();
                                 obj.insert("headers".into(), json!(strs));
                             }
                         }
                         if key == "rows" {
                             if let Value::Array(rows) = v {
-                                let json_rows: Vec<Vec<&str>> = rows.iter().map(|row| {
-                                    if let Value::Array(cells) = row {
-                                        cells.iter()
-                                            .filter_map(|c| if let Value::Text(s) = c { Some(s.as_str()) } else { None })
-                                            .collect()
-                                    } else {
-                                        vec![]
-                                    }
-                                }).collect();
+                                let json_rows: Vec<Vec<&str>> = rows
+                                    .iter()
+                                    .map(|row| {
+                                        if let Value::Array(cells) = row {
+                                            cells
+                                                .iter()
+                                                .filter_map(|c| {
+                                                    if let Value::Text(s) = c {
+                                                        Some(s.as_str())
+                                                    } else {
+                                                        None
+                                                    }
+                                                })
+                                                .collect()
+                                        } else {
+                                            vec![]
+                                        }
+                                    })
+                                    .collect();
                                 obj.insert("rows".into(), json!(json_rows));
                             }
                         }
@@ -697,21 +825,27 @@ fn cbor_block_to_json(block: &Value) -> JsonValue {
                     if let Value::Text(key) = k {
                         if key == "v" {
                             if let Value::Array(items) = v {
-                                let terms: Vec<JsonValue> = items.iter().map(|item| {
-                                    if let Value::Map(pairs) = item {
-                                        let mut entry = Map::new();
-                                        for (ik, iv) in pairs {
-                                            if let Value::Text(ik_str) = ik {
-                                                if let Value::Text(iv_str) = iv {
-                                                    entry.insert(ik_str.to_string(), json!(iv_str));
+                                let terms: Vec<JsonValue> = items
+                                    .iter()
+                                    .map(|item| {
+                                        if let Value::Map(pairs) = item {
+                                            let mut entry = Map::new();
+                                            for (ik, iv) in pairs {
+                                                if let Value::Text(ik_str) = ik {
+                                                    if let Value::Text(iv_str) = iv {
+                                                        entry.insert(
+                                                            ik_str.to_string(),
+                                                            json!(iv_str),
+                                                        );
+                                                    }
                                                 }
                                             }
+                                            JsonValue::Object(entry)
+                                        } else {
+                                            json!(null)
                                         }
-                                        JsonValue::Object(entry)
-                                    } else {
-                                        json!(null)
-                                    }
-                                }).collect();
+                                    })
+                                    .collect();
                                 obj.insert("items".into(), json!(terms));
                             }
                         }
@@ -826,7 +960,10 @@ fn print_block_text(block: &JsonValue) {
         }
         "q" => {
             let text = block.get("text").and_then(|v| v.as_str()).unwrap_or("");
-            let attr = block.get("attribution").and_then(|v| v.as_str()).unwrap_or("");
+            let attr = block
+                .get("attribution")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             println!("  > {}", text);
             if !attr.is_empty() {
                 println!("    — {}", attr);
@@ -843,7 +980,13 @@ fn print_block_text(block: &JsonValue) {
             if let Some(headers) = block.get("headers").and_then(|v| v.as_array()) {
                 let hdr: Vec<&str> = headers.iter().filter_map(|h| h.as_str()).collect();
                 println!("| {} |", hdr.join(" | "));
-                println!("|{}|", hdr.iter().map(|h| "-".repeat(h.len() + 2)).collect::<Vec<_>>().join("|"));
+                println!(
+                    "|{}|",
+                    hdr.iter()
+                        .map(|h| "-".repeat(h.len() + 2))
+                        .collect::<Vec<_>>()
+                        .join("|")
+                );
             }
             if let Some(rows) = block.get("rows").and_then(|v| v.as_array()) {
                 for row in rows {
@@ -870,7 +1013,10 @@ fn print_block_text(block: &JsonValue) {
             }
         }
         "note" => {
-            let level = block.get("level").and_then(|v| v.as_str()).unwrap_or("info");
+            let level = block
+                .get("level")
+                .and_then(|v| v.as_str())
+                .unwrap_or("info");
             let text = block.get("text").and_then(|v| v.as_str()).unwrap_or("");
             let prefix = match level {
                 "important" => "!!",
@@ -881,7 +1027,10 @@ fn print_block_text(block: &JsonValue) {
         }
         "embed" => {
             let src = block.get("src").and_then(|v| v.as_str()).unwrap_or("");
-            let desc = block.get("description").and_then(|v| v.as_str()).unwrap_or("");
+            let desc = block
+                .get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             if desc.is_empty() {
                 println!("[embed] {}", src);
             } else {
@@ -915,17 +1064,23 @@ fn block_matches_content(block: &JsonValue, query_lower: &str) -> bool {
                 }
             }
             if let Some(term) = item.get("term").and_then(|v| v.as_str()) {
-                if term.to_lowercase().contains(query_lower) { return true; }
+                if term.to_lowercase().contains(query_lower) {
+                    return true;
+                }
             }
             if let Some(def) = item.get("def").and_then(|v| v.as_str()) {
-                if def.to_lowercase().contains(query_lower) { return true; }
+                if def.to_lowercase().contains(query_lower) {
+                    return true;
+                }
             }
         }
     }
     // Search table headers and rows
     if let Some(headers) = block.get("headers").and_then(|v| v.as_array()) {
         for h in headers {
-            if h.as_str().is_some_and(|s| s.to_lowercase().contains(query_lower)) {
+            if h.as_str()
+                .is_some_and(|s| s.to_lowercase().contains(query_lower))
+            {
                 return true;
             }
         }
@@ -934,7 +1089,10 @@ fn block_matches_content(block: &JsonValue, query_lower: &str) -> bool {
         for row in rows {
             if let Some(cells) = row.as_array() {
                 for cell in cells {
-                    if cell.as_str().is_some_and(|s| s.to_lowercase().contains(query_lower)) {
+                    if cell
+                        .as_str()
+                        .is_some_and(|s| s.to_lowercase().contains(query_lower))
+                    {
                         return true;
                     }
                 }
@@ -976,7 +1134,9 @@ async fn cmd_search(
         let bundle_url = format!("{}{}", base, WELL_KNOWN_BUNDLE);
         if let Ok(bundle_bytes) = fetch_cbor(client, &bundle_url, MAX_BUNDLE_SIZE).await {
             let bundle = parse_cbor_document(&bundle_bytes)?;
-            if let Some(Value::Map(pages_map)) = get_map_value_owned(&bundle, &Value::Integer(3.into())) {
+            if let Some(Value::Map(pages_map)) =
+                get_map_value_owned(&bundle, &Value::Integer(3.into()))
+            {
                 for (key, value) in pages_map {
                     if let Value::Text(path) = key {
                         page_contents.insert(path, extract_page_content(&value));
@@ -992,8 +1152,12 @@ async fn cmd_search(
             for page_val in arr {
                 if let Value::Map(entries) = page_val {
                     let path = find_text_in_map(entries, "path").unwrap_or("/").to_string();
-                    let access = find_text_in_map(entries, "access").unwrap_or("T2").to_string();
-                    if access == "T0" || access == "token" { continue; }
+                    let access = find_text_in_map(entries, "access")
+                        .unwrap_or("T2")
+                        .to_string();
+                    if access == "T0" || access == "token" {
+                        continue;
+                    }
                     let filename = path_to_filename(&path);
                     let page_url = format!("{}{}{}", base, WELL_KNOWN_PAGES, filename);
                     if let Ok(page_bytes) = fetch_cbor(client, &page_url, MAX_PAGE_SIZE).await {
@@ -1019,7 +1183,13 @@ async fn cmd_search(
                 }
             }
         }
-        if content.get("title").and_then(|t| t.as_str()).unwrap_or("").to_lowercase().contains(&query_lower) {
+        if content
+            .get("title")
+            .and_then(|t| t.as_str())
+            .unwrap_or("")
+            .to_lowercase()
+            .contains(&query_lower)
+        {
             page_matches.push(json!({"type": "title", "text": content.get("title")}));
         }
         if !page_matches.is_empty() {
@@ -1034,7 +1204,11 @@ async fn cmd_search(
         }
     }
 
-    println!("\n{} total match(es) across {} pages", match_count, page_contents.len());
+    println!(
+        "\n{} total match(es) across {} pages",
+        match_count,
+        page_contents.len()
+    );
     Ok(())
 }
 
@@ -1045,47 +1219,78 @@ async fn cmd_doleance(
     base_url: &str,
     feedback_json: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let feedback: serde_json::Value = serde_json::from_str(feedback_json)
-        .map_err(|e| format!("Invalid JSON feedback: {}", e))?;
+    let feedback: serde_json::Value =
+        serde_json::from_str(feedback_json).map_err(|e| format!("Invalid JSON feedback: {}", e))?;
 
     let base = base_url.trim_end_matches('/');
-    let domain = base.trim_start_matches("https://").trim_start_matches("http://");
+    let domain = base
+        .trim_start_matches("https://")
+        .trim_start_matches("http://");
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)?
         .as_secs();
 
-    let page_path = feedback.get("page_path")
+    let page_path = feedback
+        .get("page_path")
         .and_then(|v| v.as_str())
         .unwrap_or("/");
 
-    let signals: Vec<Value> = feedback.get("signals")
+    let signals: Vec<Value> = feedback
+        .get("signals")
         .and_then(|v| v.as_array())
         .map(|arr| {
-            arr.iter().map(|s| {
-                let signal = s.get("signal").and_then(|v| v.as_str()).unwrap_or("missing_data");
-                let details = s.get("details").and_then(|v| v.as_str()).unwrap_or("");
-                let block_type = s.get("block_type").and_then(|v| v.as_str()).unwrap_or("");
-                cbor_canonical_map(vec![
-                    (Value::Text("signal".into()), Value::Text(signal.into())),
-                    (Value::Text("details".into()), Value::Text(details.into())),
-                    (Value::Text("block_type".into()), Value::Text(block_type.into())),
-                ])
-            }).collect::<Vec<_>>()
-        }).unwrap_or_default();
+            arr.iter()
+                .map(|s| {
+                    let signal = s
+                        .get("signal")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("missing_data");
+                    let details = s.get("details").and_then(|v| v.as_str()).unwrap_or("");
+                    let block_type = s.get("block_type").and_then(|v| v.as_str()).unwrap_or("");
+                    cbor_canonical_map(vec![
+                        (Value::Text("signal".into()), Value::Text(signal.into())),
+                        (Value::Text("details".into()), Value::Text(details.into())),
+                        (
+                            Value::Text("block_type".into()),
+                            Value::Text(block_type.into()),
+                        ),
+                    ])
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
 
     let doleance = cbor_canonical_map(vec![
-        (Value::Integer(0.into()), Value::Text("cbor-web-doleance".into())),
+        (
+            Value::Integer(0.into()),
+            Value::Text("cbor-web-doleance".into()),
+        ),
         (Value::Integer(1.into()), Value::Integer(1.into())),
-        (Value::Integer(2.into()), cbor_canonical_map(vec![
-            (Value::Text("domain".into()), Value::Text(domain.into())),
-            (Value::Text("page_path".into()), Value::Text(page_path.into())),
-        ])),
+        (
+            Value::Integer(2.into()),
+            cbor_canonical_map(vec![
+                (Value::Text("domain".into()), Value::Text(domain.into())),
+                (
+                    Value::Text("page_path".into()),
+                    Value::Text(page_path.into()),
+                ),
+            ]),
+        ),
         (Value::Integer(3.into()), Value::Array(signals)),
-        (Value::Integer(4.into()), cbor_canonical_map(vec![
-            (Value::Text("agent".into()), Value::Text("cbor-crawl/0.2.0".into())),
-            (Value::Text("timestamp".into()), Value::Tag(1, Box::new(Value::Integer(now.into())))),
-        ])),
+        (
+            Value::Integer(4.into()),
+            cbor_canonical_map(vec![
+                (
+                    Value::Text("agent".into()),
+                    Value::Text(concat!("cbor-crawl/", env!("CARGO_PKG_VERSION")).into()),
+                ),
+                (
+                    Value::Text("timestamp".into()),
+                    Value::Tag(1, Box::new(Value::Integer(now.into()))),
+                ),
+            ]),
+        ),
     ]);
 
     let tagged = Value::Tag(55799, Box::new(doleance));
@@ -1139,7 +1344,10 @@ async fn cmd_diff(
             println!("║  Diff version:  {}", v);
         }
         if let Some(base_hash) = get_bytes_field(Some(diff), "base_version_hash") {
-            println!("║  Base hash:     {}...", hex::encode(&base_hash[..16.min(base_hash.len())]));
+            println!(
+                "║  Base hash:     {}...",
+                hex::encode(&base_hash[..16.min(base_hash.len())])
+            );
         }
         if let Some(stats) = get_map_value(diff, &Value::Text("stats".into())) {
             let added = get_uint_field(Some(stats), "pages_added").unwrap_or(0);
@@ -1180,9 +1388,14 @@ async fn cmd_diff(
         match fetch_cbor(client, &diff_url, MAX_MANIFEST_SIZE).await {
             Ok(diff_bytes) => {
                 let diff_doc = parse_cbor_document(&diff_bytes)?;
-                println!("Current manifest hash: {}...", &current_hash[..16.min(current_hash.len())]);
+                println!(
+                    "Current manifest hash: {}...",
+                    &current_hash[..16.min(current_hash.len())]
+                );
                 println!("Diff document received ({} bytes)", diff_bytes.len());
-                if let Some(Value::Text(dt)) = get_map_value_owned(&diff_doc, &Value::Integer(0.into())) {
+                if let Some(Value::Text(dt)) =
+                    get_map_value_owned(&diff_doc, &Value::Integer(0.into()))
+                {
                     println!("Document type: {}", dt);
                 }
             }
@@ -1277,7 +1490,10 @@ mod tests {
 
     #[test]
     fn test_sha256_hex() {
-        assert_eq!(sha256_hex(b"hello"), "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+        assert_eq!(
+            sha256_hex(b"hello"),
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        );
     }
 
     #[test]
@@ -1294,7 +1510,10 @@ mod tests {
 
     #[test]
     fn test_cbor_to_json_bool() {
-        assert_eq!(cbor_to_json(&ciborium::Value::Bool(true)), serde_json::json!(true));
+        assert_eq!(
+            cbor_to_json(&ciborium::Value::Bool(true)),
+            serde_json::json!(true)
+        );
     }
 
     #[test]

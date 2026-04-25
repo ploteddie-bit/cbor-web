@@ -9,3 +9,4 @@ target/
 memory/
 business/
 tools/cbor-server/data/**/*.cbor
+__pycache__/

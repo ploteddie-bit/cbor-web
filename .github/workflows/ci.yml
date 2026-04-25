@@ -19,9 +19,18 @@ jobs:
             echo "OK: $f"
           done
 
+      - name: Validate CDDL syntax
+        run: |
+          if ! command -v cddl &>/dev/null; then
+            cargo install cddl 2>&1 | tail -1
+          fi
+          for f in schemas/*.cddl; do
+            echo '{}' | cddl validate --cddl "$f" --stdin 2>/dev/null && echo "OK: $(basename $f)" || { echo "FAIL: $(basename $f)"; exit 1; }
+          done
+
       - name: Check test vectors exist
         run: |
-          for f in test-vectors/tv1_manifest.cbor test-vectors/tv2_page.cbor test-vectors/tv3_product.cbor test-vectors/tv4_bundle.cbor test-vectors/tv5_navigation.cbor; do
+          for f in test-vectors/tv1_manifest.cbor test-vectors/tv2_page.cbor test-vectors/tv3_product.cbor test-vectors/tv4_bundle.cbor test-vectors/tv5_navigation.cbor test-vectors/tv6_doleance.cbor test-vectors/tv7_diff.cbor test-vectors/tv8_security.cbor test-vectors/tv9_multimedia.cbor; do
             if [ ! -f "$f" ]; then echo "Missing: $f" && exit 1; fi
             echo "OK: $f ($(wc -c < $f) bytes)"
           done
@@ -67,29 +76,108 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build cbor-crawl
+      - name: Build & test cbor-crawl
         working-directory: tools/cbor-crawl
-        run: cargo check && cargo clippy -- -D warnings
+        run: cargo check && cargo clippy -- -D warnings && cargo test
 
-      - name: Build text2cbor
+      - name: Build & test text2cbor
         working-directory: tools/text2cbor
-        run: cargo check && cargo clippy -- -D warnings
+        run: cargo check && cargo clippy -- -D warnings && cargo test
 
-      - name: Build cbor-vectors
+      - name: Build & test cbor-vectors
         working-directory: tools/cbor-vectors
         run: cargo check && cargo clippy -- -D warnings
 
-      - name: Build cbor-server
+      - name: Build & test cbor-server
         working-directory: tools/cbor-server
-        run: cargo check && cargo clippy -- -D warnings
+        run: cargo check && cargo clippy -- -D warnings && cargo test
 
-      - name: Check formatting
-        run: cargo fmt --check || true
-        working-directory: tools/cbor-crawl
+      - name: Check formatting (all tools)
+        run: |
+          for dir in tools/cbor-crawl tools/text2cbor tools/cbor-vectors tools/cbor-server; do
+            (cd $dir && cargo fmt --check) || exit 1
+          done
+          echo "All tools formatted correctly"
 
-      - name: Run cbor-vectors
+      - name: Run cbor-vectors (generate all test vectors)
         working-directory: tools/cbor-vectors
         run: cargo run -- --output /tmp/tv && ls -la /tmp/tv/
+
+      - name: Security audit (cargo audit)
+        run: |
+          if ! command -v cargo-audit &>/dev/null; then
+            cargo install cargo-audit 2>&1 | tail -1
+          fi
+          for dir in tools/cbor-crawl tools/text2cbor tools/cbor-vectors tools/cbor-server; do
+            echo "Auditing $dir..."
+            (cd "$dir" && cargo audit) || echo "  ⚠️ warnings (review above)"
+          done
+
+  metrics:
+    needs: build-tools
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build text2cbor (for benchmarks)
+        working-directory: tools/text2cbor
+        run: cargo build --release
+
+      - name: Run compression benchmark
+        run: |
+          chmod +x scripts/benchmark.sh
+          bash scripts/benchmark.sh --json > /tmp/benchmark_results.json
+          echo "=== Compression Benchmark ==="
+          bash scripts/benchmark.sh
+          echo "results=$(cat /tmp/benchmark_results.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Run tokenomics dashboard
+        run: |
+          python3 scripts/tokenomics-dashboard.py 2>/dev/null
+          if [ -f /tmp/tokenomics_metrics.json ]; then
+            echo "=== Tokenomics Summary ==="
+            python3 -c "
+import json
+d = json.load(open('/tmp/tokenomics_metrics.json'))
+for s, v in d['scenarios'].items():
+    print(f\"  {s}: {v['sites']} sites, {v['agents']} agents, \${v['token_price']:.4f}/token, \${v['monthly_revenue']:.0f}/mo\")
+"
+          fi
+
+      - name: Generate test vectors with metrics
+        working-directory: tools/cbor-vectors
+        run: cargo run -- --output /tmp/tv-metrics
+
+      - name: Test vector size baseline
+        run: |
+          echo "=== Test Vector Sizes (regression check) ==="
+          for tv in tv1_manifest tv2_page tv3_product tv4_bundle tv5_navigation; do
+            size=$(wc -c < "test-vectors/${tv}.cbor")
+            echo "  ${tv}: ${size} bytes"
+          done
+
+      - name: Quality metrics on test fixtures
+        run: |
+          echo "=== Quality Metrics on Test Fixtures ==="
+          for fixture in test-fixtures/*/; do
+            name=$(basename "$fixture")
+            tmpdir=$(mktemp -d)
+            tools/text2cbor/target/release/text2cbor generate \
+              -i "$fixture" -o "$tmpdir" -d "${name}.example" \
+              --name "$name" --default-lang en --spec-version 2.1 2>/dev/null || true
+            if [ -f "$tmpdir/quality.json" ]; then
+              echo "  $name: $(python3 -c "
+import json
+q = json.load(open('$tmpdir/quality.json'))
+blocks = sum(q['block_distribution'].values())
+print(f'{blocks} blocks, signal_ratio={q[\"signal_ratio_pct\"]}%, langs={q[\"languages\"]}')
+")"
+            fi
+            rm -rf "$tmpdir"
+          done
 
   markdown-lint:
     runs-on: ubuntu-latest

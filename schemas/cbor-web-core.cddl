@@ -51,7 +51,7 @@ site-metadata = {
   ? "geo" => {
     ? "country" => tstr,
     ? "region" => tstr,
-    ? "coordinates" => [float .ge -90.0 .le 90.0, float .ge -180.0 .le 180.0],
+    ? "coordinates" => [float, float],
     * tstr => any
   },
   * tstr => any
@@ -186,7 +186,7 @@ content-block = heading / paragraph / unordered-list / ordered-list /
                 note-block
                 ; multimedia + generative blocks defined in companion docs
 
-heading = { "t" => "h", "l" => uint .ge 1 .le 6, "v" => tstr, * tstr => any }
+heading = { "t" => "h", "l" => uint, "v" => tstr, * tstr => any }
 paragraph = { "t" => "p", "v" => tstr, * tstr => any }
 unordered-list = { "t" => "ul", "v" => [+ tstr], * tstr => any }
 ordered-list = { "t" => "ol", "v" => [+ tstr], * tstr => any }

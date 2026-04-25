@@ -53,6 +53,9 @@ const SHORT = {
 // Preserved top-level routes — don't shadow these
 const RESERVED = new Set(["health", "doleance", "diff", "s", ""]);
 
+const MAX_RESPONSE_SIZE = 50 * 1024 * 1024; // 50 MB
+const FETCH_TIMEOUT_MS = 30000;              // 30 seconds
+
 export default {
   async fetch(request) {
     const url = new URL(request.url);
@@ -73,12 +76,15 @@ export default {
 
     // ── Short code routing: /<code>[/path] ──
     const seg = outPath.match(/^\/([a-zA-Z0-9]+)(\/.*)?$/);
-    if (seg && SHORT[seg[1]] && !RESERVED.has(seg[1])) {
-      if (!seg[2]) {
-        return Response.redirect(url.origin + url.pathname + "/" + url.search, 301);
+    if (seg) {
+      const code = seg[1].toLowerCase();
+      if (SHORT[code] && !RESERVED.has(code)) {
+        if (!seg[2]) {
+          return Response.redirect(url.origin + url.pathname + "/" + url.search, 301);
+        }
+        domainOverride = SHORT[code];
+        outPath = seg[2];
       }
-      domainOverride = SHORT[seg[1]];
-      outPath = seg[2];
     }
 
     // ── Full domain routing: /s/<domain>[/path] ──
@@ -101,25 +107,49 @@ export default {
         fwdHeaders.set(k, v);
       }
     }
+    // If-None-Match / If-Modified-Since pass through here for 304 support
     if (domainOverride) {
       fwdHeaders.set("X-CBOR-Domain", domainOverride);
     }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
     try {
       const originResp = await fetch(originUrl, {
         method,
         headers: fwdHeaders,
         body: method === "POST" ? request.body : undefined,
+        signal: controller.signal,
       });
+
+      // Reject responses larger than 50 MB
+      const contentLength = originResp.headers.get("Content-Length");
+      if (contentLength && parseInt(contentLength, 10) > MAX_RESPONSE_SIZE) {
+        console.log(
+          "Size exceeded: " + contentLength + " bytes (" +
+          Math.round(parseInt(contentLength, 10) / (1024 * 1024)) +
+          " MB) for " + originUrl
+        );
+        return new Response("Response too large", { status: 502, headers: corsHeaders });
+      }
+
       const out = new Headers(originResp.headers);
       for (const [k, v] of Object.entries(corsHeaders)) { out.set(k, v); }
       out.set("X-CBOR-Edge", "Cloudflare");
-      if (method === "GET" && originResp.status === 200) {
+      if (method === "GET" && (originResp.status === 200 || originResp.status === 304)) {
         out.set("Cache-Control", "public, max-age=3600");
       }
       return new Response(originResp.body, { status: originResp.status, headers: out });
     } catch (e) {
+      if (e.name === "AbortError") {
+        console.log("Timeout (" + FETCH_TIMEOUT_MS / 1000 + "s) fetching: " + originUrl);
+        return new Response("Origin request timed out", { status: 504, headers: corsHeaders });
+      }
+      console.log("Origin unreachable: " + e.message + " for " + originUrl);
       return new Response("Origin unreachable: " + e.message, { status: 502, headers: corsHeaders });
+    } finally {
+      clearTimeout(timer);
     }
   },
 };

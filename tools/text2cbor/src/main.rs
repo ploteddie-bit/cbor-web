@@ -6,8 +6,8 @@
 
 use ciborium::Value;
 use clap::{Parser, Subcommand};
-use scraper::{Html, Selector, ElementRef};
-use sha2::{Sha256, Digest};
+use scraper::{ElementRef, Html, Selector};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -282,19 +282,36 @@ fn encode(v: &Value) -> Vec<u8> {
 fn cmap(entries: Vec<(Value, Value)>) -> Value {
     let mut pairs: Vec<(Vec<u8>, Value, Value)> = entries
         .into_iter()
-        .map(|(k, v)| { let e = encode(&k); (e, k, v) })
+        .map(|(k, v)| {
+            let e = encode(&k);
+            (e, k, v)
+        })
         .collect();
     pairs.sort_by(|a, b| a.0.len().cmp(&b.0.len()).then_with(|| a.0.cmp(&b.0)));
     Value::Map(pairs.into_iter().map(|(_, k, v)| (k, v)).collect())
 }
 
-fn t(s: &str) -> Value { Value::Text(s.to_string()) }
-fn ii(n: i64) -> Value { Value::Integer(ciborium::value::Integer::from(n)) }
-fn u(n: u64) -> Value { Value::Integer(ciborium::value::Integer::from(n)) }
-fn epoch(ts: u64) -> Value { Value::Tag(1, Box::new(u(ts))) }
-fn sd(inner: Value) -> Value { Value::Tag(55799, Box::new(inner)) }
-fn arr(items: Vec<Value>) -> Value { Value::Array(items) }
-fn float(f: f64) -> Value { Value::Float(f) }
+fn t(s: &str) -> Value {
+    Value::Text(s.to_string())
+}
+fn ii(n: i64) -> Value {
+    Value::Integer(ciborium::value::Integer::from(n))
+}
+fn u(n: u64) -> Value {
+    Value::Integer(ciborium::value::Integer::from(n))
+}
+fn epoch(ts: u64) -> Value {
+    Value::Tag(1, Box::new(u(ts)))
+}
+fn sd(inner: Value) -> Value {
+    Value::Tag(55799, Box::new(inner))
+}
+fn arr(items: Vec<Value>) -> Value {
+    Value::Array(items)
+}
+fn float(f: f64) -> Value {
+    Value::Float(f)
+}
 
 fn sha256_bytes(data: &[u8]) -> Vec<u8> {
     Sha256::digest(data).to_vec()
@@ -382,7 +399,12 @@ fn parse_html(html_content: &str, default_lang: &str) -> PageContent {
     };
 
     if let Some(container) = doc.select(&sel(container_sel)).next() {
-        extract_blocks_recursive(&container, &mut blocks, &mut internal_links, &mut external_links);
+        extract_blocks_recursive(
+            &container,
+            &mut blocks,
+            &mut internal_links,
+            &mut external_links,
+        );
     }
 
     if title.is_empty() {
@@ -390,10 +412,14 @@ fn parse_html(html_content: &str, default_lang: &str) -> PageContent {
         for block in &blocks {
             if let Value::Map(pairs) = block {
                 let is_h = pairs.iter().any(|(k, v)| {
-                    matches!(k, Value::Text(s) if s == "t") && matches!(v, Value::Text(s) if s == "h")
+                    matches!(k, Value::Text(s) if s == "t")
+                        && matches!(v, Value::Text(s) if s == "h")
                 });
                 if is_h {
-                    if let Some((_, Value::Text(text))) = pairs.iter().find(|(k, _)| matches!(k, Value::Text(s) if s == "v")) {
+                    if let Some((_, Value::Text(text))) = pairs
+                        .iter()
+                        .find(|(k, _)| matches!(k, Value::Text(s) if s == "v"))
+                    {
                         title = text.clone();
                         break;
                     }
@@ -402,7 +428,16 @@ fn parse_html(html_content: &str, default_lang: &str) -> PageContent {
         }
     }
 
-    PageContent { title, description, lang, blocks, internal_links, external_links, alternates, structured_data }
+    PageContent {
+        title,
+        description,
+        lang,
+        blocks,
+        internal_links,
+        external_links,
+        alternates,
+        structured_data,
+    }
 }
 
 fn extract_blocks_recursive(
@@ -429,10 +464,7 @@ fn extract_blocks_recursive(
                 "p" => {
                     let text = extract_text(&el);
                     if !text.is_empty() {
-                        blocks.push(cmap(vec![
-                            (t("t"), t("p")),
-                            (t("v"), t(&text)),
-                        ]));
+                        blocks.push(cmap(vec![(t("t"), t("p")), (t("v"), t(&text))]));
                     }
                     for a in el.select(&sel("a[href]")) {
                         let href = a.value().attr("href").unwrap_or("");
@@ -445,36 +477,41 @@ fn extract_blocks_recursive(
                     }
                 }
                 "ul" => {
-                    let items: Vec<Value> = el.select(&sel("li"))
+                    let items: Vec<Value> = el
+                        .select(&sel("li"))
                         .map(|li| t(&extract_text(&li)))
-                        .filter(|v| if let Value::Text(s) = v { !s.is_empty() } else { false })
+                        .filter(|v| {
+                            if let Value::Text(s) = v {
+                                !s.is_empty()
+                            } else {
+                                false
+                            }
+                        })
                         .collect();
                     if !items.is_empty() {
-                        blocks.push(cmap(vec![
-                            (t("t"), t("ul")),
-                            (t("v"), arr(items)),
-                        ]));
+                        blocks.push(cmap(vec![(t("t"), t("ul")), (t("v"), arr(items))]));
                     }
                 }
                 "ol" => {
-                    let items: Vec<Value> = el.select(&sel("li"))
+                    let items: Vec<Value> = el
+                        .select(&sel("li"))
                         .map(|li| t(&extract_text(&li)))
-                        .filter(|v| if let Value::Text(s) = v { !s.is_empty() } else { false })
+                        .filter(|v| {
+                            if let Value::Text(s) = v {
+                                !s.is_empty()
+                            } else {
+                                false
+                            }
+                        })
                         .collect();
                     if !items.is_empty() {
-                        blocks.push(cmap(vec![
-                            (t("t"), t("ol")),
-                            (t("v"), arr(items)),
-                        ]));
+                        blocks.push(cmap(vec![(t("t"), t("ol")), (t("v"), arr(items))]));
                     }
                 }
                 "blockquote" => {
                     let text = extract_text(&el);
                     if !text.is_empty() {
-                        blocks.push(cmap(vec![
-                            (t("t"), t("q")),
-                            (t("v"), t(&text)),
-                        ]));
+                        blocks.push(cmap(vec![(t("t"), t("q")), (t("v"), t(&text))]));
                     }
                 }
                 "pre" => {
@@ -484,10 +521,7 @@ fn extract_blocks_recursive(
                         extract_text(&el)
                     };
                     if !code_text.is_empty() {
-                        let mut entries = vec![
-                            (t("t"), t("code")),
-                            (t("v"), t(&code_text)),
-                        ];
+                        let mut entries = vec![(t("t"), t("code")), (t("v"), t(&code_text))];
                         if let Some(code_el) = el.select(&sel("code")).next() {
                             if let Some(class) = code_el.value().attr("class") {
                                 if let Some(lang) = class.strip_prefix("language-") {
@@ -499,20 +533,26 @@ fn extract_blocks_recursive(
                     }
                 }
                 "table" => {
-                    let headers: Vec<Value> = el.select(&sel("th"))
+                    let headers: Vec<Value> = el
+                        .select(&sel("th"))
                         .map(|th| t(&extract_text(&th)))
                         .collect();
-                    let rows: Vec<Value> = el.select(&sel("tbody tr, tr"))
+                    let rows: Vec<Value> = el
+                        .select(&sel("tbody tr, tr"))
                         .filter(|tr| tr.select(&sel("td")).next().is_some())
                         .map(|tr| {
-                            arr(tr.select(&sel("td"))
+                            arr(tr
+                                .select(&sel("td"))
                                 .map(|td| t(&extract_text(&td)))
                                 .collect())
                         })
                         .collect();
                     if !headers.is_empty() || !rows.is_empty() {
                         blocks.push(cmap(vec![
-                            (t("headers"), arr(if headers.is_empty() { vec![] } else { headers })),
+                            (
+                                t("headers"),
+                                arr(if headers.is_empty() { vec![] } else { headers }),
+                            ),
                             (t("rows"), arr(rows)),
                             (t("t"), t("table")),
                         ]));
@@ -533,7 +573,8 @@ fn extract_blocks_recursive(
                     blocks.push(cmap(vec![(t("t"), t("sep"))]));
                 }
                 // Recurse into container elements
-                "div" | "section" | "main" | "article" | "aside" | "header" | "footer" | "nav" | "figure" | "figcaption" | "details" | "summary" | "dl" => {
+                "div" | "section" | "main" | "article" | "aside" | "header" | "footer" | "nav"
+                | "figure" | "figcaption" | "details" | "summary" | "dl" => {
                     // aside.note → note-block
                     if tag == "aside" {
                         let class = el.value().attr("class").unwrap_or("");
@@ -556,7 +597,9 @@ fn extract_blocks_recursive(
                         for dl_child in el.children() {
                             if let Some(dl_el) = ElementRef::wrap(dl_child) {
                                 match dl_el.value().name() {
-                                    "dt" => { current_term = extract_text(&dl_el); }
+                                    "dt" => {
+                                        current_term = extract_text(&dl_el);
+                                    }
                                     "dd" => {
                                         let def = extract_text(&dl_el);
                                         if !current_term.is_empty() && !def.is_empty() {
@@ -572,10 +615,7 @@ fn extract_blocks_recursive(
                             }
                         }
                         if !defs.is_empty() {
-                            blocks.push(cmap(vec![
-                                (t("t"), t("dl")),
-                                (t("v"), arr(defs)),
-                            ]));
+                            blocks.push(cmap(vec![(t("t"), t("dl")), (t("v"), arr(defs))]));
                         }
                     } else {
                         extract_blocks_recursive(&el, blocks, internal_links, external_links);
@@ -587,7 +627,10 @@ fn extract_blocks_recursive(
                     let text = extract_text(&el);
                     let class = el.value().attr("class").unwrap_or("");
                     if !text.is_empty() && !href.is_empty() {
-                        if class.contains("btn") || class.contains("cta") || class.contains("button") {
+                        if class.contains("btn")
+                            || class.contains("cta")
+                            || class.contains("button")
+                        {
                             blocks.push(cmap(vec![
                                 (t("href"), t(&href)),
                                 (t("t"), t("cta")),
@@ -627,7 +670,8 @@ fn json_to_cbor(json: &serde_json::Value) -> Value {
         serde_json::Value::Array(a) => arr(a.iter().map(json_to_cbor).collect()),
         serde_json::Value::Object(o) => {
             // Filter out @context (not needed in CBOR)
-            let entries: Vec<(Value, Value)> = o.iter()
+            let entries: Vec<(Value, Value)> = o
+                .iter()
                 .filter(|(k, _)| *k != "@context")
                 .map(|(k, v)| (t(k), json_to_cbor(v)))
                 .collect();
@@ -641,11 +685,13 @@ fn json_to_cbor(json: &serde_json::Value) -> Value {
 // ============================================================
 
 fn build_site_metadata(args: &GenerateArgs) -> Value {
-    let mut entries = vec![
-        (t("domain"), t(&args.domain)),
-    ];
+    let mut entries = vec![(t("domain"), t(&args.domain))];
 
-    let name = if args.name.is_empty() { &args.domain } else { &args.name };
+    let name = if args.name.is_empty() {
+        &args.domain
+    } else {
+        &args.name
+    };
     entries.push((t("name"), t(name)));
 
     if !args.description.is_empty() {
@@ -689,30 +735,36 @@ fn build_site_metadata(args: &GenerateArgs) -> Value {
 }
 
 fn build_security(args: &GenerateArgs) -> Value {
-    let mut entries = vec![
-        (t("default_access"), t(&args.default_access)),
-    ];
+    let mut entries = vec![(t("default_access"), t(&args.default_access))];
 
     // Auth mechanisms
     if !args.auth_mechanisms.is_empty() {
-        let mechs: Vec<Value> = args.auth_mechanisms.split(',').map(|s| t(s.trim())).collect();
-        let mut auth_entries = vec![
-            (t("mechanisms"), arr(mechs)),
-        ];
+        let mechs: Vec<Value> = args
+            .auth_mechanisms
+            .split(',')
+            .map(|s| t(s.trim()))
+            .collect();
+        let mut auth_entries = vec![(t("mechanisms"), arr(mechs))];
         if !args.erc20_contract.is_empty() {
-            auth_entries.push((t("erc20"), cmap(vec![
-                (t("chain"), t("ethereum")),
-                (t("contract_address"), t(&args.erc20_contract)),
-            ])));
+            auth_entries.push((
+                t("erc20"),
+                cmap(vec![
+                    (t("chain"), t("ethereum")),
+                    (t("contract_address"), t(&args.erc20_contract)),
+                ]),
+            ));
         }
         entries.push((t("auth"), cmap(auth_entries)));
     }
 
     // Rate limits
-    entries.push((t("rate_limit"), cmap(vec![
-        (t("T1"), u(args.rate_limit_t1)),
-        (t("T2"), u(args.rate_limit_t2)),
-    ])));
+    entries.push((
+        t("rate_limit"),
+        cmap(vec![
+            (t("T1"), u(args.rate_limit_t1)),
+            (t("T2"), u(args.rate_limit_t2)),
+        ]),
+    ));
 
     cmap(entries)
 }
@@ -725,7 +777,8 @@ fn build_navigation(args: &GenerateArgs, pages: &[PageEntry]) -> Value {
         entries.push((t("main"), arr(paths)));
     } else {
         // Auto-detect: top-level pages as main nav
-        let main: Vec<Value> = pages.iter()
+        let main: Vec<Value> = pages
+            .iter()
             .filter(|p| p.path.matches('/').count() <= 1)
             .map(|p| t(&p.path))
             .collect();
@@ -750,9 +803,13 @@ fn build_navigation(args: &GenerateArgs, pages: &[PageEntry]) -> Value {
         }
     }
     if !hierarchy.is_empty() {
-        let h_entries: Vec<(Value, Value)> = hierarchy.into_iter()
+        let h_entries: Vec<(Value, Value)> = hierarchy
+            .into_iter()
             .map(|(parent, children)| {
-                (t(&parent), arr(children.into_iter().map(|c| t(&c)).collect()))
+                (
+                    t(&parent),
+                    arr(children.into_iter().map(|c| t(&c)).collect()),
+                )
             })
             .collect();
         entries.push((t("hierarchy"), cmap(h_entries)));
@@ -805,28 +862,50 @@ fn enrich_block_with_describe(block: &Value) -> Value {
         let mut new_pairs: Vec<(Value, Value)> = pairs.clone();
 
         // Extract block type and value
-        let block_type = pairs.iter()
+        let block_type = pairs
+            .iter()
             .find(|(k, _)| matches!(k, Value::Text(s) if s == "t"))
-            .and_then(|(_, v)| if let Value::Text(s) = v { Some(s.as_str()) } else { None })
+            .and_then(|(_, v)| {
+                if let Value::Text(s) = v {
+                    Some(s.as_str())
+                } else {
+                    None
+                }
+            })
             .unwrap_or("");
 
-        let block_value = pairs.iter()
+        let block_value = pairs
+            .iter()
             .find(|(k, _)| matches!(k, Value::Text(s) if s == "v"))
-            .and_then(|(_, v)| if let Value::Text(s) = v { Some(s.as_str()) } else { None })
+            .and_then(|(_, v)| {
+                if let Value::Text(s) = v {
+                    Some(s.as_str())
+                } else {
+                    None
+                }
+            })
             .unwrap_or("");
 
-        let block_level = pairs.iter()
+        let block_level = pairs
+            .iter()
             .find(|(k, _)| matches!(k, Value::Text(s) if s == "l"))
             .and_then(|(_, v)| match v {
-                Value::Integer(i) => { let n: i128 = (*i).into(); n.try_into().ok() }
-                _ => None
+                Value::Integer(i) => {
+                    let n: i128 = (*i).into();
+                    n.try_into().ok()
+                }
+                _ => None,
             })
             .unwrap_or(0);
 
         // Generate _describe
         let describe = match block_type {
             "h" => {
-                let text: String = if block_value.len() > 50 { block_value.chars().take(50).collect() } else { block_value.to_string() };
+                let text: String = if block_value.len() > 50 {
+                    block_value.chars().take(50).collect()
+                } else {
+                    block_value.to_string()
+                };
                 format!("Heading level {}: {}", block_level, text)
             }
             "p" => {
@@ -838,44 +917,102 @@ fn enrich_block_with_describe(block: &Value) -> Value {
                 }
             }
             "table" => {
-                let headers = pairs.iter()
+                let headers = pairs
+                    .iter()
                     .find(|(k, _)| matches!(k, Value::Text(s) if s == "headers"))
-                    .and_then(|(_, v)| if let Value::Array(a) = v {
-                        Some(a.iter().filter_map(|h| if let Value::Text(s) = h { Some(s.as_str()) } else { None }).collect::<Vec<_>>().join(", "))
-                    } else { None })
+                    .and_then(|(_, v)| {
+                        if let Value::Array(a) = v {
+                            Some(
+                                a.iter()
+                                    .filter_map(|h| {
+                                        if let Value::Text(s) = h {
+                                            Some(s.as_str())
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join(", "),
+                            )
+                        } else {
+                            None
+                        }
+                    })
                     .unwrap_or_default();
-                let rows = pairs.iter()
+                let rows = pairs
+                    .iter()
                     .find(|(k, _)| matches!(k, Value::Text(s) if s == "rows"))
-                    .and_then(|(_, v)| if let Value::Array(a) = v { Some(a.len()) } else { None })
+                    .and_then(|(_, v)| {
+                        if let Value::Array(a) = v {
+                            Some(a.len())
+                        } else {
+                            None
+                        }
+                    })
                     .unwrap_or(0);
                 format!("Table: {}. {} rows.", headers, rows)
             }
             "ul" | "ol" => {
-                let count = pairs.iter()
+                let count = pairs
+                    .iter()
                     .find(|(k, _)| matches!(k, Value::Text(s) if s == "v"))
-                    .and_then(|(_, v)| if let Value::Array(a) = v { Some(a.len()) } else { None })
+                    .and_then(|(_, v)| {
+                        if let Value::Array(a) = v {
+                            Some(a.len())
+                        } else {
+                            None
+                        }
+                    })
                     .unwrap_or(0);
                 format!("List: {} items.", count)
             }
             "cta" => {
-                let href = pairs.iter()
+                let href = pairs
+                    .iter()
                     .find(|(k, _)| matches!(k, Value::Text(s) if s == "href"))
-                    .and_then(|(_, v)| if let Value::Text(s) = v { Some(s.as_str()) } else { None })
+                    .and_then(|(_, v)| {
+                        if let Value::Text(s) = v {
+                            Some(s.as_str())
+                        } else {
+                            None
+                        }
+                    })
                     .unwrap_or("");
                 format!("Call to action: {} -> {}", block_value, href)
             }
             "img" => {
-                let alt = pairs.iter()
+                let alt = pairs
+                    .iter()
                     .find(|(k, _)| matches!(k, Value::Text(s) if s == "alt"))
-                    .and_then(|(_, v)| if let Value::Text(s) = v { Some(s.as_str()) } else { None })
+                    .and_then(|(_, v)| {
+                        if let Value::Text(s) = v {
+                            Some(s.as_str())
+                        } else {
+                            None
+                        }
+                    })
                     .unwrap_or("Image");
                 format!("Image: {}", alt)
             }
-            "q" => format!("Quote: {}...", if block_value.len() > 40 { block_value.chars().take(40).collect::<String>() } else { block_value.to_string() }),
+            "q" => format!(
+                "Quote: {}...",
+                if block_value.len() > 40 {
+                    block_value.chars().take(40).collect::<String>()
+                } else {
+                    block_value.to_string()
+                }
+            ),
             "code" => {
-                let lang = pairs.iter()
+                let lang = pairs
+                    .iter()
                     .find(|(k, _)| matches!(k, Value::Text(s) if s == "lang"))
-                    .and_then(|(_, v)| if let Value::Text(s) = v { Some(s.as_str()) } else { None })
+                    .and_then(|(_, v)| {
+                        if let Value::Text(s) = v {
+                            Some(s.as_str())
+                        } else {
+                            None
+                        }
+                    })
                     .unwrap_or("unknown");
                 format!("Code block: {}", lang)
             }
@@ -884,13 +1021,13 @@ fn enrich_block_with_describe(block: &Value) -> Value {
 
         // Generate _l (depth level)
         let level: u64 = match block_type {
-            "h" if block_level == 1 => 0,        // Identity
-            "h" if block_level == 2 => 1,         // Essential
-            "table" | "cta" => 1,                  // Essential
-            "p" | "ul" | "ol" => 2,                // Detail
-            "h" => 2,                              // h3+ = detail
-            "q" | "code" | "dl" => 3,              // Complete
-            "img" | "sep" | "embed" => 4,          // Enrichment
+            "h" if block_level == 1 => 0, // Identity
+            "h" if block_level == 2 => 1, // Essential
+            "table" | "cta" => 1,         // Essential
+            "p" | "ul" | "ol" => 2,       // Detail
+            "h" => 2,                     // h3+ = detail
+            "q" | "code" | "dl" => 3,     // Complete
+            "img" | "sep" | "embed" => 4, // Enrichment
             _ => 2,
         };
 
@@ -940,7 +1077,9 @@ fn build_page_entry(page: &PageEntry) -> Value {
 
     // Alternates
     if !page.alternates.is_empty() {
-        let alt_entries: Vec<(Value, Value)> = page.alternates.iter()
+        let alt_entries: Vec<(Value, Value)> = page
+            .alternates
+            .iter()
             .map(|(lang, href)| (t(lang), t(href)))
             .collect();
         entries.push((t("alternates"), cmap(alt_entries)));
@@ -954,13 +1093,17 @@ fn build_page_entry(page: &PageEntry) -> Value {
     // Links
     let mut link_entries = Vec::new();
     if !page.internal_links.is_empty() {
-        let links: Vec<Value> = page.internal_links.iter()
+        let links: Vec<Value> = page
+            .internal_links
+            .iter()
             .map(|(href, text)| cmap(vec![(t("path"), t(href)), (t("text"), t(text))]))
             .collect();
         link_entries.push((t("internal"), arr(links)));
     }
     if !page.external_links.is_empty() {
-        let links: Vec<Value> = page.external_links.iter()
+        let links: Vec<Value> = page
+            .external_links
+            .iter()
             .map(|(url, text)| cmap(vec![(t("text"), t(text)), (t("url"), t(url))]))
             .collect();
         link_entries.push((t("external"), arr(links)));
@@ -977,10 +1120,18 @@ fn build_page_entry(page: &PageEntry) -> Value {
 // ============================================================
 
 fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
-    let t1_paths: Vec<String> = args.t1_pages.split(',')
-        .filter(|s| !s.is_empty()).map(|s| s.trim().to_string()).collect();
-    let t0_paths: Vec<String> = args.t0_pages.split(',')
-        .filter(|s| !s.is_empty()).map(|s| s.trim().to_string()).collect();
+    let t1_paths: Vec<String> = args
+        .t1_pages
+        .split(',')
+        .filter(|s| !s.is_empty())
+        .map(|s| s.trim().to_string())
+        .collect();
+    let t0_paths: Vec<String> = args
+        .t0_pages
+        .split(',')
+        .filter(|s| !s.is_empty())
+        .map(|s| s.trim().to_string())
+        .collect();
 
     std::fs::create_dir_all(&args.output).expect("Failed to create output directory");
 
@@ -990,17 +1141,23 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| {
-            e.path().extension()
+            e.path()
+                .extension()
                 .map(|ext| ext == "html" || ext == "htm")
                 .unwrap_or(false)
         })
     {
-        let rel_path = entry.path().strip_prefix(&args.input)
+        let rel_path = entry
+            .path()
+            .strip_prefix(&args.input)
             .expect("WalkDir entry outside input directory");
         let url_path = if rel_path.file_stem().is_some_and(|s| s == "index") {
             let parent = rel_path.parent().unwrap_or(std::path::Path::new(""));
-            if parent.as_os_str().is_empty() { "/".to_string() }
-            else { format!("/{}", parent.display()).replace('\\', "/") }
+            if parent.as_os_str().is_empty() {
+                "/".to_string()
+            } else {
+                format!("/{}", parent.display()).replace('\\', "/")
+            }
         } else {
             let without_ext = rel_path.with_extension("");
             format!("/{}", without_ext.display()).replace('\\', "/")
@@ -1017,23 +1174,39 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
         };
         let content = parse_html(&html, &args.default_lang);
 
-        let access = if t0_paths.iter().any(|p| url_path.starts_with(p)) { "T0" }
-            else if t1_paths.iter().any(|p| url_path.starts_with(p)) { "T1" }
-            else { &args.default_access };
+        let access = if t0_paths.iter().any(|p| url_path.starts_with(p)) {
+            "T0"
+        } else if t1_paths.iter().any(|p| url_path.starts_with(p)) {
+            "T1"
+        } else {
+            &args.default_access
+        };
 
         let content_cbor = encode(&arr(content.blocks.clone()));
         let hash = sha256_bytes(&content_cbor);
-        let title = if content.title.is_empty() { url_path.clone() } else { content.title.clone() };
+        let title = if content.title.is_empty() {
+            url_path.clone()
+        } else {
+            content.title.clone()
+        };
 
         println!("    → {} blocks, access={}", content.blocks.len(), access);
 
         pages.push(PageEntry {
-            path: url_path, title, description: content.description,
-            lang: content.lang, access: access.to_string(), blocks: content.blocks,
-            hash, content_size: content_cbor.len(),
-            internal_links: content.internal_links, external_links: content.external_links,
-            alternates: content.alternates, structured_data: content.structured_data,
-            priority: args.priority, freshness: args.freshness.clone(),
+            path: url_path,
+            title,
+            description: content.description,
+            lang: content.lang,
+            access: access.to_string(),
+            blocks: content.blocks,
+            hash,
+            content_size: content_cbor.len(),
+            internal_links: content.internal_links,
+            external_links: content.external_links,
+            alternates: content.alternates,
+            structured_data: content.structured_data,
+            priority: args.priority,
+            freshness: args.freshness.clone(),
         });
     }
 
@@ -1048,7 +1221,14 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
     let page_values: Vec<Value> = pages.iter().map(build_page_entry).collect();
 
     let mut index_entries = vec![
-        (ii(0), t(if args.spec_version == "2.1" { "cbor-web-manifest" } else { "cbor-web" })),
+        (
+            ii(0),
+            t(if args.spec_version == "2.1" {
+                "cbor-web-manifest"
+            } else {
+                "cbor-web"
+            }),
+        ),
         (ii(1), u(if args.spec_version == "2.1" { 2 } else { 3 })),
         (ii(2), build_site_metadata(args)),
         (ii(3), build_security(args)),
@@ -1056,7 +1236,9 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
 
     let nav = build_navigation(args, &pages);
     if let Value::Map(ref pairs) = nav {
-        if !pairs.is_empty() { index_entries.push((ii(4), nav)); }
+        if !pairs.is_empty() {
+            index_entries.push((ii(4), nav));
+        }
     }
 
     index_entries.push((ii(5), arr(page_values)));
@@ -1080,8 +1262,16 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
             let page_entry_val = build_page_entry(page);
             let page_cbor = encode(&sd(page_entry_val.clone()));
 
-            let safe_path = page.path.trim_start_matches('/').replace('/', "_");
-            let filename = if safe_path.is_empty() { "root.cbor".to_string() } else { format!("{}.cbor", safe_path) };
+            let safe_path = page
+                .path
+                .trim_start_matches('/')
+                .replace('_', "%5F")
+                .replace('/', "_");
+            let filename = if safe_path.is_empty() {
+                "root.cbor".to_string()
+            } else {
+                format!("{}.cbor", safe_path)
+            };
             if let Err(e) = std::fs::write(pages_dir.join(&filename), &page_cbor) {
                 eprintln!("  WARNING: failed to write page {} — {}", filename, e);
                 continue;
@@ -1111,8 +1301,7 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
             (ii(2), arr(pages.iter().map(build_page_entry).collect())),
         ]));
         let bundle_bytes = encode(&bundle_doc);
-        std::fs::write(wk.join("bundle.cbor"), &bundle_bytes)
-            .expect("Failed to write bundle.cbor");
+        std::fs::write(wk.join("bundle.cbor"), &bundle_bytes).expect("Failed to write bundle.cbor");
     }
 
     // Write summary.json
@@ -1129,9 +1318,69 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
             "index_cbor_bytes": index_bytes.len(),
         }
     });
-    std::fs::write(args.output.join("summary.json"),
-        serde_json::to_string_pretty(&summary).unwrap())
-        .expect("Failed to write summary.json");
+    std::fs::write(
+        args.output.join("summary.json"),
+        serde_json::to_string_pretty(&summary).unwrap(),
+    )
+    .expect("Failed to write summary.json");
+
+    // Write quality.json with block distribution and signal metrics
+    let mut block_counts = std::collections::HashMap::new();
+    let mut langs = std::collections::HashMap::new();
+    let mut total_text_chars = 0usize;
+    let mut total_overhead_bytes = 0usize;
+    for page in &pages {
+        *langs.entry(page.lang.clone()).or_insert(0) += 1;
+        for block in &page.blocks {
+            if let Value::Map(pairs) = block {
+                let bt = pairs
+                    .iter()
+                    .find(|(k, _)| matches!(k, Value::Text(s) if s == "t"))
+                    .and_then(|(_, v)| {
+                        if let Value::Text(s) = v {
+                            Some(s.as_str())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or("unknown");
+                *block_counts.entry(bt.to_string()).or_insert(0u64) += 1;
+                if let Some((_, Value::Text(text))) = pairs
+                    .iter()
+                    .find(|(k, _)| matches!(k, Value::Text(s) if s == "v"))
+                {
+                    total_text_chars += text.len();
+                }
+            }
+        }
+        total_overhead_bytes += page.content_size;
+    }
+    let signal_ratio = if total_overhead_bytes > 0 {
+        (total_text_chars as f64 / total_overhead_bytes as f64 * 100.0).min(100.0)
+    } else {
+        100.0
+    };
+    let quality = serde_json::json!({
+        "signal_ratio_pct": (signal_ratio * 10.0).round() / 10.0,
+        "total_text_chars": total_text_chars,
+        "total_cbor_overhead_bytes": total_overhead_bytes,
+        "block_distribution": block_counts,
+        "languages": langs,
+        "per_page": pages.iter().map(|p| serde_json::json!({
+            "path": &p.path,
+            "lang": &p.lang,
+            "blocks": p.blocks.len(),
+            "content_bytes": p.content_size,
+            "has_structured_data": p.structured_data.is_some(),
+            "internal_links": p.internal_links.len(),
+            "external_links": p.external_links.len(),
+        })).collect::<Vec<_>>(),
+    });
+    std::fs::write(
+        args.output.join("quality.json"),
+        serde_json::to_string_pretty(&quality).unwrap(),
+    )
+    .expect("Failed to write quality.json");
 
     (index_bytes, pages)
 }
@@ -1145,9 +1394,12 @@ fn compute_site_hash(site_dir: &std::path::Path) -> Vec<u8> {
     let mut files: Vec<_> = walkdir::WalkDir::new(site_dir)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension()
-            .map(|ext| ext == "html" || ext == "htm")
-            .unwrap_or(false))
+        .filter(|e| {
+            e.path()
+                .extension()
+                .map(|ext| ext == "html" || ext == "htm")
+                .unwrap_or(false)
+        })
         .collect();
     files.sort_by(|a, b| a.path().cmp(b.path()));
     for entry in &files {
@@ -1156,7 +1408,10 @@ fn compute_site_hash(site_dir: &std::path::Path) -> Vec<u8> {
         if let Ok(meta) = entry.metadata() {
             hasher.update(meta.len().to_le_bytes());
             if let Ok(modified) = meta.modified() {
-                let secs = modified.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+                let secs = modified
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
                 hasher.update(secs.to_le_bytes());
             }
         }
@@ -1181,7 +1436,10 @@ fn verify_token(token: &str) -> bool {
 }
 
 fn run_watch(args: &WatchArgs) {
-    println!("text2cbor v1.1.0 — CBOR-Web v{} Watch Mode", args.spec_version);
+    println!(
+        "text2cbor v1.1.0 — CBOR-Web v{} Watch Mode",
+        args.spec_version
+    );
     println!("Site:     {}", args.site.display());
     println!("Output:   {}", args.output.display());
     println!("Domain:   {}", args.domain);
@@ -1199,7 +1457,11 @@ fn run_watch(args: &WatchArgs) {
     println!("[INIT] Building index.cbor...");
     let (bytes, pages) = run_generate(&gen_args);
     let mut last_site_hash = compute_site_hash(&args.site);
-    println!("[INIT] Done — {} bytes, {} pages\n", bytes.len(), pages.len());
+    println!(
+        "[INIT] Done — {} bytes, {} pages\n",
+        bytes.len(),
+        pages.len()
+    );
 
     // Watch loop
     loop {
@@ -1220,13 +1482,20 @@ fn run_watch(args: &WatchArgs) {
 
         // Count changed pages by comparing hashes
         let now = chrono_now();
-        println!("[{}] Rebuilt — {} bytes, {} pages", now, bytes.len(), pages.len());
+        println!(
+            "[{}] Rebuilt — {} bytes, {} pages",
+            now,
+            bytes.len(),
+            pages.len()
+        );
     }
 }
 
 fn chrono_now() -> String {
     let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     // Simple HH:MM:SS from epoch (UTC)
     let h = (now % 86400) / 3600;
     let m = (now % 3600) / 60;
@@ -1268,7 +1537,10 @@ fn run_validate(args: &ValidateArgs) {
             println!("✓ CBOR parsed successfully");
 
             if let Value::Map(pairs) = &v {
-                if let Some((_, Value::Text(doc_type))) = pairs.iter().find(|(k, _)| matches!(k, Value::Integer(_) | Value::Text(_))) {
+                if let Some((_, Value::Text(doc_type))) = pairs
+                    .iter()
+                    .find(|(k, _)| matches!(k, Value::Integer(_) | Value::Text(_)))
+                {
                     println!("  Document type: {}", doc_type);
                 }
 
@@ -1341,7 +1613,10 @@ async fn run_doleance(args: &DoleanceArgs) {
         std::process::exit(1);
     }
 
-    let url = format!("{}/.well-known/cbor-web/doleance", args.url.trim_end_matches('/'));
+    let url = format!(
+        "{}/.well-known/cbor-web/doleance",
+        args.url.trim_end_matches('/')
+    );
 
     let client = reqwest::Client::new();
     let resp = client
@@ -1372,13 +1647,20 @@ async fn main() {
 
     match cli.command {
         Commands::Generate(args) => {
-            println!("text2cbor v1.1.0 — CBOR-Web v{} Generate", args.spec_version);
+            println!(
+                "text2cbor v1.1.0 — CBOR-Web v{} Generate",
+                args.spec_version
+            );
             println!("Input:  {}", args.input.display());
             println!("Output: {}", args.output.display());
             println!("Domain: {}", args.domain);
             println!();
             let (bytes, pages) = run_generate(&args);
-            println!("\n  index.cbor: {} bytes, {} pages", bytes.len(), pages.len());
+            println!(
+                "\n  index.cbor: {} bytes, {} pages",
+                bytes.len(),
+                pages.len()
+            );
             println!("  summary.json: human-readable breakdown");
             if args.spec_version == "2.1" {
                 println!("\n  v2.1 outputs: .well-known/cbor-web/manifest.cbor, bundle.cbor, pages/*.cbor");
@@ -1404,7 +1686,10 @@ mod tests {
     #[test]
     fn test_sha256_bytes() {
         let hash = sha256_bytes(b"hello");
-        assert_eq!(hex::encode(&hash), "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+        assert_eq!(
+            hex::encode(&hash),
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        );
     }
 
     #[test]
@@ -1417,7 +1702,9 @@ mod tests {
         ]);
         let enriched = enrich_block_with_describe(&block);
         if let Value::Map(ref pairs) = enriched {
-            let text = pairs.iter().find(|(k, _)| matches!(k, Value::Text(s) if s == "_describe"));
+            let text = pairs
+                .iter()
+                .find(|(k, _)| matches!(k, Value::Text(s) if s == "_describe"));
             assert!(text.is_some());
         } else {
             panic!("Expected map");
@@ -1432,7 +1719,9 @@ mod tests {
         ]);
         let enriched = enrich_block_with_describe(&block);
         if let Value::Map(ref pairs) = enriched {
-            let describe = pairs.iter().find(|(k, _)| matches!(k, Value::Text(s) if s == "_describe"));
+            let describe = pairs
+                .iter()
+                .find(|(k, _)| matches!(k, Value::Text(s) if s == "_describe"));
             // Short paragraphs have no _describe (line 837)
             assert!(describe.is_none());
         }
@@ -1447,7 +1736,9 @@ mod tests {
         ]);
         let enriched = enrich_block_with_describe(&block);
         if let Value::Map(ref pairs) = enriched {
-            let describe = pairs.iter().find(|(k, _)| matches!(k, Value::Text(s) if s == "_describe"));
+            let describe = pairs
+                .iter()
+                .find(|(k, _)| matches!(k, Value::Text(s) if s == "_describe"));
             assert!(describe.is_some());
         }
     }

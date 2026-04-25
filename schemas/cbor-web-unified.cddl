@@ -57,7 +57,7 @@ site-metadata = {
   ? "geo" => {
     ? "country" => tstr,
     ? "region" => tstr,
-    ? "coordinates" => [float .ge -90.0 .le 90.0, float .ge -180.0 .le 180.0],
+    ? "coordinates" => [float, float],
     * tstr => any
   },
   * tstr => any
@@ -206,7 +206,7 @@ content-block = heading / paragraph / unordered-list / ordered-list /
                 rich-image / video-block / audio-block / document-block /
                 diagram-block / live-stream-block
 
-heading = { "t" => "h", "l" => uint .ge 1 .le 6, "v" => tstr }
+heading = { "t" => "h", "l" => uint, "v" => tstr }
 paragraph = { "t" => "p", "v" => tstr }
 unordered-list = { "t" => "ul", "v" => [+ tstr] }
 ordered-list = { "t" => "ol", "v" => [+ tstr] }

@@ -23,9 +23,11 @@ use clap::Parser;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
+use tower_http::compression::CompressionLayer;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::EnvFilter;
 
@@ -45,16 +47,71 @@ struct Cli {
     rate_limit: u32,
 }
 
+// ── Short code mapping (sync with worker.js SHORT) ──
+
+const SHORT_CODES: &[(&str, &str)] = &[
+    ("lfr", "laforetnousregale.fr"),
+    ("dtp", "deltopide.com"),
+    ("cbw", "cbor-web.com"),
+    ("cb2", "cborweb.com"),
+    ("cbo", "cborweb.org"),
+    ("cbs", "cbor-web.site"),
+    ("cbt", "cbor-web.tech"),
+    ("cbf", "cbor-web.fr"),
+    ("edv", "explodev.com"),
+    ("edf", "explodev.fr"),
+    ("edo", "explodev.org"),
+    ("eds", "explodev.site"),
+    ("edt", "explodev.tech"),
+    ("edw", "explodev.website"),
+    ("vta", "verdetao.fr"),
+    ("vtb", "verdetao.be"),
+    ("vtd", "verdetao.de"),
+    ("vte", "verdetao.eu"),
+    ("vts", "verdetao.es"),
+    ("cbd", "californiacbd.fr"),
+    ("cbe", "californiacbd.es"),
+    ("clc", "californialovecbd.es"),
+    ("cls", "californialovecbd.site"),
+    ("cle", "californialove.es"),
+    ("mjc", "mariejeannecbd.fr"),
+    ("mje", "mariejeannecbd.es"),
+    ("fcc", "fanaticodelcbd.com"),
+    ("fce", "fanaticodelcbd.es"),
+    ("bcc", "bienestarcosmeticacbd.es"),
+    ("bcf", "bienetrecosmetiquecbd.fr"),
+    ("amz", "amazingcbd.es"),
+    ("cas", "castelloconviu.es"),
+    ("cgm", "cargamipatinete.es"),
+    ("ptp", "preciotupatinete.es"),
+    ("rtc", "ritueletcalme.com"),
+    ("cau", "courtiers-auto.com"),
+    ("dts", "deltopide.site"),
+    ("wbc", "wellbeingcosmeticcbd.com"),
+];
+
+fn short_for_domain(domain: &str) -> Option<&'static str> {
+    SHORT_CODES
+        .iter()
+        .find(|(_, d)| *d == domain)
+        .map(|(c, _)| *c)
+}
+
 // ── State ──
 
 struct RateLimiter {
     max_per_sec: u32,
     buckets: Mutex<HashMap<String, (Instant, u32)>>,
+    last_prune: Mutex<Instant>,
 }
 
 impl RateLimiter {
     fn new(max_per_sec: u32) -> Self {
-        Self { max_per_sec, buckets: Mutex::new(HashMap::new()) }
+        Self {
+            max_per_sec,
+            buckets: Mutex::new(HashMap::new()),
+            last_prune: Mutex::new(Instant::now()),
+        }
     }
 
     async fn check(&self, ip: &str) -> bool {
@@ -63,6 +120,7 @@ impl RateLimiter {
         let entry = buckets.entry(ip.to_string()).or_insert((now, 0));
         if now.duration_since(entry.0) >= Duration::from_secs(1) {
             *entry = (now, 1);
+            self.prune_if_needed(&mut buckets, now);
             true
         } else if entry.1 < self.max_per_sec {
             entry.1 += 1;
@@ -70,6 +128,21 @@ impl RateLimiter {
         } else {
             false
         }
+    }
+
+    fn prune_if_needed(&self, buckets: &mut HashMap<String, (Instant, u32)>, now: Instant) {
+        if buckets.len() < 5000 {
+            return;
+        }
+        let mut last_prune = match self.last_prune.try_lock() {
+            Ok(guard) => guard,
+            Err(_) => return,
+        };
+        if now.duration_since(*last_prune) < Duration::from_secs(60) {
+            return;
+        }
+        *last_prune = now;
+        buckets.retain(|_, (t, _)| now.duration_since(*t) < Duration::from_secs(300));
     }
 }
 
@@ -81,6 +154,7 @@ struct AppState {
     doléance_path: PathBuf,
     page_snapshots: Mutex<HashMap<String, HashMap<String, String>>>,
     started_at: std::time::Instant,
+    hit_count: AtomicU64,
 }
 
 // ── Rate-limit middleware ──
@@ -129,6 +203,17 @@ async fn auth_mw(
     next.run(request).await
 }
 
+// ── Hit counter middleware ──
+
+async fn hit_counter_mw(
+    State(state): State<Arc<AppState>>,
+    request: axum::extract::Request,
+    next: Next,
+) -> Response {
+    state.hit_count.fetch_add(1, Ordering::Relaxed);
+    next.run(request).await
+}
+
 // ── Manifest endpoint ──
 
 async fn serve_manifest(
@@ -172,7 +257,9 @@ async fn serve_page(
     }
     let dir = host_dir(&state, &headers);
     let path = dir.join(".well-known/cbor-web/pages").join(&safe);
-    serve_file(&path).await.unwrap_or_else(|| (StatusCode::NOT_FOUND, "Not Found").into_response())
+    serve_file(&path)
+        .await
+        .unwrap_or_else(|| (StatusCode::NOT_FOUND, "Not Found").into_response())
 }
 
 // ── Bundle endpoint ──
@@ -187,7 +274,9 @@ async fn serve_bundle(
     }
     let dir = host_dir(&state, &headers);
     let path = dir.join(".well-known/cbor-web/bundle.cbor");
-    serve_file(&path).await.unwrap_or_else(|| (StatusCode::NOT_FOUND, "Not Found").into_response())
+    serve_file(&path)
+        .await
+        .unwrap_or_else(|| (StatusCode::NOT_FOUND, "Not Found").into_response())
 }
 
 // ── Doléance endpoint ──
@@ -209,7 +298,8 @@ async fn receive_doleance(
         return (
             StatusCode::UNSUPPORTED_MEDIA_TYPE,
             "Expected Content-Type: application/cbor",
-        ).into_response();
+        )
+            .into_response();
     }
     let mut entry = serde_json::Map::new();
     let ts = std::time::SystemTime::now()
@@ -240,7 +330,9 @@ async fn receive_doleance(
         if dols.len() % 10 == 0 {
             let path = state.doléance_path.clone();
             let data = serde_json::to_vec_pretty(&dols.clone()).unwrap_or_default();
-            tokio::spawn(async move { let _ = tokio::fs::write(&path, &data).await; });
+            tokio::spawn(async move {
+                let _ = tokio::fs::write(&path, &data).await;
+            });
         }
     }
     (StatusCode::ACCEPTED, "Doléance received").into_response()
@@ -272,7 +364,8 @@ async fn list_doleances(
         StatusCode::OK,
         [(header::CONTENT_TYPE, "application/json")],
         serde_json::to_vec_pretty(&body).unwrap_or_default(),
-    ).into_response()
+    )
+        .into_response()
 }
 
 // ── Health endpoint (GET /health) ──
@@ -283,17 +376,20 @@ async fn health_check(State(state): State<Arc<AppState>>, method: Method) -> Res
     }
     let uptime = state.started_at.elapsed().as_secs();
     let dol_count = state.doléances.lock().await.len();
+    let hits = state.hit_count.load(Ordering::Relaxed);
     let body = serde_json::json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
         "uptime_secs": uptime,
         "doleances_received": dol_count,
+        "requests_total": hits,
     });
     (
         StatusCode::OK,
         [(header::CONTENT_TYPE, "application/json")],
         serde_json::to_vec_pretty(&body).unwrap_or_default(),
-    ).into_response()
+    )
+        .into_response()
 }
 
 // ── Diff endpoint ──
@@ -314,7 +410,13 @@ async fn serve_diff(
     }
     let base_hash = match query.base {
         Some(ref h) if h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit()) => h.clone(),
-        _ => return (StatusCode::BAD_REQUEST, "Missing or invalid ?base=<sha256-hex>").into_response(),
+        _ => {
+            return (
+                StatusCode::BAD_REQUEST,
+                "Missing or invalid ?base=<sha256-hex>",
+            )
+                .into_response()
+        }
     };
     let dir = host_dir(&state, &headers);
     let paths = [
@@ -329,7 +431,10 @@ async fn serve_diff(
                 break;
             }
         }
-        match found { Some(b) => b, None => return not_found() }
+        match found {
+            Some(b) => b,
+            None => return not_found(),
+        }
     };
     let current_hash = sha256_hex(&current_bytes);
 
@@ -359,7 +464,9 @@ async fn serve_diff(
             for (path, hash) in &current_pages {
                 match base.get(path) {
                     None => added_list.push((path.clone(), "added")),
-                    Some(old_hash) if old_hash != hash => modified_list.push((path.clone(), "modified")),
+                    Some(old_hash) if old_hash != hash => {
+                        modified_list.push((path.clone(), "modified"))
+                    }
                     _ => {}
                 }
             }
@@ -369,12 +476,23 @@ async fn serve_diff(
                 }
             }
 
-            let changes: Vec<ciborium::Value> = added_list.iter().map(|(p, _)| change_entry(p, "added"))
-                .chain(modified_list.iter().map(|(p, _)| change_entry(p, "modified")))
+            let changes: Vec<ciborium::Value> = added_list
+                .iter()
+                .map(|(p, _)| change_entry(p, "added"))
+                .chain(
+                    modified_list
+                        .iter()
+                        .map(|(p, _)| change_entry(p, "modified")),
+                )
                 .chain(removed_list.iter().map(|(p, _)| change_entry(p, "removed")))
                 .collect();
 
-            (added_list.len() as u64, modified_list.len() as u64, removed_list.len() as u64, changes)
+            (
+                added_list.len() as u64,
+                modified_list.len() as u64,
+                removed_list.len() as u64,
+                changes,
+            )
         }
         None => (0, 0, 0, vec![]),
     };
@@ -393,7 +511,10 @@ async fn serve_diff(
                 (cv_text("pages_added"), cv_int(added)),
                 (cv_text("pages_modified"), cv_int(modified)),
                 (cv_text("pages_removed"), cv_int(removed)),
-                (cv_text("total_pages_now"), cv_int(current_pages.len() as u64)),
+                (
+                    cv_text("total_pages_now"),
+                    cv_int(current_pages.len() as u64),
+                ),
             ]),
         ),
         (cv_text("changes"), ciborium::Value::Array(changes)),
@@ -402,10 +523,7 @@ async fn serve_diff(
     if ciborium::into_writer(&diff, &mut buf).is_ok() {
         return cbor_response(&buf, &format!("\"{}\"", sha256_hex(&buf)));
     }
-    (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        "Failed to encode diff",
-    ).into_response()
+    (StatusCode::INTERNAL_SERVER_ERROR, "Failed to encode diff").into_response()
 }
 
 fn change_entry(path: &str, action: &str) -> ciborium::Value {
@@ -448,7 +566,10 @@ fn extract_pages_from_manifest(data: &[u8]) -> HashMap<String, String> {
     result
 }
 
-fn get_map_key<'a>(entries: &'a [(ciborium::Value, ciborium::Value)], key: &ciborium::Value) -> Option<&'a ciborium::Value> {
+fn get_map_key<'a>(
+    entries: &'a [(ciborium::Value, ciborium::Value)],
+    key: &ciborium::Value,
+) -> Option<&'a ciborium::Value> {
     entries.iter().find(|(k, _)| k == key).map(|(_, v)| v)
 }
 
@@ -476,8 +597,12 @@ fn find_bytes<'a>(pairs: &'a [(ciborium::Value, ciborium::Value)], key: &str) ->
 
 // ── Helpers ──
 
-fn cv_int(n: u64) -> ciborium::Value { ciborium::Value::Integer(n.into()) }
-fn cv_text(s: &str) -> ciborium::Value { ciborium::Value::Text(s.into()) }
+fn cv_int(n: u64) -> ciborium::Value {
+    ciborium::Value::Integer(n.into())
+}
+fn cv_text(s: &str) -> ciborium::Value {
+    ciborium::Value::Text(s.into())
+}
 
 fn cbor_response(data: &[u8], etag: &str) -> Response {
     (
@@ -488,20 +613,20 @@ fn cbor_response(data: &[u8], etag: &str) -> Response {
             (header::CACHE_CONTROL, "public, max-age=3600"),
         ],
         data.to_vec(),
-    ).into_response()
+    )
+        .into_response()
 }
 
-fn not_found() -> Response { (StatusCode::NOT_FOUND, "Not Found").into_response() }
+fn not_found() -> Response {
+    (StatusCode::NOT_FOUND, "Not Found").into_response()
+}
 
 fn host_dir(state: &AppState, headers: &HeaderMap) -> PathBuf {
     let base = state.data_dir.parent().unwrap_or(&state.data_dir);
 
     // Check X-CBOR-Domain override header (for edge proxy path-based routing)
     // If present but site doesn't exist, return data_dir (→ 404) instead of falling back to Host
-    if let Some(domain) = headers
-        .get("X-CBOR-Domain")
-        .and_then(|v| v.to_str().ok())
-    {
+    if let Some(domain) = headers.get("X-CBOR-Domain").and_then(|v| v.to_str().ok()) {
         let site_dir = base.join("sites").join(domain);
         if site_dir.exists() {
             return site_dir;
@@ -575,7 +700,9 @@ fn cbor_to_json(value: &ciborium::Value) -> serde_json::Value {
         ciborium::Value::Null => serde_json::json!(null),
         ciborium::Value::Float(f) => serde_json::json!(f),
         ciborium::Value::Bytes(b) => serde_json::json!(hex::encode(b)),
-        ciborium::Value::Array(arr) => serde_json::json!(arr.iter().map(cbor_to_json).collect::<Vec<_>>()),
+        ciborium::Value::Array(arr) => {
+            serde_json::json!(arr.iter().map(cbor_to_json).collect::<Vec<_>>())
+        }
         ciborium::Value::Map(entries) => {
             let mut map = serde_json::Map::new();
             for (k, v) in entries {
@@ -589,8 +716,11 @@ fn cbor_to_json(value: &ciborium::Value) -> serde_json::Value {
             serde_json::Value::Object(map)
         }
         ciborium::Value::Tag(tag, inner) => {
-            if *tag == 1 { cbor_to_json(inner) }
-            else { serde_json::json!({"_tag": tag, "_value": cbor_to_json(inner)}) }
+            if *tag == 1 {
+                cbor_to_json(inner)
+            } else {
+                serde_json::json!({"_tag": tag, "_value": cbor_to_json(inner)})
+            }
         }
         _ => serde_json::json!(null),
     }
@@ -598,63 +728,230 @@ fn cbor_to_json(value: &ciborium::Value) -> serde_json::Value {
 
 // ── Dashboard (GET /) ──
 
+// ── Dashboard (A) ──
+
 async fn serve_dashboard(State(state): State<Arc<AppState>>) -> Response {
     let base = state.data_dir.parent().unwrap_or(&state.data_dir);
     let sites_dir = base.join("sites");
     let mut sites = Vec::new();
+    let mut total_pages: u64 = 0;
+    let mut total_size: u64 = 0;
 
     if let Ok(mut entries) = tokio::fs::read_dir(&sites_dir).await {
         while let Ok(Some(entry)) = entries.next_entry().await {
             let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with('.') { continue; }
+            if name.starts_with('.') {
+                continue;
+            }
             let manifest = entry.path().join(".well-known/cbor-web/manifest.cbor");
             let index = entry.path().join("index.cbor");
             let has_manifest = manifest.exists();
             let has_index = index.exists();
             if has_manifest || has_index {
+                let dir_path = entry.path();
+                let mut page_count: u64 = 0;
+                let pages_dir = dir_path.join(".well-known/cbor-web/pages");
+                if let Ok(mut pents) = tokio::fs::read_dir(&pages_dir).await {
+                    while let Ok(Some(_)) = pents.next_entry().await {
+                        page_count += 1;
+                    }
+                }
                 let size = if has_manifest {
-                    tokio::fs::metadata(&manifest).await.map(|m| m.len()).unwrap_or(0)
+                    tokio::fs::metadata(&manifest)
+                        .await
+                        .map(|m| m.len())
+                        .unwrap_or(0)
                 } else {
-                    tokio::fs::metadata(&index).await.map(|m| m.len()).unwrap_or(0)
+                    tokio::fs::metadata(&index)
+                        .await
+                        .map(|m| m.len())
+                        .unwrap_or(0)
                 };
-                let format = if has_manifest { "v2.1 full" } else { "index.cbor" };
-                sites.push((name, format.to_string(), size));
+                let format = if has_manifest { "v2.1" } else { "index" };
+                let code = short_for_domain(&name).unwrap_or("-");
+                total_pages += page_count;
+                total_size += size;
+                sites.push((name, format.to_string(), size, page_count, code.to_string()));
             }
         }
     }
     sites.sort_by(|a, b| a.0.cmp(&b.0));
 
-    let mut html = String::from(r#"<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>CBOR-Web Server</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,monospace;background:#0a0a0a;color:#e0e0e0;padding:2rem}h1{color:#f97316;margin-bottom:.5rem}h1 span{color:#fff}.sub{color:#888;margin-bottom:2rem}table{width:100%;border-collapse:collapse;margin:1rem 0}th{text-align:left;padding:.5rem;color:#888;border-bottom:1px solid #333;font-size:.8rem}td{padding:.5rem;border-bottom:1px solid #1a1a1a;font-size:.9rem}td a{color:#f97316;text-decoration:none}td a:hover{text-decoration:underline}.g{color:#28c840}.w{color:#f97316}.foot{margin-top:3rem;color:#444;font-size:.7rem}</style></head><body><h1>CBOR-<span>Web</span> Server</h1><p class="sub">Binary Web Content for Autonomous AI Agents — RFC 8949</p>"#);
+    let hits = state.hit_count.load(Ordering::Relaxed);
 
-    html.push_str(&format!(
-        "<p>{} sites — <a href=\"/.well-known/cbor-web\">manifest</a> · <a href=\"/health\">health</a> · <a href=\"https://github.com/ploteddie-bit/cbor-web\">GitHub</a></p><table><tr><th>Domain</th><th>Format</th><th>Size</th><th>Endpoints</th></tr>",
-        sites.len()
-    ));
+    let style = "*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,monospace;background:#0a0a0a;color:#e0e0e0;padding:2rem}h1{color:#f97316;margin-bottom:.5rem}h1 span{color:#fff}.sub{color:#888;margin-bottom:1.5rem}.statb{display:flex;gap:2rem;flex-wrap:wrap;margin:1rem 0}.stat{background:#111;padding:1rem;border-radius:8px;min-width:120px}.stat .n{font-size:2rem;color:#f97316;font-weight:700}.stat .l{color:#666;font-size:.8rem}table{width:100%;border-collapse:collapse;margin:1.5rem 0}th{text-align:left;padding:.5rem .8rem;color:#888;border-bottom:1px solid #333;font-size:.75rem;text-transform:uppercase}td{padding:.5rem .8rem;border-bottom:1px solid #1a1a1a;font-size:.85rem}td a,a{color:#f97316;text-decoration:none}td a:hover,a:hover{text-decoration:underline}.code{background:#1a1a1a;color:#28c840;padding:1px 6px;border-radius:3px;font-size:.75rem;font-family:monospace}.nav{margin-bottom:1.5rem}.nav a{margin-right:1.5rem}.foot{margin-top:3rem;color:#444;font-size:.7rem}";
 
-    for (domain, format, size) in &sites {
+    let mut html = format!(
+        "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"><title>CBOR-Web Server</title><style>{style}</style></head><body><h1>CBOR-<span>Web</span></h1><p class=\"sub\">Binary Web Content for AI Agents — RFC 8949 — 38 sites live</p><div class=\"nav\"><a href=\"/\">Dashboard</a><a href=\"/codes\">Short Codes</a><a href=\"/health\">Health</a><a href=\"/.well-known/cbor-web\">Manifest</a><a href=\"https://github.com/ploteddie-bit/cbor-web\">GitHub</a></div><div class=\"statb\"><div class=\"stat\"><div class=\"n\">{}</div><div class=\"l\">Sites</div></div><div class=\"stat\"><div class=\"n\">{}</div><div class=\"l\">Pages CBOR</div></div><div class=\"stat\"><div class=\"n\">{}</div><div class=\"l\">Total</div></div><div class=\"stat\"><div class=\"n\">{}</div><div class=\"l\">Requests</div></div></div>",
+        sites.len(), total_pages, format_size(total_size), hits
+    );
+
+    html.push_str("<table><tr><th>Domain</th><th>Format</th><th>Pages</th><th>Short</th><th>Endpoints</th></tr>");
+    for (domain, format, _size, pages, code) in &sites {
+        let code_html = if code != "-" {
+            format!("<span class=\"code\">/{}/</span>", code)
+        } else {
+            "-".to_string()
+        };
         html.push_str(&format!(
-            "<tr><td><a href=\"https://{0}\">{0}</a></td><td>{1}</td><td>{2}</td><td><a href=\"/.well-known/cbor-web\">manifest</a> · <a href=\"/.well-known/cbor-web/bundle\">bundle</a></td></tr>",
-            domain, format, format_size(*size)
+            "<tr><td><a href=\"https://{0}\">{0}</a></td><td>{1}</td><td>{2}</td><td>{3}</td><td><a href=\"/.well-known/cbor-web\">manifest</a> <a href=\"/.well-known/cbor-web/bundle\">bundle</a></td></tr>",
+            domain, format, pages, code_html
         ));
     }
+    html.push_str("</table>");
+    html.push_str(&format!(
+        "<div class=\"foot\">cbor-server v{} — ExploDev 2026</div></body></html>",
+        env!("CARGO_PKG_VERSION")
+    ));
 
-    html.push_str("</table><div class=\"foot\">CBOR-Web Server v");
-    html.push_str(env!("CARGO_PKG_VERSION"));
-    html.push_str(" — ExploDev 2026</div></body></html>");
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        html,
+    )
+        .into_response()
+}
 
-    (StatusCode::OK, [(header::CONTENT_TYPE, "text/html; charset=utf-8")], html).into_response()
+// ── Short codes page (B) ──
+
+async fn serve_codes(State(state): State<Arc<AppState>>) -> Response {
+    let base = state.data_dir.parent().unwrap_or(&state.data_dir);
+    let sites_dir = base.join("sites");
+    let mut deployed: Vec<String> = Vec::new();
+    if let Ok(mut entries) = tokio::fs::read_dir(&sites_dir).await {
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            deployed.push(entry.file_name().to_string_lossy().to_string());
+        }
+    }
+
+    let style = "*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,monospace;background:#0a0a0a;color:#e0e0e0;padding:2rem}h1{color:#f97316;margin-bottom:.5rem}.sub{color:#888;margin-bottom:1.5rem}.nav{margin-bottom:1.5rem}.nav a{margin-right:1.5rem;color:#f97316;text-decoration:none}table{width:100%;border-collapse:collapse}th{text-align:left;padding:.5rem;color:#888;border-bottom:1px solid #333;font-size:.75rem}td{padding:.5rem;border-bottom:1px solid #1a1a1a;font-size:.85rem}code{color:#28c840;font-size:.85rem}a{color:#f97316;text-decoration:none}a:hover{text-decoration:underline}.on{color:#28c840}.off{color:#666}.foot{margin-top:3rem;color:#444;font-size:.7rem}";
+
+    let mut html = format!(
+        "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"><title>Short Codes · CBOR-Web</title><style>{style}</style></head><body><h1>Short <span style=\"color:#fff\">Codes</span></h1><p class=\"sub\">3-letter aliases → Edge Worker CDN URLs</p><div class=\"nav\"><a href=\"/\">Dashboard</a><a href=\"/codes\">Short Codes</a><a href=\"/health\">Health</a></div><p style=\"color:#888;margin-bottom:1rem\">Worker URL pattern: <code>https://cbor-web.explodev.workers.dev/<b>code</b>/path</code></p><table><tr><th>Code</th><th>Domain</th><th>Status</th><th>Quick Links</th></tr>"
+    );
+
+    for (code, domain) in SHORT_CODES {
+        let deployed = deployed.iter().any(|d| d == domain);
+        let status = if deployed {
+            "<span class=\"on\">deployed</span>"
+        } else {
+            "<span class=\"off\">pending</span>"
+        };
+        let links = if deployed {
+            format!("<a href=\"https://cbor-web.explodev.workers.dev/{0}/\">/{0}/</a> <a href=\"https://cbor-web.explodev.workers.dev/{0}/.well-known/cbor-web\">manifest</a>", code)
+        } else {
+            "-".to_string()
+        };
+        html.push_str(&format!(
+            "<tr><td><code>{0}</code></td><td><a href=\"https://{1}\">{1}</a></td><td>{2}</td><td>{3}</td></tr>",
+            code, domain, status, links
+        ));
+    }
+    html.push_str("</table>");
+    html.push_str(&format!(
+        "<div class=\"foot\">cbor-server v{} — ExploDev 2026</div></body></html>",
+        env!("CARGO_PKG_VERSION")
+    ));
+
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        html,
+    )
+        .into_response()
+}
+
+// ── Cross-domain search (D) ──
+
+#[derive(serde::Serialize)]
+struct SearchResult {
+    domain: String,
+    path: String,
+    snippet: String,
+}
+
+async fn serve_search(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<HashMap<String, String>>,
+) -> Response {
+    let q = match params.get("q").filter(|s| !s.is_empty()) {
+        Some(v) => v.to_lowercase(),
+        None => return (StatusCode::BAD_REQUEST, "Missing ?q= parameter").into_response(),
+    };
+    if q.len() < 2 {
+        return (StatusCode::BAD_REQUEST, "Query too short (min 2 chars)").into_response();
+    }
+
+    let base = state.data_dir.parent().unwrap_or(&state.data_dir);
+    let sites_dir = base.join("sites");
+    let mut results: Vec<SearchResult> = Vec::new();
+
+    if let Ok(mut entries) = tokio::fs::read_dir(&sites_dir).await {
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            let domain = entry.file_name().to_string_lossy().to_string();
+            let pages_dir = entry.path().join(".well-known/cbor-web/pages");
+            if !pages_dir.exists() {
+                continue;
+            }
+            if let Ok(mut pents) = tokio::fs::read_dir(&pages_dir).await {
+                while let Ok(Some(pent)) = pents.next_entry().await {
+                    let path = pent.file_name().to_string_lossy().to_string();
+                    if let Ok(data) = tokio::fs::read(pent.path()).await {
+                        let text = String::from_utf8_lossy(&data).to_lowercase();
+                        if let Some(pos) = text.find(&q) {
+                            let start = pos.saturating_sub(30);
+                            let end = (pos + q.len() + 50).min(text.len());
+                            let raw_snippet = &text[start..end];
+                            let snippet = format!("...{}...", raw_snippet.replace('\n', " "));
+                            results.push(SearchResult {
+                                domain: domain.clone(),
+                                path: path.clone(),
+                                snippet,
+                            });
+                            if results.len() >= 20 {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if results.len() >= 20 {
+                break;
+            }
+        }
+    }
+
+    let json = serde_json::to_string(&serde_json::json!({
+        "query": q,
+        "results": results.len(),
+        "hits": results,
+    }))
+    .unwrap_or_default();
+
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "application/json")],
+        json,
+    )
+        .into_response()
 }
 
 fn format_size(bytes: u64) -> String {
-    if bytes >= 1_000_000 { format!("{:.1} MB", bytes as f64 / 1_000_000.0) }
-    else if bytes >= 1_000 { format!("{:.1} KB", bytes as f64 / 1_000.0) }
-    else { format!("{} B", bytes) }
+    if bytes >= 1_000_000 {
+        format!("{:.1} MB", bytes as f64 / 1_000_000.0)
+    } else if bytes >= 1_000 {
+        format!("{:.1} KB", bytes as f64 / 1_000.0)
+    } else {
+        format!("{} B", bytes)
+    }
 }
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        )
         .init();
 
     let cli = Cli::parse();
@@ -681,6 +978,7 @@ async fn main() {
         doléance_path: doléance_path.clone(),
         page_snapshots: Mutex::new(HashMap::new()),
         started_at: std::time::Instant::now(),
+        hit_count: AtomicU64::new(0),
     });
 
     let cors = CorsLayer::new()
@@ -691,22 +989,34 @@ async fn main() {
     let app = Router::new()
         .route("/", get(serve_dashboard))
         .route("/health", get(health_check).head(health_check))
+        .route("/codes", get(serve_codes))
+        .route("/search", get(serve_search))
         .route("/doleance", axum::routing::post(receive_doleance))
         .route("/diff", get(serve_diff).head(serve_diff))
-        .nest("/.well-known/cbor-web", Router::new()
-            .route("/", get(serve_manifest).head(serve_manifest))
-            .route("/pages/:filename", get(serve_page).head(serve_page))
-            .route("/bundle", get(serve_bundle).head(serve_bundle))
-            .route("/doleance", axum::routing::post(receive_doleance))
-            .route("/doleance/list", get(list_doleances))
-            .route("/diff", get(serve_diff).head(serve_diff))
-            .layer(middleware::from_fn_with_state(state.clone(), auth_mw))
+        .nest(
+            "/.well-known/cbor-web",
+            Router::new()
+                .route("/", get(serve_manifest).head(serve_manifest))
+                .route("/pages/:filename", get(serve_page).head(serve_page))
+                .route("/bundle", get(serve_bundle).head(serve_bundle))
+                .route("/doleance", axum::routing::post(receive_doleance))
+                .route("/doleance/list", get(list_doleances))
+                .route("/diff", get(serve_diff).head(serve_diff))
+                .layer(middleware::from_fn_with_state(state.clone(), auth_mw)),
         )
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            hit_counter_mw,
+        ))
         .layer(middleware::from_fn_with_state(state.clone(), rate_limit_mw))
+        .layer(CompressionLayer::new())
         .layer(cors)
         .with_state(state.clone());
 
-    tracing::info!("cbor-server v{} — CBOR-Web HTTP server", env!("CARGO_PKG_VERSION"));
+    tracing::info!(
+        "cbor-server v{} — CBOR-Web HTTP server",
+        env!("CARGO_PKG_VERSION")
+    );
     tracing::info!("Data dir: {}", cli.data.display());
     tracing::info!("Listening on {}", cli.listen);
     if cli.token.is_some() {
@@ -716,7 +1026,9 @@ async fn main() {
     }
     tracing::info!("Rate limit: {} req/s per IP", cli.rate_limit);
 
-    let listener = tokio::net::TcpListener::bind(&cli.listen).await.expect("Failed to bind");
+    let listener = tokio::net::TcpListener::bind(&cli.listen)
+        .await
+        .expect("Failed to bind");
     axum::serve(listener, app).await.expect("Server error");
 }
 
@@ -738,6 +1050,7 @@ mod tests {
             doléance_path: PathBuf::from("data/.doleances.json"),
             page_snapshots: Mutex::new(HashMap::new()),
             started_at: std::time::Instant::now(),
+            hit_count: AtomicU64::new(0),
         })
     }
 
@@ -748,14 +1061,23 @@ mod tests {
             .allow_origin(Any);
 
         Router::new()
-            .nest("/.well-known/cbor-web", Router::new()
-                .route("/", get(serve_manifest).head(serve_manifest))
-                .route("/pages/:filename", get(serve_page).head(serve_page))
-                .route("/bundle", get(serve_bundle).head(serve_bundle))
-                .route("/doleance", axum::routing::post(receive_doleance))
-                .route("/doleance/list", get(list_doleances))
-                .route("/diff", get(serve_diff).head(serve_diff))
+            .route("/", get(serve_dashboard))
+            .route("/codes", get(serve_codes))
+            .route("/search", get(serve_search))
+            .nest(
+                "/.well-known/cbor-web",
+                Router::new()
+                    .route("/", get(serve_manifest).head(serve_manifest))
+                    .route("/pages/:filename", get(serve_page).head(serve_page))
+                    .route("/bundle", get(serve_bundle).head(serve_bundle))
+                    .route("/doleance", axum::routing::post(receive_doleance))
+                    .route("/doleance/list", get(list_doleances))
+                    .route("/diff", get(serve_diff).head(serve_diff)),
             )
+            .layer(middleware::from_fn_with_state(
+                state.clone(),
+                hit_counter_mw,
+            ))
             .layer(cors)
             .with_state(state)
     }
@@ -763,56 +1085,125 @@ mod tests {
     #[tokio::test]
     async fn manifest_returns_200() {
         let app = test_router(test_state());
-        let resp = app.oneshot(Request::builder().uri("/.well-known/cbor-web").body(Body::empty()).unwrap()).await.unwrap();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/.well-known/cbor-web")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
     }
 
     #[tokio::test]
     async fn manifest_returns_cbor_content_type() {
         let app = test_router(test_state());
-        let resp = app.oneshot(Request::builder().uri("/.well-known/cbor-web").body(Body::empty()).unwrap()).await.unwrap();
-        assert_eq!(resp.headers().get("content-type").unwrap(), "application/cbor");
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/.well-known/cbor-web")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            resp.headers().get("content-type").unwrap(),
+            "application/cbor"
+        );
     }
 
     #[tokio::test]
     async fn bundle_returns_200() {
         let app = test_router(test_state());
-        let resp = app.oneshot(Request::builder().uri("/.well-known/cbor-web/bundle").body(Body::empty()).unwrap()).await.unwrap();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/.well-known/cbor-web/bundle")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
     }
 
     #[tokio::test]
     async fn nonexistent_page_returns_404() {
         let app = test_router(test_state());
-        let resp = app.oneshot(Request::builder().uri("/.well-known/cbor-web/pages/zzz_nope.cbor").body(Body::empty()).unwrap()).await.unwrap();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/.well-known/cbor-web/pages/zzz_nope.cbor")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]
     async fn diff_without_base_returns_400() {
         let app = test_router(test_state());
-        let resp = app.oneshot(Request::builder().uri("/.well-known/cbor-web/diff").body(Body::empty()).unwrap()).await.unwrap();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/.well-known/cbor-web/diff")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 
     #[tokio::test]
     async fn doleance_wrong_method_returns_405() {
         let app = test_router(test_state());
-        let resp = app.oneshot(Request::builder().method(Method::GET).uri("/.well-known/cbor-web/doleance").body(Body::empty()).unwrap()).await.unwrap();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/.well-known/cbor-web/doleance")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
         assert_eq!(resp.status(), StatusCode::METHOD_NOT_ALLOWED);
     }
 
     #[tokio::test]
     async fn doleance_list_returns_200() {
         let app = test_router(test_state());
-        let resp = app.oneshot(Request::builder().uri("/.well-known/cbor-web/doleance/list").body(Body::empty()).unwrap()).await.unwrap();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/.well-known/cbor-web/doleance/list")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
     }
 
     #[tokio::test]
     async fn doleance_post_without_cbor_type_returns_415() {
         let app = test_router(test_state());
-        let resp = app.oneshot(Request::builder().method(Method::POST).uri("/.well-known/cbor-web/doleance").body(Body::empty()).unwrap()).await.unwrap();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/.well-known/cbor-web/doleance")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
         assert_eq!(resp.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
     }
 
@@ -823,14 +1214,17 @@ mod tests {
 
         // Create a minimal valid CBOR payload: empty map = 0xA0
         let cbor_body = vec![0xA0u8];
-        let resp = app.oneshot(
-            Request::builder()
-                .method(Method::POST)
-                .uri("/.well-known/cbor-web/doleance")
-                .header("content-type", "application/cbor")
-                .body(Body::from(cbor_body))
-                .unwrap()
-        ).await.unwrap();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/.well-known/cbor-web/doleance")
+                    .header("content-type", "application/cbor")
+                    .body(Body::from(cbor_body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
         assert_eq!(resp.status(), StatusCode::ACCEPTED);
 
         // Verify it's in the list

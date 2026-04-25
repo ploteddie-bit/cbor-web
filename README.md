@@ -54,12 +54,30 @@ A real-world benchmark on a 49-page site: **1.63 MB HTML → 878 KB CBOR bundle*
 
 | Tool | Language | Purpose |
 |------|----------|---------|
-| [`tools/text2cbor`](tools/text2cbor/) | Rust | Convert HTML websites → CBOR-Web (manifest, bundle, pages) |
+| [`tools/text2cbor`](tools/text2cbor/) | Rust | Convert HTML websites → CBOR-Web (manifest, bundle, pages, quality metrics) |
 | [`tools/cbor-crawl`](tools/cbor-crawl/) | Rust | AI agent crawler: discover, fetch, search, diff, send doléance |
-| [`tools/cbor-server`](tools/cbor-server/) | Rust | Reference HTTP server: well-known endpoints, doléance receiver, rate limiting |
-| [`tools/cbor-vectors`](tools/cbor-vectors/) | Rust | Generate binary test vectors |
-| [`clients/python/cborweb`](clients/python/) | Python | Zero-dependency AI agent client (manifest, bundle, search, feedback) |
-| [`tools/cbor-server/worker.js`](tools/cbor-server/worker.js) | JS | Cloudflare Worker for edge distribution + R2 |
+| [`tools/cbor-server`](tools/cbor-server/) | Rust | Reference HTTP server: well-known endpoints, doléance receiver, rate limiting, ETag, multi-domain |
+| [`tools/cbor-vectors`](tools/cbor-vectors/) | Rust | Generate 9 binary test vectors (manifest, page, product, bundle, nav, doléance, diff, security, multimedia) |
+| [`tools/cbor-server/worker.js`](tools/cbor-server/worker.js) | JS | Cloudflare Worker for edge CDN (38 short codes, 30s timeout, 50MB cap, 304 cache) |
+| [`scripts/benchmark.sh`](scripts/benchmark.sh) | Bash | Compression benchmark suite (HTML→CBOR ratios, token estimates, LLM cost) |
+| [`scripts/tokenomics-dashboard.py`](scripts/tokenomics-dashboard.py) | Python | Token value projections (3 scenarios, 36-month horizon) |
+
+## Client SDKs
+
+**8 languages, zero external dependencies.** Drop-in libraries for any stack.
+
+| Language | File | Purpose | Deps |
+|----------|------|---------|------|
+| **Python** | [`clients/python/cborweb/`](clients/python/) | AI agent client (manifest, bundle, search, doléance, diff) | stdlib only |
+| **TypeScript** | [`clients/typescript/cborweb.ts`](clients/typescript/cborweb.ts) | Web/Node.js/Deno/Bun | fetch only |
+| **React** | [`clients/react/`](clients/react/) | Hook + component (renders CBOR→JSX) | React 18+ |
+| **PHP** | [`clients/php/CborWeb.php`](clients/php/CborWeb.php) | WordPress, Laravel, Drupal | curl only |
+| **Go** | [`clients/go/cborweb.go`](clients/go/cborweb.go) | Microservices, Cloudflare Workers | stdlib only |
+| **Ruby** | [`clients/ruby/cborweb.rb`](clients/ruby/cborweb.rb) | Shopify, Jekyll, Rails | stdlib only |
+| **Java** | [`clients/java/CborWebClient.java`](clients/java/CborWebClient.java) | Enterprise, Spring, Android | stdlib only |
+| **C++** | [`clients/cpp/cborweb.hpp`](clients/cpp/cborweb.hpp) | IoT, embedded, native apps | POSIX sockets |
+
+Every SDK provides: `manifest()`, `page(path)`, `bundle()` + CBOR decoder + path encoding (§6.1).
 
 ## Quick Start
 
@@ -103,6 +121,7 @@ print(f'{manifest[\"site_name\"]} — {manifest[\"pages_count\"]} pages')
 | 5 | [CBOR-WEB-ECONOMICS.md](CBOR-WEB-ECONOMICS.md) | v2.1 | Token economics, smart contracts |
 | 6 | [CBOR-WEB-REFERENCE.md](CBOR-WEB-REFERENCE.md) | v2.1 | Unified CDDL, test vectors, glossary |
 | 7 | [CBOR-WEB-DOLEANCE.md](CBOR-WEB-DOLEANCE.md) | v1.0 | Agent feedback protocol |
+| — | [spec/draft-plot-cbor-web-00.md](spec/draft-plot-cbor-web-00.md) | I-D | IETF Internet-Draft (RFC-style, 12 sections, CDDL schema) |
 
 ## Production Deployment
 

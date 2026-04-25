@@ -47,8 +47,10 @@ class CBORWebClient:
         pages = data.get("pages", data)
         if isinstance(pages, dict):
             for path, page in pages.items():
-                title = page.get("title", "")
-                blocks = page.get("content", page.get("blocks", []))
+                title = page.get("title", "") or page.get("3", {}).get("title", "")
+                blocks = page.get("content") or page.get("4") or page.get("blocks") or []
+                if isinstance(blocks, dict):
+                    blocks = blocks.get("content") or blocks.get("4") or blocks.get("blocks") or []
                 matching = [b for b in blocks if self._block_matches(b, q)]
                 if matching or q in title.lower():
                     results.append({"path": path, "title": title, "matches": len(matching), "blocks": matching[:5]})
@@ -89,8 +91,11 @@ class CBORWebClient:
     # ── Reading (simplified protocol) ──
 
     def read(self, path: str = "/") -> dict:
-        """Read a full site via GET /index.cbor (simplified protocol)."""
-        return self._cbor_get("/index.cbor") if path == "/" else self._cbor_get("/index.cbor")
+        """Read a page using the simplified v3.0 protocol (index.cbor)."""
+        if path == "/":
+            return self._cbor_get("/index.cbor")
+        filename = self._path_to_filename(path)
+        return self._cbor_get(f"{self.WELL_KNOWN}/pages/{filename}")
 
     # ── Internal ──
 
@@ -183,11 +188,11 @@ class CBORWebClient:
             elif info == 21: return True, offset
             elif info == 22: return None, offset
             elif info == 25:
-                v = struct.unpack(">e", data[offset-1:offset+1])[0]; offset += 1; return v, offset
+                v = struct.unpack(">e", data[offset:offset+2])[0]; offset += 2; return v, offset
             elif info == 26:
-                v = struct.unpack(">f", data[offset-1:offset+3])[0]; offset += 3; return v, offset
+                v = struct.unpack(">f", data[offset:offset+4])[0]; offset += 4; return v, offset
             elif info == 27:
-                v = struct.unpack(">d", data[offset-1:offset+7])[0]; offset += 7; return v, offset
+                v = struct.unpack(">d", data[offset:offset+8])[0]; offset += 8; return v, offset
             return None, offset
         return None, offset
 

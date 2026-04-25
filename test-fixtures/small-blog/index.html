@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>CBOR-Web: Binary Web for AI Agents</title>
+<meta name="description" content="Why the web needs a binary format for machine-to-machine communication">
+<meta name="author" content="Eddie Plot">
+<link rel="stylesheet" href="/css/main.css">
+<script src="/js/analytics.js"></script>
+<script src="/js/nav.js"></script>
+</head>
+<body>
+<nav><a href="/">Home</a><a href="/blog">Blog</a><a href="/about">About</a></nav>
+<main>
+<article>
+<h1>CBOR-Web: Binary Web for AI Agents</h1>
+<p>Imaginez un monde où chaque agent IA peut lire l'intégralité du web en une seule requête. C'est ce que permet CBOR-Web : un format binaire standardisé qui réduit de 99% le bruit que les agents doivent traiter aujourd'hui.</p>
+<p>Le web a été conçu pour les humains. HTML est un format de présentation — il décrit comment afficher l'information, pas ce qu'elle signifie. Quand un agent IA lit une page HTML, il doit télécharger et analyser des centaines de kilooctets de CSS, JavaScript, et balisage structurel pour extraire quelques paragraphes de contenu utile.</p>
+<h2>Le problème du gaspillage de tokens</h2>
+<p>Chaque page web contient en moyenne 7% de contenu utile. Les 93% restants sont du bruit : menus, pieds de page, publicités, scripts de tracking, bannières de cookies. Pour un agent LLM qui paie au token, cela représente un gaspillage massif.</p>
+<ul>
+<li>Une page HTML type : 120 Ko</li>
+<li>Contenu utile : ~8 Ko</li>
+<li>Ratio signal/bruit : 7%</li>
+<li>Tokens gaspillés par page : ~11 000</li>
+</ul>
+<h2>La solution CBOR-Web</h2>
+<p>CBOR-Web résout ce problème en permettant aux sites d'exposer une copie binaire de leur contenu, en parallèle du HTML existant. Les agents IA peuvent alors lire le contenu structuré directement, sans parsing HTML, sans DOM, sans gaspillage de tokens.</p>
+<blockquote cite="https://cbor-web.org">"The web has two clients: humans and machines. It's time to serve both."</blockquote>
+<h3>Fonctionnalités clés</h3>
+<ul>
+<li>Format binaire CBOR (RFC 8949, standard IETF)</li>
+<li>Réduction de 95-99% du volume de données</li>
+<li>Contenu structuré natif (headings, paragraphes, listes, tableaux)</li>
+<li>Découverte automatique via /.well-known/cbor-web</li>
+<li>Mise à jour incrémentale via SHA-256</li>
+<li>Bundle complet du site en une seule requête</li>
+</ul>
+<h2>Cas d'usage</h2>
+<table>
+<thead><tr><th>Type de site</th><th>Bénéfice CBOR-Web</th></tr></thead>
+<tbody>
+<tr><td>E-commerce</td><td>Agents shopping lisent le catalogue directement</td></tr>
+<tr><td>Documentation technique</td><td>Réduction 50x du coût de lecture</td></tr>
+<tr><td>Médias / Actualités</td><td>Contenu éditorial pur, sans pubs</td></tr>
+<tr><td>SaaS / APIs</td><td>Découverte automatique des endpoints</td></tr>
+</tbody>
+</table>
+<pre><code class="language-bash">curl https://cbor.deltopide.com/.well-known/cbor-web</code></pre>
+</article>
+</main>
+<aside class="note"><strong>Note:</strong> CBOR-Web v2.1.3 est déployé sur 38 sites en production.</aside>
+<footer><p>&copy; 2026 ExploDev. <a href="/privacy">Privacy</a></p></footer>
+<div class="cookie-banner">Ce site utilise des cookies. <button>Accepter</button></div>
+</body>
+</html>
