@@ -95,6 +95,13 @@ async fn main() {
         .route("/api/status", get(api_status))
         .route("/admin", get(serve_admin))
         .route("/admin/invoice/{id}/paid", post(mark_invoice_paid))
+        .route("/crm", get(serve_crm))
+        .route("/crm/prospects", get(api_prospects))
+        .route("/crm/prospects/add", post(api_add_prospect))
+        .route("/crm/prospects/{id}/status", post(api_update_status))
+        .route("/crm/prospects/{id}/note", post(api_add_note))
+        .route("/crm/scrape", post(api_trigger_scrape))
+        .route("/crm/export", get(api_export_csv))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3002").await.expect("bind");
@@ -132,7 +139,7 @@ const STYLE: &str = "*{margin:0;padding:0;box-sizing:border-box}body{font-family
 fn nav_html(authenticated: bool, email: &str) -> String {
     if authenticated {
         format!(
-            r#"<div class="nav"><a href="/">Dashboard</a><a href="/invoices">Invoices</a><a href="/api/status">API</a><a href="https://github.com/ploteddie-bit/cbor-web">GitHub</a><span style="float:right;color:#888;font-size:.8rem">{email}</span><a href="/logout" style="float:right;margin-right:1rem">Logout</a></div>"#,
+            r#"<div class="nav"><a href="/">Dashboard</a><a href="/invoices">Invoices</a><a href="/crm">CRM</a><a href="/api/status">API</a><a href="https://github.com/ploteddie-bit/cbor-web">GitHub</a><span style="float:right;color:#888;font-size:.8rem">{email}</span><a href="/logout" style="float:right;margin-right:1rem">Logout</a></div>"#,
         )
     } else {
         r#"<div class="nav"><a href="/login">Login</a><a href="/register">Register</a><a href="https://github.com/ploteddie-bit/cbor-web">GitHub</a></div>"#.to_string()
@@ -643,4 +650,218 @@ fn save_json<T: serde::Serialize>(path: &Path, data: &T) {
     if let Ok(json) = serde_json::to_vec_pretty(data) {
         let _ = std::fs::write(path, json);
     }
+}
+
+// ── CRM (SQLite) ──
+
+fn crm_db(state: &AppState) -> rusqlite::Connection {
+    let db_path = state.data_dir.join("crm.db");
+    let conn = rusqlite::Connection::open(&db_path).expect("crm.db");
+    conn.execute_batch("
+        CREATE TABLE IF NOT EXISTS prospects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            domain TEXT UNIQUE NOT NULL,
+            name TEXT,
+            site_type TEXT,
+            pages_est INTEGER DEFAULT 0,
+            tokens_saved_year INTEGER DEFAULT 0,
+            contact_email TEXT,
+            contact_name TEXT,
+            priority INTEGER DEFAULT 1,
+            status TEXT DEFAULT 'new',
+            notes TEXT DEFAULT '',
+            source_url TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS outreach (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            prospect_id INTEGER REFERENCES prospects(id),
+            action TEXT,
+            detail TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+    ").ok();
+    conn
+}
+
+async fn serve_crm(
+    State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    Query(params): Query<HashMap<String, String>>,
+) -> Response {
+    let token = get_cookie(&headers);
+    let user = match get_session_user(&state, &token).await {
+        Some(u) => u,
+        None => return Redirect::to("/login").into_response(),
+    };
+    let status_filter = params.get("status").cloned().unwrap_or_default();
+    let conn = crm_db(&state);
+
+    let status_counts: Vec<(String, i64)> = {
+        let mut stmt = conn.prepare("SELECT status, COUNT(*) FROM prospects GROUP BY status").unwrap();
+        stmt.query_map([], |row| Ok((row.get::<_,String>(0).unwrap_or_default(), row.get::<_,i64>(1).unwrap_or(0))))
+            .unwrap().filter_map(|r| r.ok()).collect()
+    };
+
+    let sql = if status_filter.is_empty() { "SELECT * FROM prospects ORDER BY priority DESC, id DESC LIMIT 200".to_string() } else { format!("SELECT * FROM prospects WHERE status = '{}' ORDER BY priority DESC, id DESC LIMIT 200", status_filter.replace('\'', "''")) };
+    let mut stmt = conn.prepare(&sql).unwrap();
+    let prospects: Vec<HashMap<String, String>> = stmt.query_map([], |row| {
+        let mut m = HashMap::new();
+        for i in 0..14 {
+            if let Ok(v) = row.get::<_, String>(i) { m.insert(format!("c{i}"), v); }
+        }
+        Ok(m)
+    }).unwrap().filter_map(|r| r.ok()).collect();
+
+    let total: i64 = conn.query_row("SELECT COUNT(*) FROM prospects", [], |r| r.get(0)).unwrap_or(0);
+    let contacted: i64 = conn.query_row("SELECT COUNT(*) FROM prospects WHERE status != 'new'", [], |r| r.get(0)).unwrap_or(0);
+
+    let mut rows = String::new();
+    for p in &prospects {
+        let status_class = match p.get("c8").map(|s| s.as_str()).unwrap_or("new") {
+            "converted" => "badge-ok", "contacted" | "replied" => "badge-wait", _ => "",
+        };
+        rows.push_str(&format!(
+            r#"<tr><td><a href="/crm/prospects?id={id}">{domain}</a></td><td>{name}</td><td>{stype}</td><td>{pages} p</td><td>{tokens} tk/j</td><td>{contact}</td><td><span class="badge {sc}">{status}</span></td><td><form method="post" action="/crm/prospects/{id}/status" style="display:inline"><select name="status" onchange="this.form.submit()"><option value="">→</option><option value="contacted">contacted</option><option value="replied">replied</option><option value="converted">converted</option><option value="ignored">ignored</option></select></form></td></tr>"#,
+            id = p.get("c0").unwrap_or(&"?".into()),
+            domain = p.get("c1").unwrap_or(&"?".into()),
+            name = truncate(&p.get("c2").unwrap_or(&"?".into()), 40),
+            stype = p.get("c3").unwrap_or(&"?".into()),
+            pages = p.get("c4").unwrap_or(&"0".into()),
+            tokens = fmt_tokens(p.get("c5").unwrap_or(&"0".into()).parse().unwrap_or(0)),
+            contact = p.get("c7").unwrap_or(&"-".into()),
+            status = p.get("c8").unwrap_or(&"new".into()),
+            sc = status_class,
+        ));
+    }
+
+    let status_links: String = [("new","New"),("contacted","Contacted"),("replied","Replied"),("converted","Converted")].iter()
+        .map(|(s,l)| format!(r#"<a href="/crm?status={s}" style="margin-right:1rem;color:{}">{l} ({})</a>"#,
+            if status_filter == *s { "#f97316" } else { "#888" },
+            status_counts.iter().find(|(st,_)| st == s).map(|(_,c)| c).unwrap_or(&0)
+        )).collect();
+
+    let html = format!(r#"<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>CRM — text2cbor</title><style>{STYLE}</style></head><body><h1>text2<span>cbor</span> <span style="font-size:.6em;color:#888">CRM</span></h1>{nav}<div class="statb"><div class="stat"><div class="n">{total}</div><div class="l">Prospects</div></div><div class="stat"><div class="n">{contacted}</div><div class="l">Contacted</div></div><div class="stat"><div class="n" style="font-size:1rem;line-height:2rem"><form method="post" action="/crm/scrape"><button class="btn btn-sm">🔄 Scrape</button></form></div><div class="l">Auto-enrich</div></div></div><div class="nav">{status_links}</div><form method="post" action="/crm/prospects/add" style="margin-bottom:1rem"><input name="domain" placeholder="domain.com" required style="padding:.4rem;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:4px;margin-right:.5rem"><input name="name" placeholder="Company name" style="padding:.4rem;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:4px;margin-right:.5rem"><button class="btn btn-sm">+ Add</button></form><table><tr><th>Domain</th><th>Name</th><th>Type</th><th>Pages</th><th>Tokens</th><th>Contact</th><th>Status</th><th>Action</th></tr>{rows}</table><div class="foot"><a href="/crm/export">Export CSV</a> — text2cbor CRM — ExploDev 2026</div></body></html>"#,
+        nav = nav_html(true, &user.email), total = total, contacted = contacted,
+        rows = rows, status_links = status_links,
+    );
+    (StatusCode::OK, [(header::CONTENT_TYPE, "text/html; charset=utf-8")], html).into_response()
+}
+
+async fn api_prospects(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    let conn = crm_db(&state);
+    let mut stmt = conn.prepare("SELECT id, domain, name, site_type, priority, status FROM prospects ORDER BY id DESC LIMIT 50").unwrap();
+    let list: Vec<serde_json::Value> = stmt.query_map([], |row| {
+        Ok(serde_json::json!({
+            "id": row.get::<_,i64>(0)?, "domain": row.get::<_,String>(1)?, "name": row.get::<_,String>(2)?,
+            "type": row.get::<_,String>(3)?, "priority": row.get::<_,i64>(4)?, "status": row.get::<_,String>(5)?,
+        }))
+    }).unwrap().filter_map(|r| r.ok()).collect();
+    Json(serde_json::json!({"prospects": list}))
+}
+
+async fn api_add_prospect(
+    State(state): State<Arc<AppState>>,
+    mut form: axum::extract::Form<HashMap<String, String>>,
+) -> impl IntoResponse {
+    let domain = form.remove("domain").unwrap_or_default().trim().to_string();
+    let name = form.remove("name").unwrap_or_default().trim().to_string();
+    if domain.is_empty() { return Redirect::to("/crm"); }
+    let conn = crm_db(&state);
+    conn.execute("INSERT OR IGNORE INTO prospects (domain, name, site_type, priority) VALUES (?1, ?2, 'manual', 3)", rusqlite::params![domain, name]).ok();
+    Redirect::to("/crm")
+}
+
+async fn api_update_status(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    mut form: axum::extract::Form<HashMap<String, String>>,
+) -> impl IntoResponse {
+    let status = form.remove("status").unwrap_or_default();
+    if status.is_empty() { return Redirect::to("/crm"); }
+    let conn = crm_db(&state);
+    conn.execute("UPDATE prospects SET status = ?1, updated_at = datetime('now') WHERE id = ?2", rusqlite::params![status, id]).ok();
+    conn.execute("INSERT INTO outreach (prospect_id, action, detail) VALUES (?1, ?2, ?3)", rusqlite::params![id, format!("status: {status}"), ""]).ok();
+    Redirect::to("/crm")
+}
+
+async fn api_add_note(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    mut form: axum::extract::Form<HashMap<String, String>>,
+) -> Response {
+    let note = form.remove("note").unwrap_or_default();
+    if note.is_empty() { let url = format!("/crm?id={id}"); return Redirect::to(&url).into_response(); }
+    let conn = crm_db(&state);
+    conn.execute("UPDATE prospects SET notes = notes || ?1 || '\n', updated_at = datetime('now') WHERE id = ?2", rusqlite::params![format!("[{}] {note}", chrono::Utc::now().format("%Y-%m-%d")), id]).ok();
+    let url = format!("/crm?id={id}");
+    Redirect::to(&url).into_response()
+}
+
+async fn api_trigger_scrape(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let conn = crm_db(&state);
+    // Simple built-in scraper for known tech sites
+    let sources: Vec<(&str, &str, &str)> = vec![
+        ("techcrunch.com", "TechCrunch", "tech_blog"),
+        ("theverge.com", "The Verge", "tech_blog"),
+        ("arstechnica.com", "Ars Technica", "tech_blog"),
+        ("dev.to", "DEV Community", "tech_blog"),
+        ("css-tricks.com", "CSS-Tricks", "tech_blog"),
+        ("smashingmagazine.com", "Smashing Magazine", "tech_blog"),
+        ("react.dev", "React Docs", "docs"),
+        ("docs.python.org", "Python Docs", "docs"),
+        ("nodejs.org", "Node.js Docs", "docs"),
+        ("kubernetes.io", "Kubernetes Docs", "docs"),
+        ("docs.docker.com", "Docker Docs", "docs"),
+        ("docs.github.com", "GitHub Docs", "docs"),
+        ("rust-lang.org", "Rust Docs", "docs"),
+        ("golang.org", "Go Docs", "docs"),
+        ("php.net", "PHP Docs", "docs"),
+        ("digitad.fr", "Digitad", "agency"),
+        ("alsacreations.fr", "Alsacréations", "agency"),
+        ("octo.com", "OCTO Technology", "agency"),
+        ("synbioz.com", "Synbioz", "agency"),
+        ("leboncoin.fr", "Leboncoin", "ecommerce"),
+        ("ldlc.com", "LDLC", "ecommerce"),
+    ];
+    let mut added = 0;
+    for (domain, name, stype) in &sources {
+        let pages = match *stype { "tech_blog" => 500, "docs" => 200, "ecommerce" => 1000, _ => 50 };
+        let tokens = pages as i64 * 19000 * 1000 * 365;
+        let priority = match *stype { "tech_blog"|"agency" => 4, "docs"|"ecommerce" => 5, _ => 2 };
+        let result = conn.execute(
+            "INSERT OR IGNORE INTO prospects (domain, name, site_type, pages_est, tokens_saved_year, contact_email, priority, source_url) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            rusqlite::params![domain, name, stype, pages, tokens, format!("contact@{domain}"), priority, format!("https://{domain}")],
+        );
+        if result.is_ok() && conn.changes() > 0 { added += 1; }
+    }
+    tracing::info!("Scrape: added {} new prospects", added);
+    Redirect::to("/crm")
+}
+
+async fn api_export_csv(State(state): State<Arc<AppState>>) -> Response {
+    let conn = crm_db(&state);
+    let mut stmt = conn.prepare("SELECT domain, name, site_type, pages_est, tokens_saved_year, contact_email, priority, status FROM prospects ORDER BY priority DESC").unwrap();
+    let mut csv = String::from("domain,name,type,pages,tokens_saved_year,contact,priority,status\n");
+    let rows = stmt.query_map([], |row| {
+        Ok(format!("{},{},{},{},{},{},{},{}",
+            row.get::<_,String>(0)?, row.get::<_,String>(1)?, row.get::<_,String>(2)?,
+            row.get::<_,i64>(3)?, row.get::<_,i64>(4)?, row.get::<_,String>(5)?,
+            row.get::<_,i64>(6)?, row.get::<_,String>(7)?,
+        ))
+    }).unwrap();
+    for r in rows { if let Ok(line) = r { csv.push_str(&line); csv.push('\n'); } }
+    (StatusCode::OK, [(header::CONTENT_TYPE, "text/csv; charset=utf-8"), (header::CONTENT_DISPOSITION, "attachment; filename=\"cbor-crm-prospects.csv\"")], csv).into_response()
+}
+
+fn fmt_tokens(n: i64) -> String {
+    if n >= 1_000_000_000 { format!("{:.1}B", n as f64 / 1e9) }
+    else if n >= 1_000_000 { format!("{:.1}M", n as f64 / 1e6) }
+    else if n >= 1_000 { format!("{}K", n / 1000) }
+    else { n.to_string() }
+}
+
+fn truncate(s: &str, max: usize) -> String {
+    if s.chars().count() <= max { s.to_string() } else { format!("{}...", s.chars().take(max).collect::<String>()) }
 }
