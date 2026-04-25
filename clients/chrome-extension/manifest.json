@@ -1,0 +1,68 @@
+{
+  "manifest_version": 3,
+  "name": "Deltopide Web Audit",
+  "version": "1.3.0",
+  "description": "Audit SEO / GEO / SXG-CBOR + Core Web Vitals — Moteur Rust/WASM — Standard Deltopide v1.2",
+  "author": "Deltopide",
+  "homepage_url": "https://deltopide.fr",
+
+  "permissions": [
+    "activeTab",
+    "sidePanel",
+    "scripting",
+    "storage",
+    "identity"
+  ],
+
+  "oauth2": {
+    "client_id": "1000871327342-8ioatnnh71aea0tc9mfl2vtkddfnkisl.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/webmasters",
+      "https://www.googleapis.com/auth/siteverification",
+      "https://www.googleapis.com/auth/analytics.readonly"
+    ]
+  },
+
+  "host_permissions": [
+    "<all_urls>"
+  ],
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
+  },
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Deltopide Audit"
+  },
+
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
