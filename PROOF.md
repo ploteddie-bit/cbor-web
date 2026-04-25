@@ -22,4 +22,8 @@ To verify: `sha256sum -c PROOF.md` (extract the hash block above)
 ## Reference Implementation
 
 Repository: https://github.com/ploteddie-bit/cbor-web  
-Production endpoint: https://cbor.deltopide.com (38 sites, Cloudflare Tunnel)
+Production endpoints:
+  - Origin: https://cbor.deltopide.com (38 sites, Cloudflare Tunnel)
+  - Edge:   https://cbor-web.explodev.workers.dev (Cloudflare Worker CDN)
+  - Short:  https://cbor-web.explodev.workers.dev/lfr/ (laforetnousregale.fr)
+  - Short:  https://cbor-web.explodev.workers.dev/dtp/ (deltopide.com)

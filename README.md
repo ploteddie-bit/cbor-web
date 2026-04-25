@@ -108,24 +108,90 @@ print(f'{manifest[\"site_name\"]} — {manifest[\"pages_count\"]} pages')
 
 **Live at:** [`https://cbor.deltopide.com`](https://cbor.deltopide.com) — 38 CBOR-Web enabled sites.
 
+**Edge proxy:** [`https://cbor-web.explodev.workers.dev`](https://cbor-web.explodev.workers.dev) — Cloudflare Worker global CDN.
+
 ```
-Internet → Cloudflare Tunnel → serveur-dev:3001 (Rust/axum)
-                                  │
-                                  ├─ sites/deltopide.com/    (49 pages, full spec)
-                                  ├─ sites/cbor-web.com/     (8 pages, full spec)
-                                  ├─ sites/verdetao.fr/      (index.cbor)
-                                  └─ ... 35 more showcase sites
+Browser / AI Agent
+       │
+       ▼
+ Cloudflare Worker (cbor-web.explodev.workers.dev)
+       │  Short codes: /lfr/ /dtp/ /cbw/ ... (3-letter domain alias)
+       │  Full path:   /s/<domain>/...              (any domain)
+       │
+       ▼
+ Cloudflare Tunnel → serveur-dev:3001 (Rust/axum)
+       │
+       ├─ sites/deltopide.com/    (49 pages, full spec)
+       ├─ sites/cbor-web.com/     (8 pages, full spec)
+       ├─ sites/laforetnousregale.fr/  (2 pages)
+       ├─ sites/verdetao.fr/      (index.cbor)
+       └─ ... 34 more showcase sites
 ```
 
-Endpoints available:
-- `GET /` — HTML dashboard listing all 38 sites
-- `GET /health` — JSON health check
-- `GET /.well-known/cbor-web` — Manifest (multi-domain auto-detection)
-- `GET /.well-known/cbor-web/bundle` — Full site bundle
-- `GET /.well-known/cbor-web/pages/:file` — Individual pages
-- `POST /.well-known/cbor-web/doleance` — Agent feedback (persisted to disk)
-- `GET /.well-known/cbor-web/doleance/list` — Collected feedback
-- `GET /.well-known/cbor-web/diff?base=HASH` — Incremental diff
+### Endpoints
+
+#### Edge Worker (Cloudflare CDN — any domain reachable)
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/<code>/pages/:file` | Short-code access (e.g. `/lfr/pages/accueil.cbor`) |
+| `GET` | `/<code>/` | Manifest via short code |
+| `GET` | `/<code>/bundle` | Bundle via short code |
+| `GET` | `/s/<domain>/pages/:file` | Full domain path access |
+| `GET` | `/health` | Health check |
+| `GET` | `/diff?base=HASH` | Incremental diff |
+
+#### Origin Server (direct)
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/` | HTML dashboard listing all 38 sites |
+| `GET` | `/health` | JSON health check |
+| `GET` | `/.well-known/cbor-web` | Manifest (multi-domain via Host header or X-CBOR-Domain) |
+| `GET` | `/.well-known/cbor-web/bundle` | Full site bundle |
+| `GET` | `/.well-known/cbor-web/pages/:file` | Individual pages |
+| `POST` | `/.well-known/cbor-web/doleance` | Agent feedback (persisted to disk) |
+| `GET` | `/.well-known/cbor-web/doleance/list` | Collected feedback |
+| `GET` | `/.well-known/cbor-web/diff?base=HASH` | Incremental diff |
+
+### Domain Routing
+
+The server supports two methods to serve per-domain content:
+
+1. **Host header** (direct access) — `Host: deltopide.com` → serves from `sites/deltopide.com/`. Includes `www.` stripping and subdomain fallback (`cbor.x.com` → `x.com`).
+
+2. **X-CBOR-Domain header** (edge proxy) — `X-CBOR-Domain: laforetnousregale.fr` → serves from `sites/laforetnousregale.fr/`. Used by the Worker for path-based and short-code access when DNS isn't available.
+
+### Short Code Reference
+
+The Worker maps 3-letter codes to domain names for concise URLs:
+
+| Code | Domain | Code | Domain |
+|------|--------|------|--------|
+| `lfr` | laforetnousregale.fr | `dtp` | deltopide.com |
+| `cbw` | cbor-web.com | `cb2` | cborweb.com |
+| `cbo` | cborweb.org | `cbs` | cbor-web.site |
+| `cbt` | cbor-web.tech | `cbf` | cbor-web.fr |
+| `edv` | explodev.com | `edf` | explodev.fr |
+| `edo` | explodev.org | `eds` | explodev.site |
+| `edt` | explodev.tech | `edw` | explodev.website |
+| `vta` | verdetao.fr | `vtb` | verdetao.be |
+| `vtd` | verdetao.de | `vte` | verdetao.eu |
+| `vts` | verdetao.es | `cbd` | californiacbd.fr |
+| `cbe` | californiacbd.es | `clc` | californialovecbd.es |
+| `cls` | californialovecbd.site | `cle` | californialove.es |
+| `mjc` | mariejeannecbd.fr | `mje` | mariejeannecbd.es |
+| `fcc` | fanaticodelcbd.com | `fce` | fanaticodelcbd.es |
+| `bcc` | bienestarcosmeticacbd.es | `bcf` | bienetrecosmetiquecbd.fr |
+| `amz` | amazingcbd.es | `cas` | castelloconviu.es |
+| `cgm` | cargamipatinete.es | `ptp` | preciotupatinete.es |
+| `rtc` | ritueletcalme.com | `cau` | courtiers-auto.com |
+| `dts` | deltopide.site | `wbc` | wellbeingcosmeticcbd.com |
+
+Example:
+```
+https://cbor-web.explodev.workers.dev/lfr/pages/root.cbor
+                                    ^^^  ^^^^^^^^^^^^^^^^^^^^
+                                    code  CBOR-Web page path
+```
 
 ## Alternatives Considered
 

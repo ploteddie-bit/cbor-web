@@ -494,6 +494,21 @@ fn cbor_response(data: &[u8], etag: &str) -> Response {
 fn not_found() -> Response { (StatusCode::NOT_FOUND, "Not Found").into_response() }
 
 fn host_dir(state: &AppState, headers: &HeaderMap) -> PathBuf {
+    let base = state.data_dir.parent().unwrap_or(&state.data_dir);
+
+    // Check X-CBOR-Domain override header (for edge proxy path-based routing)
+    // If present but site doesn't exist, return data_dir (→ 404) instead of falling back to Host
+    if let Some(domain) = headers
+        .get("X-CBOR-Domain")
+        .and_then(|v| v.to_str().ok())
+    {
+        let site_dir = base.join("sites").join(domain);
+        if site_dir.exists() {
+            return site_dir;
+        }
+        return state.data_dir.clone(); // X-CBOR-Domain set but no such site → 404
+    }
+
     let host = headers
         .get(header::HOST)
         .and_then(|v| v.to_str().ok())
@@ -502,7 +517,6 @@ fn host_dir(state: &AppState, headers: &HeaderMap) -> PathBuf {
         .next()
         .unwrap_or("")
         .to_string();
-    let base = state.data_dir.parent().unwrap_or(&state.data_dir);
 
     // Try exact hostname first
     let site_dir = base.join("sites").join(&host);
