@@ -1,0 +1,13 @@
+[project]
+name = "cborweb"
+version = "0.1.0"
+description = "CBOR-Web Python client — binary web content for AI agents"
+readme = "README.md"
+requires-python = ">=3.9"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]

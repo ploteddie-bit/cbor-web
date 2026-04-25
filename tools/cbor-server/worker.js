@@ -104,6 +104,7 @@ function corsHeaders() {
 function shouldProxy(path, method) {
   // Dynamic endpoints that need server-side logic
   if (path === "/.well-known/cbor-web/doleance" && method === "POST") return true;
+  if (path === "/.well-known/cbor-web/doleance/list") return true;
   if (path === "/.well-known/cbor-web/diff") return true;
 
   // Token-gated content (T0/T1) — always proxy for auth check
