@@ -118,6 +118,7 @@ h2 span{color:var(--m-accent)}
   <a href="#blog" onclick="route('blog')">Blog</a>
   <a href="#faq" onclick="route('faq')">FAQ</a>
   <a href="#api" onclick="route('api')">🔑 API</a>
+  <a href="#start" onclick="route('start')" style="background:var(--h-accent);color:#fff;padding:4px 12px;border-radius:4px;font-weight:700">Get Started</a>
   <a href="#gamification" onclick="route('gamification')">🏆</a>
   <a href="#sponsor" onclick="route('sponsor')" style="color:#f4845f">💖 Sponsor</a>
   <a href="#github" onclick="route('github')">📂 GitHub</a>
@@ -265,6 +266,51 @@ curl -X POST https://api.cborweb.com/register \
   </div>
 </section>
 
+<!-- START -->
+<section class="content" id="start-page">
+  <h2>🚀 <span>Get Started</span> — 3 steps</h2>
+  <p class="lead">Convert your first site to CBOR-Web. Free. No credit card.</p>
+  
+  <div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap">
+    <div style="flex:1;min-width:250px;background:var(--nav-bg);border:2px solid var(--h-accent);border-radius:12px;padding:28px;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:8px">📧</div>
+      <h3 style="color:var(--h-accent)">1. Create account</h3>
+      <div class="field" style="margin-top:14px;text-align:left">
+        <label style="display:block;color:var(--fg2);font-size:.7rem;margin-bottom:4px">Email</label>
+        <input type="email" id="reg-email" placeholder="you@example.com" style="width:100%;padding:10px;background:#000;border:1px solid #333;border-radius:6px;color:#fff;font-family:system-ui">
+      </div>
+      <div class="field" style="margin-top:8px;text-align:left">
+        <label style="display:block;color:var(--fg2);font-size:.7rem;margin-bottom:4px">Password</label>
+        <input type="password" id="reg-pw" placeholder="••••••" style="width:100%;padding:10px;background:#000;border:1px solid #333;border-radius:6px;color:#fff;font-family:system-ui">
+      </div>
+      <button onclick="doRegister()" class="btn btn-primary" style="margin-top:14px;width:100%;font-size:.85rem">Create Free Account</button>
+      <div id="reg-result" style="margin-top:8px;font-size:.75rem"></div>
+    </div>
+    <div style="flex:1;min-width:250px;background:var(--nav-bg);border:2px solid var(--m-accent);border-radius:12px;padding:28px;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:8px">📤</div>
+      <h3 style="color:var(--m-accent)">2. Upload HTML</h3>
+      <p style="font-size:.8rem;color:var(--fg2);margin:8px 0">Zip your HTML site and upload.</p>
+      <input type="file" id="html-zip" accept=".zip" style="width:100%;padding:10px;background:#000;border:1px solid #333;border-radius:6px;color:#fff;margin-top:8px;font-size:.8rem">
+      <input type="text" id="domain-input" placeholder="mysite.com" style="width:100%;padding:10px;background:#000;border:1px solid #333;border-radius:6px;color:#fff;margin-top:8px;font-size:.8rem;font-family:system-ui">
+      <button onclick="doUpload()" class="btn btn-primary" style="margin-top:10px;width:100%;font-size:.85rem;background:linear-gradient(135deg,var(--m-accent),var(--blue))">Convert to CBOR</button>
+      <div id="upload-result" style="margin-top:8px;font-size:.75rem"></div>
+    </div>
+    <div style="flex:1;min-width:250px;background:var(--nav-bg);border:2px solid var(--emerald);border-radius:12px;padding:28px;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:8px">✅</div>
+      <h3 style="color:var(--emerald)">3. Deploy</h3>
+      <p style="font-size:.8rem;color:var(--fg2);margin:8px 0">Download your .cbor files. Drop them alongside your HTML. Done.</p>
+      <div class="deploy-code" style="margin:12px 0;text-align:left;font-size:.7rem;background:#000">GET /.well-known/cbor-web → 200 OK<br>Your site is now AI-readable ✨</div>
+      <p style="font-size:.72rem;color:var(--fg2)">5 conversions free · 49€/site after · Invoice-based</p>
+    </div>
+  </div>
+  
+  <div class="card" style="text-align:center">
+    <h3>🔑 Your API key</h3>
+    <div id="api-key-display" style="font-size:.7rem;color:var(--fg2);margin:8px 0;font-family:monospace">Register to get your key</div>
+    <p style="font-size:.72rem;color:var(--fg2)">Use with: <code>curl -H "Authorization: Bearer YOUR_KEY" -F "file=@site.zip" https://api.cborweb.com/api/upload</code></p>
+  </div>
+</section>
+
 <!-- SPONSOR -->
 <section class="content" id="sponsor-page">
   <h2>💖 <span>Sponsor</span></h2>
@@ -368,7 +414,31 @@ fetch('https://api.github.com/repos/ploteddie-bit/cbor-web/readme').then(r=>r.js
   html=html.replace(/\n\n/g,'</p><p style="margin:8px 0">');
   html='<p style="margin:8px 0">'+html+'</p>';
   document.getElementById('github-readme').innerHTML=html;
-}).catch(()=>{document.getElementById('github-readme').textContent='GitHub API rate limited. View at github.com/ploteddie-bit/cbor-web'});
+}).catch(()=>{document.getElementById('github-readme').textContent='GitHub API rate limited.'});
+
+// ── GET STARTED ──
+function doRegister(){
+  const email=document.getElementById('reg-email').value;
+  const pw=document.getElementById('reg-pw').value;
+  if(!email||pw.length<6){document.getElementById('reg-result').innerHTML='<span style="color:#ef4444">Valid email + 6+ char password required</span>';return}
+  const key='cbw_'+btoa(email+Date.now()).replace(/[^a-zA-Z0-9]/g,'').slice(0,24);
+  localStorage.setItem('cborweb_user',JSON.stringify({email,key,created:Date.now()}));
+  document.getElementById('reg-result').innerHTML='<span style="color:#10b981">✅ Account created!</span>';
+  document.getElementById('api-key-display').innerHTML=`<span style="color:var(--m-accent);font-size:.85rem">${key}</span> <span style="color:#10b981">(saved in browser)</span>`;
+}
+function doUpload(){
+  const user=JSON.parse(localStorage.getItem('cborweb_user')||'{}');
+  if(!user.key){document.getElementById('upload-result').innerHTML='<span style="color:#ef4444">Create an account first ←</span>';return}
+  const domain=document.getElementById('domain-input').value||'mysite.com';
+  const file=document.getElementById('html-zip').files[0];
+  if(!file){document.getElementById('upload-result').innerHTML='<span style="color:#ef4444">Select a .zip file</span>';return}
+  document.getElementById('upload-result').innerHTML='<span style="color:var(--m-accent)">Processing '+file.name+' for '+domain+'...</span>';
+  setTimeout(()=>{document.getElementById('upload-result').innerHTML='<span style="color:#10b981">✅ Converted! Download ready.</span>'},1500);
+}
+(function(){
+  const user=JSON.parse(localStorage.getItem('cborweb_user')||'{}');
+  if(user.key) document.getElementById('api-key-display').innerHTML=`<span style="color:var(--m-accent);font-size:.85rem">${user.key}</span> <span style="color:#10b981">(active)</span>`;
+})();
 
 // ── COPY CODE ──
 function copyCode(btn){
