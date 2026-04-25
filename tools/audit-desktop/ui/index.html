@@ -2,44 +2,62 @@
 <html>
 <head><meta charset="UTF-8"><title>CBOR-Web Audit v2.0</title>
 <style>
-:root{--bg:#0a0d16;--fg:#e8ecf4;--fg2:#8892b0;--accent:#00e5ff;--orange:#d4540b}
+:root{--bg:#0a0d16;--fg:#e8ecf4;--fg2:#8892b0;--accent:#00e5ff;--orange:#d4540b;--green:#10b981}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:system-ui;background:var(--bg);color:var(--fg);padding:24px}
-h1{color:var(--orange);margin-bottom:4px}
+body{font-family:system-ui;background:var(--bg);color:var(--fg);padding:24px;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+h1{color:var(--orange);margin-bottom:4px;text-align:center}
 h1 span{color:var(--accent)}
-.sub{color:var(--fg2);margin-bottom:24px}
+.sub{color:var(--fg2);margin-bottom:24px;text-align:center}
+.license-screen{max-width:420px;width:100%;background:rgba(255,255,255,.03);border:2px solid var(--orange);border-radius:12px;padding:32px;text-align:center}
+.license-screen h3{color:var(--accent);margin-bottom:16px}
+.license-screen input{width:100%;padding:12px;background:#000;border:1px solid #333;border-radius:6px;color:var(--fg);font-family:monospace;margin:8px 0;font-size:.9rem;text-align:center}
+.license-screen button{width:100%;padding:12px;background:var(--orange);color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;margin-top:8px;font-size:.9rem}
+.license-screen .hint{font-size:.7rem;color:var(--fg2);margin-top:12px}
+.main-screen{display:none;width:100%;max-width:900px}
 .toolbar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
-input{flex:1;min-width:200px;padding:10px;background:#000;border:1px solid #333;border-radius:6px;color:var(--fg);font-family:monospace}
-button{padding:10px 20px;background:var(--orange);color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer}
-button:hover{opacity:.9}
-button.blue{background:var(--accent);color:#000}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.toolbar input{flex:1;min-width:200px;padding:10px;background:#000;border:1px solid #333;border-radius:6px;color:var(--fg);font-family:monospace}
+.toolbar button{padding:10px 18px;background:var(--orange);color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;font-size:.85rem}
+.toolbar button:hover{opacity:.9}
+.toolbar button.blue{background:var(--accent);color:#000}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 .card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:20px}
-.card h3{font-size:.9rem;margin-bottom:8px;color:var(--accent)}
+.card h3{font-size:.8rem;color:var(--accent);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em}
+.card .val{font-size:2rem;font-weight:800}
 .result{font-size:.8rem;color:var(--fg2);max-height:400px;overflow-y:auto;margin-top:16px;font-family:monospace;background:#000;padding:16px;border-radius:8px}
 .foot{margin-top:24px;color:#444;font-size:.7rem;text-align:center}
+.license-badge{background:var(--green);color:#000;padding:2px 10px;border-radius:12px;font-size:.7rem;font-weight:700;margin-left:8px}
 </style></head>
 <body>
-<h1>CBOR-Web <span>Audit</span> v2.0</h1>
-<p class="sub">Desktop Edition — SEO · GEO · CBOR-Web · Site Crawl · Competitor · Backlinks</p>
 
-<div class="toolbar">
-  <input id="url" placeholder="https://example.com" value="https://">
-  <button onclick="runAudit()">🔍 Audit</button>
-  <button class="blue" onclick="runCrawl()">🔄 Full Crawl</button>
-  <button onclick="exportHTML()">📄 Export</button>
+<div class="license-screen" id="licenseScreen">
+  <h1>CBOR-Web <span>Audit</span> v2.0</h1>
+  <p class="sub">Enter your license key to activate</p>
+  <h3>🔑 License Key</h3>
+  <input id="licenseEmail" placeholder="you@example.com">
+  <input id="licenseKey" placeholder="CBW-XXXX-XXXX-XXXX">
+  <button onclick="activateLicense()">Activate</button>
+  <div class="hint">Get your license key at <a href="https://cborweb-com.pages.dev" style="color:var(--accent)">cborweb.com</a> → Get Started</div>
+  <div id="licenseError" style="color:#ef4444;font-size:.8rem;margin-top:8px"></div>
 </div>
 
-<div class="grid">
-  <div class="card"><h3>📊 Score</h3><div id="score" style="font-size:3rem;font-weight:800;color:var(--accent)">—</div></div>
-  <div class="card"><h3>📦 CBOR-Web</h3><div id="cbor-check">Enter a URL and click Audit</div></div>
-  <div class="card"><h3>🔄 Pages</h3><div id="page-count">—</div></div>
-  <div class="card"><h3>⚠️ Issues</h3><div id="issue-count">—</div></div>
+<div class="main-screen" id="mainScreen">
+  <h1>CBOR-Web <span>Audit</span> v2.0 <span class="license-badge" id="planBadge">Pro</span></h1>
+  <p class="sub" id="userInfo"></p>
+  <div class="toolbar">
+    <input id="url" placeholder="https://example.com" value="https://">
+    <button onclick="runAudit()">🔍 Audit</button>
+    <button class="blue" onclick="runCrawl()">🔄 Crawl</button>
+    <button onclick="exportHTML()">📄 Export</button>
+  </div>
+  <div class="grid">
+    <div class="card"><h3>Score</h3><div class="val" id="score">—</div></div>
+    <div class="card"><h3>CBOR-Web</h3><div id="cbor-check">—</div></div>
+    <div class="card"><h3>Pages</h3><div class="val" id="page-count">—</div></div>
+    <div class="card"><h3>Issues</h3><div class="val" id="issue-count">—</div></div>
+  </div>
+  <div class="result" id="output">Ready.</div>
+  <div class="foot">CBOR-Web Audit v2.0 · Licensed to <span id="licUser"></span> · ExploDev 2026</div>
 </div>
-
-<div class="result" id="output">Ready. Enter a URL above and click Audit to begin.</div>
-
-<div class="foot">CBOR-Web Audit v2.0 · Rust/WASM · Windows + Linux · ExploDev 2026</div>
 
 <script src="audit.js"></script>
 </body>

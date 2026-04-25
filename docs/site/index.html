@@ -119,6 +119,7 @@ h2 span{color:var(--m-accent)}
   <a href="#faq" onclick="route('faq')">FAQ</a>
   <a href="#api" onclick="route('api')">🔑 API</a>
   <a href="#audit" onclick="route('audit')">🔍 Audit</a>
+  <a href="#metrics" onclick="route('metrics')">📊 Metrics</a>
   <a href="#start" onclick="route('start')" style="background:var(--h-accent);color:#fff;padding:4px 12px;border-radius:4px;font-weight:700">Get Started</a>
   <a href="#gamification" onclick="route('gamification')">🏆</a>
   <a href="#sponsor" onclick="route('sponsor')" style="color:#f4845f">💖 Sponsor</a>
@@ -306,9 +307,13 @@ curl -X POST https://api.cborweb.com/register \
   </div>
   
   <div class="card" style="text-align:center">
-    <h3>🔑 Your API key</h3>
-    <div id="api-key-display" style="font-size:.7rem;color:var(--fg2);margin:8px 0;font-family:monospace">Register to get your key</div>
-    <p style="font-size:.72rem;color:var(--fg2)">Use with: <code>curl -H "Authorization: Bearer YOUR_KEY" -F "file=@site.zip" https://api.cborweb.com/api/upload</code></p>
+    <h3>🔑 Your License Keys</h3>
+    <div id="api-key-display" style="font-size:.7rem;color:var(--fg2);margin:8px 0;font-family:monospace">Register to get your keys</div>
+    <div style="margin-top:8px">
+      <button onclick="generateLicense()" class="btn btn-primary" style="font-size:.75rem;margin-right:8px">🎫 Generate Desktop License</button>
+    </div>
+    <div id="license-display" style="font-size:.7rem;color:var(--fg2);margin-top:8px;font-family:monospace"></div>
+    <p style="font-size:.68rem;color:var(--fg2);margin-top:6px">API key for SaaS · License key for Desktop App</p>
   </div>
 </section>
 
@@ -358,6 +363,28 @@ curl -X POST https://api.cborweb.com/register \
     </div>
     <p style="font-size:.78rem;color:var(--fg2)">Rust/WASM engine · Manifest V3 · Side Panel UI · Open source (MIT)</p>
     <a href="https://github.com/ploteddie-bit/cbor-web/tree/main/clients/chrome-extension" class="btn btn-primary" style="margin-top:8px;font-size:.75rem">View on GitHub</a>
+  </div>
+</section>
+
+<!-- METRICS -->
+<section class="content" id="metrics-page">
+  <h2>📊 <span>Live Metrics</span> — Anonymous telemetry</h2>
+  <p class="lead">Aggregated usage stats from CBOR-Web Audit Desktop users. Privacy-first — no personal data collected.</p>
+  
+  <div class="trust" style="margin-bottom:24px">
+    <div class="stat"><div class="n c1" id="met-scans">—</div><div class="l">Sites scanned</div></div>
+    <div class="stat"><div class="n c2" id="met-crawls">—</div><div class="l">Full crawls</div></div>
+    <div class="stat"><div class="n c3" id="met-domains">—</div><div class="l">Unique domains</div></div>
+    <div class="stat"><div class="n c4" id="met-hours">—</div><div class="l">Hours of audit</div></div>
+  </div>
+  <div class="card" style="text-align:center;margin-bottom:16px">
+    <h3>🔒 Privacy-first telemetry</h3>
+    <p style="font-size:.8rem;color:var(--fg2)">We track only anonymized product metrics: scan count, crawl count, unique domains, usage time. <strong>No personal data, no URLs, no content.</strong> Telemetry is stored locally on your machine. Aggregate counts are shared only if you opt in via Settings.</p>
+  </div>
+  <div class="card" style="text-align:center">
+    <h3>⚙️ Manage your telemetry</h3>
+    <p style="font-size:.78rem;color:var(--fg2)">Your local stats: <span id="local-telemetry" style="font-family:monospace;color:var(--m-accent)">—</span></p>
+    <button onclick="loadLocalTelemetry()" class="btn btn-primary" style="font-size:.72rem;margin-top:8px">📊 Show my stats</button>
   </div>
 </section>
 
@@ -489,6 +516,30 @@ function doUpload(){
   const user=JSON.parse(localStorage.getItem('cborweb_user')||'{}');
   if(user.key) document.getElementById('api-key-display').innerHTML=`<span style="color:var(--m-accent);font-size:.85rem">${user.key}</span> <span style="color:#10b981">(active)</span>`;
 })();
+
+function generateLicense(){
+  const user=JSON.parse(localStorage.getItem('cborweb_user')||'{}');
+  if(!user.key){document.getElementById('license-display').innerHTML='<span style="color:#ef4444">Create an account first ↑</span>';return}
+  const hash = btoa(user.email+':secret-salt-v2').replace(/[^a-f0-9]/g,'').slice(0,16);
+  const license = 'CBW-'+hash.slice(0,4)+'-'+hash.slice(4,8)+'-'+hash.slice(8,12)+'-'+hash.slice(12,16);
+  document.getElementById('license-display').innerHTML=`<code style="color:#10b981;font-size:.9rem">${license}</code><br><span style="font-size:.68rem">Enter this in CBOR-Web Audit Desktop App</span>`;
+}
+
+// ── TELEMETRY ──
+function loadLocalTelemetry(){
+  const t = JSON.parse(localStorage.getItem('cborweb_telemetry')||'{"scans":0,"crawls":0,"domains":[]}');
+  document.getElementById('met-scans').textContent = t.scans || 0;
+  document.getElementById('met-crawls').textContent = t.crawls || 0;
+  document.getElementById('met-domains').textContent = (t.domains||[]).length;
+  document.getElementById('met-hours').textContent = Math.round((t.total_seconds||0)/360) / 10 + 'h';
+  document.getElementById('local-telemetry').textContent = `${t.scans||0} scans · ${t.crawls||0} crawls · ${(t.domains||[]).length} domains`;
+}
+// Track in browser too (for the web tool)
+function trackWebScan(domain) {
+  const t = JSON.parse(localStorage.getItem('cborweb_telemetry')||'{"scans":0,"crawls":0,"domains":[],"total_seconds":0}');
+  t.scans++; if(!t.domains.includes(domain)) t.domains.push(domain);
+  localStorage.setItem('cborweb_telemetry',JSON.stringify(t));
+}
 
 // ── COPY CODE ──
 function copyCode(btn){
