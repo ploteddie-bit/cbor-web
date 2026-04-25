@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CBOR-Web — Binary Web for AI Agents</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#e0e0e0;line-height:1.6}
+.c{max-width:800px;margin:0 auto;padding:2rem 1.5rem}
+h1{font-size:2.2rem;color:#fff;margin-bottom:.5rem}h1 span{color:#f97316}
+h2{font-size:1.3rem;color:#f97316;margin:2.5rem 0 .5rem}
+p{color:#aaa;margin-bottom:1rem}
+a{color:#f97316}
+code{background:#161b22;padding:.2rem .5rem;border-radius:4px;font-size:.85rem}
+.card{background:#161b22;border:1px solid #21262d;border-radius:10px;padding:1.5rem;margin:1rem 0}
+.card h3{color:#fff;margin-bottom:.5rem;font-size:1rem}
+.g{color:#28c840}.w{color:#f97316}.foot{text-align:center;padding:3rem 0;color:#444;font-size:.75rem}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.85rem}
+th{text-align:left;padding:.5rem;color:#888;border-bottom:1px solid #333}
+td{padding:.5rem;border-bottom:1px solid #1a1a1a}
+.hero{padding:4rem 0 2rem;text-align:center}
+.btn{display:inline-block;background:#f97316;color:#000;padding:.8rem 2rem;border-radius:8px;text-decoration:none;font-weight:600;margin:1rem .5rem}
+.btn-out{display:inline-block;border:2px solid #f97316;color:#f97316;padding:.8rem 2rem;border-radius:8px;text-decoration:none;font-weight:600;margin:1rem .5rem}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="c">
+    <h1>CBOR-<span>Web</span></h1>
+    <p style="font-size:1.2rem;color:#e0e0e0;max-width:600px;margin:1rem auto">
+      Binary web content format for autonomous AI agents. One file, one request, the entire website.
+    </p>
+    <a class="btn" href="https://github.com/ploteddie-bit/cbor-web">GitHub</a>
+    <a class="btn-out" href="https://cbor.deltopide.com">Live Demo</a>
+  </div>
+</div>
+
+<div class="c">
+  <h2>The Problem</h2>
+  <p>AI agents crawl the web today by downloading HTML, parsing DOM trees, filtering scripts, ads, and CSS — wasting 88% of every token on noise. A typical 120 KB page delivers only 7% useful content.</p>
+
+  <h2>The Solution</h2>
+  <p>CBOR-Web adds a single binary file at the root of every website. An AI agent downloads it in one request and gets all the content — structured, typed, and ready to read. No HTML. No DOM. Just content.</p>
+
+  <div class="card">
+    <h3>120 KB HTML → 2 KB CBOR</h3>
+    <p style="color:#aaa">Same information. Zero noise. Instant parsing.</p>
+  </div>
+
+  <h2>How It Works</h2>
+  <table>
+    <tr><th>Component</th><th>Purpose</th></tr>
+    <tr><td><code>/.well-known/cbor-web</code></td><td>Manifest — site metadata, page list, security</td></tr>
+    <tr><td><code>/.well-known/cbor-web/bundle</code></td><td>Full site in one request</td></tr>
+    <tr><td><code>/.well-known/cbor-web/pages/*</code></td><td>Individual pages with hashes</td></tr>
+    <tr><td><code>POST .../doleance</code></td><td>Agent → publisher feedback channel</td></tr>
+    <tr><td><code>GET .../diff?base=HASH</code></td><td>Incremental updates (SHA-256)</td></tr>
+  </table>
+
+  <h2>Doléance Protocol</h2>
+  <p>The web is a monologue today. CBOR-Web adds a <strong>return channel</strong> — agents tell publishers what was useful, what was noise, what was missing. Not analytics. Comprehension.</p>
+
+  <h2>Tools</h2>
+  <table>
+    <tr><td><code>text2cbor</code></td><td>Convert HTML → CBOR</td></tr>
+    <tr><td><code>cbor-crawl</code></td><td>AI agent crawler</td></tr>
+    <tr><td><code>cbor-server</code></td><td>Reference HTTP server</td></tr>
+    <tr><td><code>cborweb</code> (Python)</td><td>Zero-dependency AI agent client</td></tr>
+  </table>
+
+  <h2>License</h2>
+  <p>CC BY 4.0 — Created by Eddie Plot (ExploDev) and the CBOR-Web community.</p>
+</div>
+
+<div class="foot"><p>CBOR is RFC 8949 (IETF Internet Standard). CBOR-Web extends it for AI-native content delivery. — 2026</p></div>
+
+</body>
+</html>
