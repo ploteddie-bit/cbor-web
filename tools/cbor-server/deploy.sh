@@ -1,52 +1,51 @@
 #!/bin/bash
 # cbor-server — deploy script
-# Run on: serveur-build (10.0.0.135, MacPro, Rust 1.94)
-# Deploys to: serveur-dev (10.0.0.201)
+# Security: uses env vars instead of hardcoded IPs/hostnames
 #
-# Prerequisites:
-#   git clone https://github.com/ploteddie-bit/cbor-web.git /home/eddie/cbor-web
+# Required env vars:
+#   DEPLOY_TARGET   — hostname or IP to deploy to (e.g. my-server.local)
+#   DEPLOY_USER     — SSH user (default: current user)
+#   DEPLOY_DIR      — target directory (default: /opt/cbor-server)
+#
+# Usage:
+#   DEPLOY_TARGET=my-server ./deploy.sh
 
-set -e
+set -euo pipefail
 
-TARGET="serveur-dev"
-TARGET_DIR="/home/eddie/cbor-server"
+: "${DEPLOY_TARGET:?Set DEPLOY_TARGET env var}"
+TARGET="${DEPLOY_TARGET}"
+USER="${DEPLOY_USER:-$USER}"
+TARGET_DIR="${DEPLOY_DIR:-/opt/cbor-server}"
 CBOR_WEB_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-
-# Ensure cargo is in PATH
-export PATH="$HOME/.cargo/bin:$PATH"
 
 echo "=== Building cbor-server (release) ==="
 cd "$CBOR_WEB_DIR/tools/cbor-server"
 cargo build --release
 
 echo "=== Stopping service on $TARGET ==="
-ssh "$TARGET" "systemctl --user stop cbor-server 2>/dev/null || true"
+ssh "${USER}@${TARGET}" "sudo systemctl stop cbor-server 2>/dev/null || true"
 
 echo "=== Deploying binary ==="
-scp target/release/cbor-server "$TARGET:$TARGET_DIR/"
+scp target/release/cbor-server "${USER}@${TARGET}:${TARGET_DIR}/"
 
 echo "=== Deploying service file ==="
-ssh "$TARGET" "mkdir -p ~/.config/systemd/user"
-scp cbor-server.service "$TARGET:~/.config/systemd/user/"
-ssh "$TARGET" "systemctl --user daemon-reload"
+ssh "${USER}@${TARGET}" "sudo mkdir -p /etc/systemd/system"
+scp cbor-server.service "${USER}@${TARGET}:/tmp/cbor-server.service"
+ssh "${USER}@${TARGET}" "sudo mv /tmp/cbor-server.service /etc/systemd/system/ && sudo systemctl daemon-reload"
 
-echo "=== Deploying data directory ==="
-ssh "$TARGET" "mkdir -p $TARGET_DIR/data/.well-known/cbor-web/pages"
+echo "=== Syncing data directory ==="
 if [ -d data/.well-known ]; then
-    rsync -avz --delete data/ "$TARGET:$TARGET_DIR/data/"
+    rsync -avz --delete data/ "${USER}@${TARGET}:${TARGET_DIR}/data/"
 else
     echo "  (no local data/ — using existing data on $TARGET)"
 fi
 
-echo "=== Enabling linger (keep alive after SSH logout) ==="
-ssh "$TARGET" "loginctl enable-linger 2>/dev/null || true"
-
 echo "=== Starting service ==="
-ssh "$TARGET" "systemctl --user enable --now cbor-server"
+ssh "${USER}@${TARGET}" "sudo systemctl enable --now cbor-server"
 
 echo "=== Done ==="
 sleep 1
-ssh "$TARGET" "systemctl --user status cbor-server --no-pager" || true
+ssh "${USER}@${TARGET}" "sudo systemctl status cbor-server --no-pager" || true
 echo ""
-echo "Server running on http://$TARGET:3001"
-echo "Test: curl -sI http://$TARGET:3001/.well-known/cbor-web"
+echo "Server: http://${TARGET}:3001"
+echo "Test:   curl -s http://localhost:3001/.well-known/cbor-web"

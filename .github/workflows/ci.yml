@@ -110,7 +110,7 @@ jobs:
           fi
           for dir in tools/cbor-crawl tools/text2cbor tools/cbor-vectors tools/cbor-server; do
             echo "Auditing $dir..."
-            (cd "$dir" && cargo audit) || echo "  ⚠️ warnings (review above)"
+            (cd "$dir" && cargo audit --deny warnings 2>&1) || { echo "SECURITY: cargo audit failed for $dir"; exit 1; }
           done
 
   metrics:

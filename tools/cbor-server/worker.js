@@ -135,12 +135,17 @@ export default {
     const method = request.method;
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, HEAD, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, X-CBOR-Web-Wallet",
+      "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Accept",
       "Access-Control-Expose-Headers": "ETag, Content-Type",
     };
+    // Block dangerous methods in CORS preflight
     if (method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders });
+    }
+    // Reject POST/PUT/DELETE unless explicitly allowed
+    if (method !== "GET" && method !== "HEAD") {
+      return new Response("Method not allowed", { status: 405, headers: corsHeaders });
     }
 
     let domainOverride = null;
@@ -211,9 +216,10 @@ export default {
 
     const originUrl = "https://cbor.deltopide.com" + outPath + outSearch;
 
+    const SAFE_FWD_HEADERS = new Set(["accept", "accept-encoding", "accept-language", "if-none-match", "if-modified-since", "content-type", "x-cbor-domain", "x-cbor-web-wallet"]);
     const fwdHeaders = new Headers();
     for (const [k, v] of request.headers) {
-      if (k.toLowerCase() !== "host") {
+      if (SAFE_FWD_HEADERS.has(k.toLowerCase())) {
         fwdHeaders.set(k, v);
       }
     }
