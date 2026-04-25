@@ -79,6 +79,10 @@ jobs:
         working-directory: tools/cbor-vectors
         run: cargo check && cargo clippy -- -D warnings
 
+      - name: Build cbor-server
+        working-directory: tools/cbor-server
+        run: cargo check && cargo clippy -- -D warnings
+
       - name: Check formatting
         run: cargo fmt --check || true
         working-directory: tools/cbor-crawl

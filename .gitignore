@@ -8,3 +8,4 @@ target/
 .idea/
 memory/
 business/
+tools/cbor-server/data/**/*.cbor

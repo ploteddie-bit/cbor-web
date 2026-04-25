@@ -1,0 +1,19 @@
+[Unit]
+Description=CBOR-Web HTTP Server
+After=network.target
+
+[Service]
+Type=simple
+User=eddie
+WorkingDirectory=/home/eddie/cbor-server
+ExecStart=/home/eddie/cbor-server/cbor-server \
+    --data /home/eddie/cbor-server/data \
+    --listen 0.0.0.0:3001
+Restart=always
+RestartSec=5
+
+# Environment variables for auth (set via systemd or .env)
+# Environment=CBOR_TOKEN=your_token_here
+
+[Install]
+WantedBy=multi-user.target
