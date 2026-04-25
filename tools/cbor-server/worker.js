@@ -99,6 +99,11 @@ export default {
       }
     }
 
+    // ── Default domain when no short code and no /s/ — use deltopide.com ──
+    if (!domainOverride && !url.pathname.startsWith("/s/")) {
+      domainOverride = "deltopide.com";
+    }
+
     const originUrl = "https://cbor.deltopide.com" + outPath + outSearch;
 
     const fwdHeaders = new Headers();
