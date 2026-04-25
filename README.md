@@ -1,10 +1,11 @@
 # CBOR-Web
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
-[![Version](https://img.shields.io/badge/Version-v2.1.3-blue.svg)]()
+[![Version](https://img.shields.io/badge/Version-v2.2.0-blue.svg)]()
 [![CI](https://img.shields.io/badge/CI-passing-brightgreen.svg)]()
-[![Tests](https://img.shields.io/badge/tests-29%20passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-147%20passed-brightgreen.svg)]()
 [![Status](https://img.shields.io/badge/status-production%20%7C%2038%20sites-brightgreen.svg)]()
+[![npm](https://img.shields.io/npm/v/%40deltopide_edy%2Fcborweb?label=npm)](https://www.npmjs.com/package/@deltopide_edy/cborweb)
 
 **Binary Web Content for Autonomous AI Agents — CBOR (RFC 8949)**
 
@@ -66,18 +67,32 @@ A real-world benchmark on a 49-page site: **1.63 MB HTML → 878 KB CBOR bundle*
 
 **8 languages, zero external dependencies.** Drop-in libraries for any stack.
 
-| Language | File | Purpose | Deps |
-|----------|------|---------|------|
-| **Python** | [`clients/python/cborweb/`](clients/python/) | AI agent client (manifest, bundle, search, doléance, diff) | stdlib only |
-| **TypeScript** | [`clients/typescript/cborweb.ts`](clients/typescript/cborweb.ts) | Web/Node.js/Deno/Bun | fetch only |
-| **React** | [`clients/react/`](clients/react/) | Hook + component (renders CBOR→JSX) | React 18+ |
-| **PHP** | [`clients/php/CborWeb.php`](clients/php/CborWeb.php) | WordPress, Laravel, Drupal | curl only |
-| **Go** | [`clients/go/cborweb.go`](clients/go/cborweb.go) | Microservices, Cloudflare Workers | stdlib only |
-| **Ruby** | [`clients/ruby/cborweb.rb`](clients/ruby/cborweb.rb) | Shopify, Jekyll, Rails | stdlib only |
-| **Java** | [`clients/java/CborWebClient.java`](clients/java/CborWebClient.java) | Enterprise, Spring, Android | stdlib only |
-| **C++** | [`clients/cpp/cborweb.hpp`](clients/cpp/cborweb.hpp) | IoT, embedded, native apps | POSIX sockets |
+| Language | Install | File |
+|----------|---------|------|
+| **TypeScript/Node** | `npm install @deltopide_edy/cborweb` | [`cborweb.ts`](clients/typescript/cborweb.ts) |
+| **React** | `npm install @deltopide_edy/cborweb` + import hook | [`useCBORWeb.ts`](clients/react/useCBORWeb.ts) [`CBORWebContent.tsx`](clients/react/CBORWebContent.tsx) |
+| **Python** | Copy [`cborweb/`](clients/python/cborweb/) | [`__init__.py`](clients/python/cborweb/__init__.py) (118 tests) |
+| **PHP** | Copy [`CborWeb.php`](clients/php/CborWeb.php) | 153 lignes, curl only |
+| **Go** | Copy [`cborweb.go`](clients/go/cborweb.go) | 192 lignes, stdlib only |
+| **Ruby** | Copy [`cborweb.rb`](clients/ruby/cborweb.rb) | 111 lignes, stdlib only |
+| **Java** | Copy [`CborWebClient.java`](clients/java/CborWebClient.java) | 132 lignes, stdlib only |
+| **C++** | Copy [`cborweb.hpp`](clients/cpp/cborweb.hpp) | 244 lignes, header-only C++17 |
 
 Every SDK provides: `manifest()`, `page(path)`, `bundle()` + CBOR decoder + path encoding (§6.1).
+
+### Quick npm install
+
+```bash
+npm install @deltopide_edy/cborweb
+```
+
+```ts
+import { CBORWebClient } from "@deltopide_edy/cborweb";
+
+const client = new CBORWebClient("https://cbor.deltopide.com");
+const manifest = await client.manifest();
+console.log(`${manifest.site_name} — ${manifest.pages_count} pages`);
+```
 
 ## Quick Start
 
