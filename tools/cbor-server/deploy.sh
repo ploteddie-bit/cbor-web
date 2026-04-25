@@ -38,6 +38,9 @@ else
     echo "  (no local data/ — using existing data on $TARGET)"
 fi
 
+echo "=== Enabling linger (keep alive after SSH logout) ==="
+ssh "$TARGET" "loginctl enable-linger 2>/dev/null || true"
+
 echo "=== Starting service ==="
 ssh "$TARGET" "systemctl --user enable --now cbor-server"
 
