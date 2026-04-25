@@ -22,6 +22,7 @@ use tracing_subscriber::EnvFilter;
 struct User {
     email: String,
     password_hash: String,
+    api_token: String,
     created_at: u64,
     upload_count: u64,
     total_pages: u64,
@@ -87,6 +88,8 @@ async fn main() {
         .route("/register", get(serve_register_page).post(handle_register))
         .route("/logout", get(handle_logout))
         .route("/upload", post(upload_handler))
+        .route("/api/upload", post(api_upload_handler))
+        .route("/api/key", get(api_key_handler))
         .route("/invoices", get(serve_invoices))
         .route("/invoice/{id}", get(serve_invoice))
         .route("/api/status", get(api_status))
@@ -264,7 +267,7 @@ async fn handle_register(
     if users.iter().any(|u| u.email == email) {
         return Redirect::to("/register?error=Email+already+registered").into_response();
     }
-    users.push(User { email: email.clone(), password_hash: hash_password(&pw), created_at: now_ts(), upload_count: 0, total_pages: 0, plan: "Trial (5 free)".into() });
+    users.push(User { email: email.clone(), password_hash: hash_password(&pw), api_token: hex::encode(Sha256::digest(format!("api:{}:{}", &email, now_ts()).as_bytes())), created_at: now_ts(), upload_count: 0, total_pages: 0, plan: "Trial (5 free)".into() });
     let users_clone = users.clone();
     drop(users);
     save_json(&state.data_dir.join("users.json"), &users_clone);
@@ -358,6 +361,7 @@ async fn upload_handler(
     let invoices_clone = state.invoices.read().await.clone();
     save_json(&state.data_dir.join("invoices.json"), &invoices_clone);
     save_invoice_html(&state.data_dir, &invoice);
+    send_invoice_email(&invoice);
 
     // Update user stats
     {
@@ -378,6 +382,103 @@ async fn upload_handler(
 
     (StatusCode::OK, [(header::CONTENT_TYPE, "application/zip"), (header::CONTENT_DISPOSITION, &format!("attachment; filename=\"{}-cbor.zip\"", domain).as_str())], output_zip).into_response()
 }
+
+// ── API upload (programmatic, with Authorization header) ──
+
+async fn api_upload_handler(
+    State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    mut multipart: Multipart,
+) -> Response {
+    let api_token = headers.get("Authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .unwrap_or("");
+    let users = state.users.read().await;
+    let user = match users.iter().find(|u| u.api_token == api_token) {
+        Some(u) => u.clone(),
+        None => return (StatusCode::UNAUTHORIZED, "Invalid API key. Get yours at /api/key").into_response(),
+    };
+    drop(users);
+
+    let mut domain: Option<String> = None;
+    let mut zip_data: Option<Vec<u8>> = None;
+    while let Ok(Some(field)) = multipart.next_field().await {
+        match field.name().unwrap_or("") {
+            "domain" => { if let Ok(t) = field.text().await { let d = t.trim().to_string(); if !d.is_empty() && is_valid_domain(&d) { domain = Some(d); } } }
+            "file" => { if let Ok(b) = field.bytes().await { if !b.is_empty() { zip_data = Some(b.to_vec()); } } }
+            _ => {}
+        }
+    }
+    let domain = match domain { Some(d) => d, None => return (StatusCode::BAD_REQUEST, "Missing domain").into_response() };
+    let zip_bytes = match zip_data { Some(b) => b, None => return (StatusCode::BAD_REQUEST, "Missing zip file").into_response() };
+
+    // Reuse upload logic — same as upload_handler from here
+    let work_id = uuid::Uuid::new_v4().to_string();
+    let tmp_dir = state.data_dir.join("uploads").join(&work_id);
+    let site_dir = tmp_dir.join("site");
+    let output_dir = tmp_dir.join("output");
+    std::fs::create_dir_all(&site_dir).ok();
+    std::fs::create_dir_all(&output_dir).ok();
+    if let Err(e) = extract_zip(&zip_bytes, &site_dir) { let _ = std::fs::remove_dir_all(&tmp_dir); return (StatusCode::BAD_REQUEST, format!("Bad zip: {e}")).into_response(); }
+    let binary = text2cbor_binary();
+    let out = Command::new(&binary).args(["generate","--input",site_dir.to_str().unwrap(),"--output",output_dir.to_str().unwrap(),"--domain",&domain]).output();
+    match out { Ok(o) if o.status.success() => {}, Ok(o) => { let _ = std::fs::remove_dir_all(&tmp_dir); return (StatusCode::INTERNAL_SERVER_ERROR, format!("text2cbor: {}", String::from_utf8_lossy(&o.stderr).trim())).into_response(); }, Err(e) => { let _ = std::fs::remove_dir_all(&tmp_dir); return (StatusCode::INTERNAL_SERVER_ERROR, format!("error: {e}")).into_response(); } }
+    let output_zip = match create_output_zip(&output_dir) { Ok(z) => z, Err(e) => { let _ = std::fs::remove_dir_all(&tmp_dir); return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(); } };
+    let page_count = std::fs::read_dir(&output_dir).map(|d| d.filter(|e| e.as_ref().map(|f| f.path().extension().map(|x| x == "cbor").unwrap_or(false)).unwrap_or(false)).count()).unwrap_or(0);
+    let cbor_size = output_zip.len();
+    let invoice = Invoice { id: format!("INV-{}", &work_id[..8].to_uppercase()), user_email: user.email.clone(), domain: domain.clone(), pages: page_count, cbor_size, amount_eur: if user.upload_count < 5 { 0 } else { 49 }, timestamp: now_ts(), paid: user.upload_count < 5 };
+    state.invoices.write().await.push(invoice.clone());
+    let inv_clone = state.invoices.read().await.clone();
+    save_json(&state.data_dir.join("invoices.json"), &inv_clone);
+    save_invoice_html(&state.data_dir, &invoice);
+    let mut users_w = state.users.write().await;
+    if let Some(u) = users_w.iter_mut().find(|u| u.email == user.email) { u.upload_count += 1; u.total_pages += page_count as u64; }
+    let users_clone = users_w.clone(); drop(users_w);
+    save_json(&state.data_dir.join("users.json"), &users_clone);
+    state.upload_count.fetch_add(1, Ordering::Relaxed);
+    send_invoice_email(&invoice);
+    tracing::info!("API: Converted {} for {} ({} pages)", domain, user.email, page_count);
+    let cleanup_dir = tmp_dir;
+    tokio::spawn(async move { tokio::time::sleep(Duration::from_secs(3600)).await; let _ = tokio::fs::remove_dir_all(&cleanup_dir).await; });
+    Json(serde_json::json!({"status":"ok","domain":domain,"pages":page_count,"size":cbor_size,"invoice":invoice.id,"download_url":format!("/api/download/{}", work_id)})).into_response()
+}
+
+async fn api_key_handler(
+    State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let token = get_cookie(&headers);
+    let user = match get_session_user(&state, &token).await {
+        Some(u) => u,
+        None => return (StatusCode::UNAUTHORIZED, "Login required").into_response(),
+    };
+    Json(serde_json::json!({"api_key": user.api_token, "usage": format!("curl -H 'Authorization: Bearer {}' -F domain=example.com -F file=@site.zip http://127.0.0.1:3002/api/upload", user.api_token)})).into_response()
+}
+
+fn send_invoice_email(invoice: &Invoice) {
+    let subject = format!("text2cbor Invoice {} — {}€", invoice.id, invoice.amount_eur);
+    let body = format!(
+        "text2cbor SaaS — Invoice {}\n\nDomain: {}\nPages: {}\nAmount: {}€\nStatus: {}\nDate: {}\n\nPayment by bank transfer.\nDeltopide SL — CIF B05356202 — Calle San Juan 4, 03110 Mutxamel, Alicante\n\nThank you for using text2cbor!",
+        invoice.id, invoice.domain, invoice.pages, invoice.amount_eur,
+        if invoice.paid { "PAID" } else { "PENDING" },
+        chrono::DateTime::from_timestamp(invoice.timestamp as i64, 0).map(|d| d.format("%Y-%m-%d").to_string()).unwrap_or_default()
+    );
+    // Try sendmail, fail silently if not configured
+    let _ = std::process::Command::new("sendmail")
+        .args(["-f", "noreply@text2cbor.com", &invoice.user_email])
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .map(|mut child| {
+            use std::io::Write;
+            if let Some(mut stdin) = child.stdin.take() {
+                let _ = stdin.write_all(format!("Subject: {subject}\nFrom: text2cbor <noreply@text2cbor.com>\nTo: {to}\nContent-Type: text/plain; charset=utf-8\n\n{body}", to = invoice.user_email).as_bytes());
+            }
+            let _ = child.wait();
+        });
+}
+
+// ── API upload (programmatic) ──
 
 // ── Invoices ──
 
