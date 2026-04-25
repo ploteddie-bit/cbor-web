@@ -209,7 +209,7 @@ class CBORWebClient:
 
     def _block_matches(self, block: dict, query: str) -> bool:
         """Check if a content block matches a search query."""
-        for field in ("v", "text", "alt", "href", "src", "attr"):
+        for field in ("v", "text", "alt", "href", "src", "attr", "title", "ai_description", "description"):
             val = str(block.get(field, "")).lower()
             if query in val:
                 return True
