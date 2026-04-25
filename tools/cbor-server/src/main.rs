@@ -131,13 +131,18 @@ async fn auth_mw(
 
 // ── Manifest endpoint ──
 
-async fn serve_manifest(State(state): State<Arc<AppState>>, method: Method) -> Response {
+async fn serve_manifest(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    method: Method,
+) -> Response {
     if method != Method::GET && method != Method::HEAD {
         return (StatusCode::METHOD_NOT_ALLOWED, "Method Not Allowed").into_response();
     }
+    let dir = host_dir(&state, &headers);
     let paths = [
-        state.data_dir.join(".well-known/cbor-web/manifest.cbor"),
-        state.data_dir.join("index.cbor"),
+        dir.join(".well-known/cbor-web/manifest.cbor"),
+        dir.join("index.cbor"),
     ];
     for p in &paths {
         if let Some(resp) = serve_file(p).await {
@@ -151,6 +156,7 @@ async fn serve_manifest(State(state): State<Arc<AppState>>, method: Method) -> R
 
 async fn serve_page(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Path(filename): Path<String>,
     method: Method,
 ) -> Response {
@@ -164,17 +170,23 @@ async fn serve_page(
     if safe != filename {
         return (StatusCode::BAD_REQUEST, "Invalid path").into_response();
     }
-    let path = state.data_dir.join(".well-known/cbor-web/pages").join(&safe);
+    let dir = host_dir(&state, &headers);
+    let path = dir.join(".well-known/cbor-web/pages").join(&safe);
     serve_file(&path).await.unwrap_or_else(|| (StatusCode::NOT_FOUND, "Not Found").into_response())
 }
 
 // ── Bundle endpoint ──
 
-async fn serve_bundle(State(state): State<Arc<AppState>>, method: Method) -> Response {
+async fn serve_bundle(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    method: Method,
+) -> Response {
     if method != Method::GET && method != Method::HEAD {
         return (StatusCode::METHOD_NOT_ALLOWED, "Method Not Allowed").into_response();
     }
-    let path = state.data_dir.join(".well-known/cbor-web/bundle.cbor");
+    let dir = host_dir(&state, &headers);
+    let path = dir.join(".well-known/cbor-web/bundle.cbor");
     serve_file(&path).await.unwrap_or_else(|| (StatusCode::NOT_FOUND, "Not Found").into_response())
 }
 
@@ -293,6 +305,7 @@ struct DiffQuery {
 
 async fn serve_diff(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Query(query): Query<DiffQuery>,
     method: Method,
 ) -> Response {
@@ -303,10 +316,10 @@ async fn serve_diff(
         Some(ref h) if h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit()) => h.clone(),
         _ => return (StatusCode::BAD_REQUEST, "Missing or invalid ?base=<sha256-hex>").into_response(),
     };
-
+    let dir = host_dir(&state, &headers);
     let paths = [
-        state.data_dir.join(".well-known/cbor-web/manifest.cbor"),
-        state.data_dir.join("index.cbor"),
+        dir.join(".well-known/cbor-web/manifest.cbor"),
+        dir.join("index.cbor"),
     ];
     let current_bytes = {
         let mut found = None;
@@ -479,6 +492,22 @@ fn cbor_response(data: &[u8], etag: &str) -> Response {
 }
 
 fn not_found() -> Response { (StatusCode::NOT_FOUND, "Not Found").into_response() }
+
+fn host_dir(state: &AppState, headers: &HeaderMap) -> PathBuf {
+    let host = headers
+        .get(header::HOST)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .split(':')
+        .next()
+        .unwrap_or("")
+        .to_string();
+    let site_dir = state.data_dir.join("sites").join(&host);
+    if site_dir.exists() {
+        return site_dir;
+    }
+    state.data_dir.clone()
+}
 
 async fn serve_file(path: &std::path::Path) -> Option<Response> {
     let data = tokio::fs::read(path).await.ok()?;
