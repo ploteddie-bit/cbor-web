@@ -1,8 +1,10 @@
 # CBOR-Web
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
-[![Status: Draft](https://img.shields.io/badge/Status-Draft%20%E2%80%94%20Internal%20Review-orange.svg)]()
 [![Version](https://img.shields.io/badge/Version-v2.1.3-blue.svg)]()
+[![CI](https://img.shields.io/badge/CI-passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-29%20passed-brightgreen.svg)]()
+[![Status](https://img.shields.io/badge/status-production%20%7C%2038%20sites-brightgreen.svg)]()
 
 **Binary Web Content for Autonomous AI Agents — CBOR (RFC 8949)**
 
@@ -10,8 +12,7 @@
 
 CBOR-Web is a binary format standard that lets websites expose a machine-native copy of their content alongside HTML. AI agents consume structured content directly — no HTML parsing, no DOM traversal, no token waste.
 
-A typical web page: **120 KB HTML → 7% useful content**.
-A CBOR-Web page: **2 KB binary → 95%+ signal, zero tokenization cost**.
+A real-world benchmark on a 49-page site: **1.63 MB HTML → 878 KB CBOR bundle** (1.8:1 compression, 45% smaller). Single-page content achieves 10:1+.
 
 ```cbor-diag
 55799({
@@ -35,45 +36,96 @@ A CBOR-Web page: **2 KB binary → 95%+ signal, zero tokenization cost**.
 | Format | Text (DOM, scripts, styles) | Binary (CBOR, RFC 8949) |
 | Signal ratio | ~7% useful content | 95%+ signal |
 | Agent access | Crawl + parse + strip noise | Single request, native parse |
-| 80-page site | ~3 MB (multiple requests) | ~50 KB (one bundle) |
-| Compression vs HTML | Baseline | **~10:1 to 50:1** (content only) |
+| 49-page site | ~1.6 MB (multiple requests) | ~878 KB (one bundle) |
+| Incremental updates | Full re-crawl | SHA-256 diff |
 
 ## Key Features
 
 - **Binary CBOR format** (RFC 8949) — compact, typed, deterministic encoding
 - **Single-request indexing** — bundle endpoint delivers entire site in one request
 - **SHA-256 incremental updates** — only re-download pages that changed
-- **13+ content block types** — headings, paragraphs, tables, lists, code, images, CTAs, multimedia, generative...
+- **13+ content block types** — h, p, ul, ol, q, code, table, img, cta, embed, sep, dl, note
 - **Schema.org structured data** — native CBOR, not JSON-LD-inside-script-inside-HTML
 - **Forward compatible** — unknown keys are ignored, not errors
-- **Doléance Protocol** — agents feed back content quality to publishers, enabling co-evolutionary improvement
-- **Access control** — ERC-20 token badge for premium content (optional)
+- **Doléance Protocol** — agents feed back content quality to publishers
+- **Access control** — token-based (X-CBOR-Web-Wallet header)
 
-## Specification Documents
+## Tools
 
-| Document | Version | Description |
-|----------|---------|-------------|
-| [CBOR-WEB-CORE.md](CBOR-WEB-CORE.md) | v2.1.3 | Core format: manifest, page, bundle, content blocks, CDDL schema |
-| [CBOR-WEB-SECURITY.md](CBOR-WEB-SECURITY.md) | v2.1.1 | COSE signatures, security levels, access control, rate limiting |
-| [CBOR-WEB-MULTIMEDIA.md](CBOR-WEB-MULTIMEDIA.md) | v2.1 | Image variants, audio, video, media channels |
-| [CBOR-WEB-GENERATIVE.md](CBOR-WEB-GENERATIVE.md) | v2.1 | Generative blocks, form handling, commerce data, A/B variants |
-| [CBOR-WEB-ECONOMICS.md](CBOR-WEB-ECONOMICS.md) | v2.1 | Token economics, smart contracts, financial model |
-| [CBOR-WEB-REFERENCE.md](CBOR-WEB-REFERENCE.md) | v2.1 | Unified CDDL, all test vectors, glossary, changelog |
-| [CBOR-WEB-DOLEANCE.md](CBOR-WEB-DOLEANCE.md) | v1.0 | Agent feedback protocol: quality signals, privacy-first |
+| Tool | Language | Purpose |
+|------|----------|---------|
+| [`tools/text2cbor`](tools/text2cbor/) | Rust | Convert HTML websites → CBOR-Web (manifest, bundle, pages) |
+| [`tools/cbor-crawl`](tools/cbor-crawl/) | Rust | AI agent crawler: discover, fetch, search, diff, send doléance |
+| [`tools/cbor-server`](tools/cbor-server/) | Rust | Reference HTTP server: well-known endpoints, doléance receiver, rate limiting |
+| [`tools/cbor-vectors`](tools/cbor-vectors/) | Rust | Generate binary test vectors |
+| [`clients/python/cborweb`](clients/python/) | Python | Zero-dependency AI agent client (manifest, bundle, search, feedback) |
+| [`tools/cbor-server/worker.js`](tools/cbor-server/worker.js) | JS | Cloudflare Worker for edge distribution + R2 |
 
 ## Quick Start
-
-1. **Clone** this repository and read [CBOR-WEB-CORE.md](CBOR-WEB-CORE.md)
-2. **Validate** schemas with [CDDL files](schemas/) using `cddl-rs` or any CDDL validator
-3. **Implement** — use the test vectors in CBOR-WEB-REFERENCE.md to verify conformance
 
 ```bash
 git clone https://github.com/ploteddie-bit/cbor-web.git
 cd cbor-web
-# Read the core specification first
-# Validate CDDL schemas
-cargo install cddl && cddl validate schemas/cbor-web-core.cddl
+
+# Generate CBOR from HTML
+cd tools/text2cbor && cargo build --release
+./target/release/text2cbor generate \
+  -i /path/to/html/site -o /tmp/output -d example.com \
+  --name "My Site" --default-lang en --spec-version 2.1
+
+# Serve it
+cd ../cbor-server && ./bootstrap.sh /tmp/output
+cargo run --release -- --data data --listen 0.0.0.0:3001
+# → http://localhost:3001/.well-known/cbor-web
+
+# Crawl it
+cd ../cbor-crawl && cargo build --release
+./target/release/cbor-crawl inspect https://cbor.deltopide.com
+
+# Python client (AI agents)
+cd ../../clients/python
+python3 -c "
+from cborweb import CBORWebClient
+client = CBORWebClient('cbor.deltopide.com')
+manifest = client.manifest()
+print(f'{manifest[\"site_name\"]} — {manifest[\"pages_count\"]} pages')
+"
 ```
+
+## Specification Documents (7-part suite)
+
+| # | Document | Version | Description |
+|---|----------|---------|-------------|
+| 1 | [CBOR-WEB-CORE.md](CBOR-WEB-CORE.md) | v2.1.3 | Core format: manifest, page, bundle, content blocks, CDDL |
+| 2 | [CBOR-WEB-MULTIMEDIA.md](CBOR-WEB-MULTIMEDIA.md) | v2.1 | Image, audio, video, streaming channels |
+| 3 | [CBOR-WEB-GENERATIVE.md](CBOR-WEB-GENERATIVE.md) | v2.1 | Generative blocks, forms, commerce |
+| 4 | [CBOR-WEB-SECURITY.md](CBOR-WEB-SECURITY.md) | v2.1.1 | COSE signatures, access control, rate limiting |
+| 5 | [CBOR-WEB-ECONOMICS.md](CBOR-WEB-ECONOMICS.md) | v2.1 | Token economics, smart contracts |
+| 6 | [CBOR-WEB-REFERENCE.md](CBOR-WEB-REFERENCE.md) | v2.1 | Unified CDDL, test vectors, glossary |
+| 7 | [CBOR-WEB-DOLEANCE.md](CBOR-WEB-DOLEANCE.md) | v1.0 | Agent feedback protocol |
+
+## Production Deployment
+
+**Live at:** [`https://cbor.deltopide.com`](https://cbor.deltopide.com) — 38 CBOR-Web enabled sites.
+
+```
+Internet → Cloudflare Tunnel → serveur-dev:3001 (Rust/axum)
+                                  │
+                                  ├─ sites/deltopide.com/    (49 pages, full spec)
+                                  ├─ sites/cbor-web.com/     (8 pages, full spec)
+                                  ├─ sites/verdetao.fr/      (index.cbor)
+                                  └─ ... 35 more showcase sites
+```
+
+Endpoints available:
+- `GET /` — HTML dashboard listing all 38 sites
+- `GET /health` — JSON health check
+- `GET /.well-known/cbor-web` — Manifest (multi-domain auto-detection)
+- `GET /.well-known/cbor-web/bundle` — Full site bundle
+- `GET /.well-known/cbor-web/pages/:file` — Individual pages
+- `POST /.well-known/cbor-web/doleance` — Agent feedback (persisted to disk)
+- `GET /.well-known/cbor-web/doleance/list` — Collected feedback
+- `GET /.well-known/cbor-web/diff?base=HASH` — Incremental diff
 
 ## Alternatives Considered
 
@@ -85,14 +137,13 @@ cargo install cddl && cddl validate schemas/cbor-web-core.cddl
 | Incremental updates | No | lastmod | No | No | **SHA-256 + diffs** |
 | Single-request bundle | No | No | No | No | **Yes** |
 | Access control | No | No | No | No | **Yes (optional)** |
+| Agent feedback | No | No | No | No | **Doléance Protocol** |
+| Reference server | — | — | — | — | **cbor-server (Rust)** |
+| Python client | — | — | — | — | **cborweb (zero deps)** |
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on submitting issues, pull requests, and review criteria.
-
-## First Deployment
-
-[verdetao.com](https://verdetao.com) — the first CBOR-Web enabled website in the world.
+See [CONTRIBUTING.md](CONTRIBUTING.md). All Rust tools pass `cargo clippy -D warnings` and have test coverage.
 
 ## License
 

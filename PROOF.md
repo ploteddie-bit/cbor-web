@@ -1,20 +1,25 @@
 # CBOR-Web — Proof of Priority
 
 Generated: 2026-03-22T18:55:13Z  
-Updated: 2026-04-23  
+Updated: 2026-04-25 (post v2.1.4 corrections)  
 Author: Eddie Plot (ExploDev)
 
 ## SHA-256 Hashes
 
 ```
-aec6060149e0d1367a4c2c75db6fefa3f5ae1f7482709952e17d5f6f435f23f6  CBOR-WEB-CORE.md
-82b21238ea6796700ed33dab689104653c233f3d00e9db98f814857fc14894d8  CBOR-WEB-SECURITY.md
-b04bf1c4a25c6f352807b1fa0900232e180066d19a1630be073959a58e6043c2  CBOR-WEB-MULTIMEDIA.md
-3f3c650234aac7ab980cc9b6bb69fe94bfb063a41716676c2934677952fcb54e  CBOR-WEB-GENERATIVE.md
-0b58bfc83f3149200f7780387363c879047ed7429ca4124c3b7fd6fc81b03133  CBOR-WEB-ECONOMICS.md
-2fb706e18bfb66a37bbc2d67a5204792de56132b78e1a7f15c98016e6f1a3234  CBOR-WEB-REFERENCE.md
-d87ea103b9d059f635ad5e4ba20c55cc3fc7184fec7b3510e5ca8d5ff9413bfd  CBOR-WEB-DOLEANCE.md
+c060df5abd614def23ed8a553ad232cf3a9555c88c5d52910d44d3bab0738d78  CBOR-WEB-CORE.md
+eb7bbe799e028ed2af5e7e522611d77de6a22354a1669a11af8be25a71cdfd24  CBOR-WEB-SECURITY.md
+95dd97fc4a9cee3b47f012203349b14207ccfd1478147d9f567fdbb42c251c5c  CBOR-WEB-MULTIMEDIA.md
+e816d465eb9c532ce64ba880940c5f63d17399fc70c82aa1ed923d3be316c86e  CBOR-WEB-GENERATIVE.md
+2a48a2c1587335347fb179f942e6bbb6f127674f77629939faced864baf42779  CBOR-WEB-ECONOMICS.md
+468b6783f79526b074b9872a20e166c73fb6feb3bca885fbf67921c046e37c5a  CBOR-WEB-REFERENCE.md
+935119f19efeeb4aa7ba93a6d3aa5fa8f7cacb306b41595316314668e402dffa  CBOR-WEB-DOLEANCE.md
 ```
 
 These hashes prove the existence and content of these documents at the commit timestamp.  
-To verify: `sha256sum CBOR-WEB-CORE.md CBOR-WEB-SECURITY.md CBOR-WEB-MULTIMEDIA.md CBOR-WEB-GENERATIVE.md CBOR-WEB-ECONOMICS.md CBOR-WEB-REFERENCE.md CBOR-WEB-DOLEANCE.md`
+To verify: `sha256sum -c PROOF.md` (extract the hash block above)
+
+## Reference Implementation
+
+Repository: https://github.com/ploteddie-bit/cbor-web  
+Production endpoint: https://cbor.deltopide.com (38 sites, Cloudflare Tunnel)
