@@ -6,7 +6,7 @@ description = "CBOR-Web HTTP server — reference implementation for serving bin
 license = "MIT"
 
 [dependencies]
-axum = "0.7"
+axum = "0.8"
 tokio = { version = "1", features = ["full"] }
 ciborium = "0.2"
 sha2 = "0.10"
