@@ -170,10 +170,10 @@ h2 span{color:var(--m-accent)}
   <div class="grid2">
     <div class="card"><h3>📦 npm install</h3><p><code>npm install @deltopide_edy/cborweb</code><br>Also: cargo, pip, composer, gem, go get. 8 languages, zero deps.</p></div>
     <div class="card"><h3>🔧 Convert</h3><p><code>text2cbor generate -i ./html -o ./cbor -d mysite.com</code><br>Extracts headings, paragraphs, tables, images, Schema.org data.</p></div>
-    <div class="card"><h3>🌐 Serve</h3><p>Drop .cbor files alongside HTML. Rust server or Cloudflare Worker. Discovery via <code>/.well-known/cbor-web</code>.</p></div>
+    <div class="card"><h3>🌐 Serve</h3><p>Drop .cbor files alongside HTML. Rust server or Cloudflare Worker. Discovery via <code>/.well-known/cbor-web</code>; pages under <code>/.well-known/cbor-web/pages/{file}.cbor</code> (root page = <code>_index.cbor</code>).</p></div>
     <div class="card"><h3>🤖 SDK API</h3><p><code>client.manifest()</code> → full site. <code>client.page(path)</code> → single page. <code>client.bundle()</code> → one request. 8 languages.</p></div>
-    <div class="card"><h3>🔐 Token gating</h3><p>Agents hold ≥1 CBORW for premium access. Wallet-verified identity. Cryptographic signatures. Audit trail.</p></div>
-    <div class="card"><h3>🏛️ IETF Draft</h3><p>RFC 8949 · RFC 8610 · RFC 8615. <a href="https://github.com/ploteddie-bit/cbor-web/blob/main/spec/draft-plot-cbor-web-00.md" style="color:var(--m-accent)">Internet-Draft</a> submitted. Open standard, CC BY 4.0.</p></div>
+    <div class="card"><h3>🔐 Token gating <span style="font-size:.7rem;color:var(--amber)">(prototype)</span></h3><p>Envisioned model: agents holding ≥1 CBORW for premium access. Wallet identity, cryptographic signatures, audit trail. Not yet deployed on-chain.</p></div>
+    <div class="card"><h3>🏛️ IETF Draft</h3><p>RFC 8949 · RFC 8610 · RFC 8615. <a href="https://github.com/ploteddie-bit/cbor-web/blob/main/spec/draft-plot-cbor-web-00.md" style="color:var(--m-accent)">Internet-Draft</a> submitted. Spec: public domain (CC0 1.0); code: MIT.</p></div>
   </div>
 </section>
 
@@ -197,7 +197,7 @@ h2 span{color:var(--m-accent)}
 <section class="content" id="blog-page">
   <h2><span>Blog</span></h2>
   <div class="grid2" id="blog-posts">
-    <div class="card"><h3>🆕 v2.2 Released</h3><p>April 2026 — 8 SDKs, WordPress, Shopify, OCR pipeline, anti-DoS, npm, IETF draft.</p><a href="https://github.com/ploteddie-bit/cbor-web/releases" class="btn btn-primary" style="margin-top:10px;font-size:.72rem">View on GitHub</a></div>
+    <div class="card"><h3>🆕 Protocol v2.1 · SDK v2.2.0</h3><p>April 2026 — 8 SDKs, WordPress, Shopify, OCR pipeline, anti-DoS, npm, IETF draft.</p><a href="https://github.com/ploteddie-bit/cbor-web/releases" class="btn btn-primary" style="margin-top:10px;font-size:.72rem">View on GitHub</a></div>
     <div class="card"><h3>📊 93% token waste</h3><p>200 websites benchmarked. Average: 120KB HTML → 8KB useful content. CBOR-Web: 95% signal ratio.</p></div>
     <div class="card"><h3>🌍 8 SDKs</h3><p>TypeScript, Python, Go, PHP, Ruby, Java, C++, React. Zero deps. One API. npm published.</p></div>
     <div class="card"><h3>🏛️ Digital identity law</h3><p>France requires AI agents to identify. CBOR-Web has wallet identity built-in since day one.</p></div>
@@ -230,12 +230,13 @@ h2 span{color:var(--m-accent)}
 <section class="content" id="api-page">
   <h2>🔑 <span>API & Token Access</span></h2>
   <p class="lead">Get your API key, token, and programmatic access to CBOR-Web services.</p>
-  
+  <div class="card" style="border-left:3px solid var(--amber);background:rgba(245,158,11,.08);margin:8px 0;font-size:.8rem"><strong>⚠️ Prototype — not yet deployed.</strong> api.cborweb.com and the CBORW token below are <strong>not live</strong>. Endpoints, pricing and figures are illustrative only and non-operational.</div>
+
   <div class="grid2">
     <div class="card" style="border-left:3px solid var(--h-accent)">
       <h3>1. Create your account</h3>
-      <p>Register on the <strong>text2cbor SaaS</strong>. You'll get an API key immediately. The first 5 conversions are free — then invoice-based billing (49€/site).</p>
-      <div class="deploy-code" style="margin-top:10px"># Coming soon at api.cborweb.com
+      <p><em>(Prototype — not operational yet.)</em> The <strong>text2cbor SaaS</strong> would issue an API key on registration. Planned pricing: first 5 conversions free, then invoice-based (49€/site).</p>
+      <div class="deploy-code" style="margin-top:10px"># api.cborweb.com — PROTOTYPE, not deployed (illustrative only)
 curl -X POST https://api.cborweb.com/register \
   -H "Content-Type: application/json" \
   -d '{"email":"you@example.com","password":"..."}'<span class="copy-btn" onclick="copyCode(this)">Copy</span></div>
@@ -256,14 +257,14 @@ curl -X POST https://api.cborweb.com/register \
     </div>
     <div class="card" style="border-left:3px solid var(--emerald)">
       <h3>4. CBORW Token (Hold-to-Access)</h3>
-      <p>Agents hold <strong>≥1 CBORW</strong> token to access premium L1 content. Tokens are verified on-chain via <code>verifyAccess(address)</code>. When an agent visits your site with <code>X-CBOR-Web-Wallet</code> header, the server checks their balance.</p>
+      <p><em>(Prototype — not deployed.)</em> Envisioned model: agents would hold <strong>≥1 CBORW</strong> to access premium L1 content. On-chain verification is <em>planned</em> via <code>verifyAccess(address)</code> (a <code>X-CBOR-Web-Wallet</code> header would let the server check the balance).</p>
       <div class="deploy-code" style="margin-top:10px">curl https://api.cborweb.com/verify-access?address=0x...<span class="copy-btn" onclick="copyCode(this)">Copy</span></div>
-      <p style="font-size:.75rem;color:var(--fg2);margin-top:6px">Token contract: 100M CBORW · ERC-20 · Hold-to-access · 12-month founder cliff</p>
+      <p style="font-size:.75rem;color:var(--fg2);margin-top:6px">Envisioned token model (not deployed, no on-chain contract): ERC-20 "hold-to-access". Figures indicative and subject to change.</p>
     </div>
   </div>
   
   <div class="card" style="margin-top:16px">
-    <h3>📊 Token stats (live)</h3>
+    <h3>📊 Token (prototype — not deployed on-chain)</h3>
     <div id="token-stats" style="font-size:.8rem;color:var(--fg2)">Token server: offline (prototype mode). Available on MiniPC/MacPro at port 3002.</div>
   </div>
 </section>
@@ -302,7 +303,7 @@ curl -X POST https://api.cborweb.com/register \
       <h3 style="color:var(--emerald)">3. Deploy</h3>
       <p style="font-size:.8rem;color:var(--fg2);margin:8px 0">Download your .cbor files. Drop them alongside your HTML. Done.</p>
       <div class="deploy-code" style="margin:12px 0;text-align:left;font-size:.7rem;background:#000">GET /.well-known/cbor-web → 200 OK<br>Your site is now AI-readable ✨</div>
-      <p style="font-size:.72rem;color:var(--fg2)">5 conversions free · 49€/site after · Invoice-based</p>
+      <p style="font-size:.72rem;color:var(--fg2)">Planned (not active): 5 conversions free · 49€/site after · invoice-based</p>
     </div>
   </div>
   
@@ -333,7 +334,7 @@ curl -X POST https://api.cborweb.com/register \
     </div>
     <div class="card" style="border-left:3px solid var(--purple)">
       <h3>📦 CBOR-Web Detection</h3>
-      <p>Scans for <code>/.well-known/cbor-web</code>, verifies manifest format, checks content blocks, validates CBOR encoding.</p>
+      <p>Scans for <code>/.well-known/cbor-web</code>, verifies manifest format, checks content blocks, validates canonical CBOR encoding (deterministic).</p>
     </div>
     <div class="card" style="border-left:3px solid var(--emerald)">
       <h3>🔄 Full Site Crawl</h3>
@@ -447,7 +448,7 @@ function updateStream(){
     'Accept: application/cbor','Content-Type: application/cbor',
     `GET /.well-known/cbor-web → 200 OK (${Math.floor(Math.random()*300+100)} bytes)`,
     `X-CBOR-Web-Wallet: 0x${Math.random().toString(16).slice(2,12)}`,
-    'verifyAccess(wallet) → has_access: true',
+    '→ Serving structured CBOR content',
     '→ Serving L1 content (full)',
     '38 sites · 59 pages · 25.3 KB total',
     `Rate: ${Math.floor(Math.random()*50)} agents/min`,
@@ -551,7 +552,7 @@ function copyCode(btn){
 const faqs=[
   {q:'What is CBOR-Web?',a:'An open protocol (RFC 8949) that exposes a machine-readable binary copy of your website. AI agents consume it directly — no HTML parsing, 100× cheaper, 95% signal ratio.'},
   {q:'How is it different from llms.txt?',a:'llms.txt is a ~2KB text summary. CBOR-Web serves FULL structured content in binary — typed blocks, navigation, Schema.org, tables, images, access control.'},
-  {q:'What does it cost?',a:'Protocol + tools: free (MIT + CC BY 4.0). SaaS: 5 free conversions, then 49€/site. Invoice-based, payable by bank transfer.'},
+  {q:'What does it cost?',a:'Spec/protocol: public domain (CC0). Tools/SDK: free (MIT). SaaS (prototype, not yet live): a planned model of 5 free conversions then 49€/site, invoice-based.'},
   {q:'Which languages are supported?',a:'SDKs in TypeScript, Python, Go, PHP, Ruby, Java, C++, React. WordPress plugin. Shopify snippet. All zero external dependencies.'},
   {q:'How do I add it to my site?',a:'<code>text2cbor generate -i ./html -o ./cbor -d mysite.com</code>. Drop .cbor files alongside HTML. Done. Humans see zero difference.'},
   {q:'Is it legally compliant?',a:'Yes. Cryptographic wallet identity per agent. Audit trail. Pre-compliant with upcoming French/European digital identity regulation for AI.'},
