@@ -698,7 +698,13 @@ fn extract_blocks_recursive(
                         }
                     }
                 }
-                _ => {}
+                // Unknown/unlisted containers (form, fieldset, custom elements, …):
+                // recurse so their child content is not silently dropped.
+                // Inline elements (span, strong, …) yield no block children,
+                // so recursing into them is a safe no-op.
+                _ => {
+                    extract_blocks_recursive(&el, blocks, internal_links, external_links);
+                }
             }
         }
     }
@@ -715,6 +721,10 @@ fn json_to_cbor(json: &serde_json::Value) -> Value {
         serde_json::Value::Number(n) => {
             if let Some(i) = n.as_i64() {
                 ii(i)
+            } else if let Some(n) = n.as_u64() {
+                // Integers in (i64::MAX, u64::MAX] would otherwise lose
+                // precision if encoded as f64. Keep them as CBOR integers.
+                u(n)
             } else if let Some(f) = n.as_f64() {
                 float(f)
             } else {
@@ -876,7 +886,7 @@ fn build_navigation(args: &GenerateArgs, pages: &[PageEntry]) -> Value {
 fn build_meta(pages: &[PageEntry], total_size: usize) -> Value {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_secs();
 
     cmap(vec![
@@ -1035,7 +1045,7 @@ fn enrich_block_with_describe(block: &Value) -> Value {
                     .unwrap_or("");
                 format!("Call to action: {} -> {}", block_value, href)
             }
-            "img" => {
+            "img" | "image" => {
                 let alt = pairs
                     .iter()
                     .find(|(k, _)| matches!(k, Value::Text(s) if s == "alt"))
@@ -1105,7 +1115,7 @@ fn enrich_blocks(blocks: &[Value]) -> Vec<Value> {
 fn build_page_entry(page: &PageEntry) -> Value {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_secs();
 
     let mut entries: Vec<(Value, Value)> = vec![
@@ -1174,7 +1184,22 @@ fn build_page_entry(page: &PageEntry) -> Value {
 // Generate — one-shot build (core logic)
 // ============================================================
 
-fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
+/// Nom de fichier `.cbor` d'une page dans le profil 2.1.
+/// La page racine ("/" ou "") -> "_index.cbor" (attendu par TOUS les clients officiels
+/// et la spec §CORE) ; les autres chemins sont échappés (`_` -> `%5F`, `/` -> `_`).
+fn page_filename(path: &str) -> String {
+    let safe_path = path
+        .trim_start_matches('/')
+        .replace('_', "%5F")
+        .replace('/', "_");
+    if safe_path.is_empty() {
+        "_index.cbor".to_string()
+    } else {
+        format!("{}.cbor", safe_path)
+    }
+}
+
+fn run_generate(args: &GenerateArgs) -> std::io::Result<(Vec<u8>, Vec<PageEntry>)> {
     let t1_paths: Vec<String> = args
         .t1_pages
         .split(',')
@@ -1188,7 +1213,7 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
         .map(|s| s.trim().to_string())
         .collect();
 
-    std::fs::create_dir_all(&args.output).expect("Failed to create output directory");
+    std::fs::create_dir_all(&args.output)?;
 
     let mut pages: Vec<PageEntry> = Vec::new();
 
@@ -1266,8 +1291,10 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
     }
 
     if pages.is_empty() {
-        eprintln!("ERROR: No HTML files found in {}", args.input.display());
-        std::process::exit(1);
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("No HTML files found in {}", args.input.display()),
+        ));
     }
 
     pages.sort_by(|a, b| a.path.cmp(&b.path));
@@ -1303,30 +1330,20 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
     let index_bytes = encode(&index_doc);
 
     if args.spec_version == "3.0" {
-        std::fs::write(args.output.join("index.cbor"), &index_bytes)
-            .expect("Failed to write index.cbor");
+        std::fs::write(args.output.join("index.cbor"), &index_bytes)?;
     }
 
     if args.spec_version == "2.1" {
         let wk = args.output.join(".well-known").join("cbor-web");
         let pages_dir = wk.join("pages");
-        std::fs::create_dir_all(&pages_dir).expect("Failed to create .well-known/cbor-web/pages");
+        std::fs::create_dir_all(&pages_dir)?;
 
         let mut page_cbor_list: Vec<Value> = Vec::new();
         for page in &pages {
             let page_entry_val = build_page_entry(page);
             let page_cbor = encode(&sd(page_entry_val.clone()));
 
-            let safe_path = page
-                .path
-                .trim_start_matches('/')
-                .replace('_', "%5F")
-                .replace('/', "_");
-            let filename = if safe_path.is_empty() {
-                "root.cbor".to_string()
-            } else {
-                format!("{}.cbor", safe_path)
-            };
+            let filename = page_filename(&page.path);
             if let Err(e) = std::fs::write(pages_dir.join(&filename), &page_cbor) {
                 eprintln!("  WARNING: failed to write page {} — {}", filename, e);
                 continue;
@@ -1347,8 +1364,7 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
         ];
         let manifest_doc = sd(cmap(manifest_entries));
         let manifest_bytes = encode(&manifest_doc);
-        std::fs::write(wk.join("manifest.cbor"), &manifest_bytes)
-            .expect("Failed to write manifest.cbor");
+        std::fs::write(wk.join("manifest.cbor"), &manifest_bytes)?;
 
         let bundle_doc = sd(cmap(vec![
             (ii(0), t("cbor-web")),
@@ -1356,7 +1372,7 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
             (ii(2), arr(pages.iter().map(build_page_entry).collect())),
         ]));
         let bundle_bytes = encode(&bundle_doc);
-        std::fs::write(wk.join("bundle.cbor"), &bundle_bytes).expect("Failed to write bundle.cbor");
+        std::fs::write(wk.join("bundle.cbor"), &bundle_bytes)?;
     }
 
     // Write summary.json
@@ -1376,8 +1392,7 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
     std::fs::write(
         args.output.join("summary.json"),
         serde_json::to_string_pretty(&summary).unwrap(),
-    )
-    .expect("Failed to write summary.json");
+    )?;
 
     // Write quality.json with block distribution and signal metrics
     let mut block_counts = std::collections::HashMap::new();
@@ -1434,10 +1449,9 @@ fn run_generate(args: &GenerateArgs) -> (Vec<u8>, Vec<PageEntry>) {
     std::fs::write(
         args.output.join("quality.json"),
         serde_json::to_string_pretty(&quality).unwrap(),
-    )
-    .expect("Failed to write quality.json");
+    )?;
 
-    (index_bytes, pages)
+    Ok((index_bytes, pages))
 }
 
 // ============================================================
@@ -1508,9 +1522,15 @@ fn run_watch(args: &WatchArgs) {
 
     let gen_args = args.to_generate_args();
 
-    // Initial build
+    // Initial build — a failure here is fatal: there is nothing to watch yet.
     println!("[INIT] Building index.cbor...");
-    let (bytes, pages) = run_generate(&gen_args);
+    let (bytes, pages) = match run_generate(&gen_args) {
+        Ok(result) => result,
+        Err(e) => {
+            eprintln!("[INIT] ERROR: failed to build index.cbor — {}", e);
+            std::process::exit(1);
+        }
+    };
     let mut last_site_hash = compute_site_hash(&args.site);
     println!(
         "[INIT] Done — {} bytes, {} pages\n",
@@ -1530,26 +1550,34 @@ fn run_watch(args: &WatchArgs) {
             continue;
         }
 
-        // Something changed — rebuild
+        // Something changed — rebuild.
+        // I8 : une erreur d'I/O transitoire (disque plein, volume démonté) ne doit PAS
+        // tuer le démon watch. On logge et on continue ; last_site_hash N'EST PAS mis à
+        // jour pour qu'un nouveau changement (ou la prochaine itération) retente le build.
         println!("[REBUILD] Changes detected, rebuilding...");
-        let (bytes, pages) = run_generate(&gen_args);
-        last_site_hash = current_hash;
-
-        // Count changed pages by comparing hashes
-        let now = chrono_now();
-        println!(
-            "[{}] Rebuilt — {} bytes, {} pages",
-            now,
-            bytes.len(),
-            pages.len()
-        );
+        match run_generate(&gen_args) {
+            Ok((bytes, pages)) => {
+                last_site_hash = current_hash;
+                let now = chrono_now();
+                println!(
+                    "[{}] Rebuilt — {} bytes, {} pages",
+                    now,
+                    bytes.len(),
+                    pages.len()
+                );
+            }
+            Err(e) => {
+                let now = chrono_now();
+                eprintln!("[{}] REBUILD FAILED — {} (will retry next interval)", now, e);
+            }
+        }
     }
 }
 
 fn chrono_now() -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_secs();
     // Simple HH:MM:SS from epoch (UTC)
     let h = (now % 86400) / 3600;
@@ -1561,6 +1589,171 @@ fn chrono_now() -> String {
 // ============================================================
 // Validate — check .cbor file correctness
 // ============================================================
+
+/// I2 — Vérifie récursivement l'ordre canonique des clés (RFC 8949 §4.2.1 : longueur
+/// d'abord, puis comparaison bytewise des clés encodées) sur toute map, en descendant
+/// dans les arrays, les tags et les valeurs de map. Accumule un message d'erreur (chaîne
+/// contenant "ordering") par map non conforme.
+fn check_key_order_recursive(v: &Value, issues: &mut Vec<String>) {
+    match v {
+        Value::Map(pairs) => {
+            let mut prev_encoded: Option<Vec<u8>> = None;
+            for (k, val) in pairs {
+                let enc = encode(k);
+                if let Some(ref prev) = prev_encoded {
+                    if enc.len() < prev.len() || (enc.len() == prev.len() && &enc < prev) {
+                        issues.push(
+                            "Key ordering violation (RFC 8949 §4.2.1): shorter keys must come first, then lexicographic"
+                                .to_string(),
+                        );
+                        // On signale une fois par map, mais on continue de recurser dans
+                        // les valeurs pour détecter d'autres violations imbriquées.
+                        prev_encoded = Some(enc);
+                        check_key_order_recursive(val, issues);
+                        continue;
+                    } else if &enc == prev {
+                        issues.push(
+                            "Duplicate map key (RFC 8949 §4.2.2): keys must be unique".to_string(),
+                        );
+                    }
+                }
+                prev_encoded = Some(enc);
+                // Recurse aussi dans la clé (au cas où elle serait elle-même un conteneur).
+                check_key_order_recursive(k, issues);
+                check_key_order_recursive(val, issues);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                check_key_order_recursive(item, issues);
+            }
+        }
+        Value::Tag(_, inner) => {
+            check_key_order_recursive(inner, issues);
+        }
+        _ => {}
+    }
+}
+
+/// I2 — Scan structurel des en-têtes CBOR bruts pour rejeter l'indefinite-length sur les
+/// majors 4 (array) et 5 (map), interdit par le profil déterministe. Le scan suit les
+/// en-têtes (head bytes) en consommant les longueurs déclarées sans reconstruire les
+/// valeurs, ce qui évite les faux positifs d'un balayage naïf d'octets de payload.
+fn scan_indefinite_length(data: &[u8]) -> Result<(), String> {
+    let mut pos = 0usize;
+    scan_one_item(data, &mut pos)
+}
+
+fn scan_one_item(data: &[u8], pos: &mut usize) -> Result<(), String> {
+    if *pos >= data.len() {
+        // Octets épuisés : on laisse ciborium remonter l'erreur de décodage exacte.
+        return Ok(());
+    }
+    let ib = data[*pos];
+    *pos += 1;
+    let major = ib >> 5;
+    let info = ib & 0x1f;
+
+    // additional-info 31 = indefinite-length : INTERDIT pour TOUS les majors par le profil
+    // déterministe (RFC 8949 §4.2). On rejette dès le head — y compris byte/text-strings
+    // indefinite (majors 2/3) : sinon une string indefinite placée avant un array/map
+    // indefinite désynchronise le scan et masque la violation (faux négatif).
+    if info == 31 {
+        let kind = match major {
+            2 => "byte string",
+            3 => "text string",
+            4 => "array",
+            5 => "map",
+            _ => "item",
+        };
+        return Err(format!(
+            "Indefinite-length {} (major {}, additional-info 31) is forbidden by the deterministic profile (RFC 8949 §4.2)",
+            kind, major
+        ));
+    }
+
+    // Longueur de l'argument (additional-info → octets suivants).
+    let arg: u64 = match info {
+        0..=23 => info as u64,
+        24 => {
+            if *pos >= data.len() {
+                return Ok(());
+            }
+            let v = data[*pos] as u64;
+            *pos += 1;
+            v
+        }
+        25 => {
+            if *pos + 2 > data.len() {
+                return Ok(());
+            }
+            let v = u16::from_be_bytes([data[*pos], data[*pos + 1]]) as u64;
+            *pos += 2;
+            v
+        }
+        26 => {
+            if *pos + 4 > data.len() {
+                return Ok(());
+            }
+            let v =
+                u32::from_be_bytes([data[*pos], data[*pos + 1], data[*pos + 2], data[*pos + 3]])
+                    as u64;
+            *pos += 4;
+            v
+        }
+        27 => {
+            if *pos + 8 > data.len() {
+                return Ok(());
+            }
+            let mut b = [0u8; 8];
+            b.copy_from_slice(&data[*pos..*pos + 8]);
+            let v = u64::from_be_bytes(b);
+            *pos += 8;
+            v
+        }
+        // 28..=30 réservé ; 31 = indefinite. Pour les majors 0/1/6/7, 31 n'est pas une
+        // longueur de conteneur interdite ici → on laisse ciborium juger. On s'arrête.
+        _ => return Ok(()),
+    };
+
+    match major {
+        // 0 = uint, 1 = nint : pas de payload.
+        0 | 1 => Ok(()),
+        // 2 = byte string, 3 = text string : `arg` octets de payload à sauter.
+        2 | 3 => {
+            *pos = pos.saturating_add(arg as usize);
+            Ok(())
+        }
+        // 4 = array : `arg` items à scanner.
+        4 => {
+            for _ in 0..arg {
+                if *pos >= data.len() {
+                    break;
+                }
+                scan_one_item(data, pos)?;
+            }
+            Ok(())
+        }
+        // 5 = map : `arg` paires (clé, valeur) à scanner.
+        5 => {
+            for _ in 0..arg {
+                if *pos >= data.len() {
+                    break;
+                }
+                scan_one_item(data, pos)?;
+                if *pos >= data.len() {
+                    break;
+                }
+                scan_one_item(data, pos)?;
+            }
+            Ok(())
+        }
+        // 6 = tag : un item suit.
+        6 => scan_one_item(data, pos),
+        // 7 = simple/float : `arg` déjà consommé via les octets de longueur.
+        _ => Ok(()),
+    }
+}
 
 fn run_validate(args: &ValidateArgs) {
     let data = match std::fs::read(&args.file) {
@@ -1585,11 +1778,32 @@ fn run_validate(args: &ValidateArgs) {
         0
     };
 
-    let value: Result<Value, _> = ciborium::from_reader(&data[cbor_start..]);
+    // I2 (octets bruts) : ciborium accepte silencieusement l'indefinite-length, qui est
+    // interdit par le profil déterministe (RFC 8949 §4.2.1 + spec CBOR-Web §6.1). On scanne
+    // donc les en-têtes bruts pour rejeter additional-info 31 sur les majors 4 (array) et 5
+    // (map). Le scan suit la structure des en-têtes (sans reconstruire les valeurs).
+    if let Err(e) = scan_indefinite_length(&data[cbor_start..]) {
+        issues.push(e);
+    }
+
+    // I3 : on décode via un Cursor pour pouvoir vérifier l'épuisement des octets.
+    let mut cursor = std::io::Cursor::new(&data[cbor_start..]);
+    let value: Result<Value, _> = ciborium::de::from_reader(&mut cursor);
 
     match value {
         Ok(v) => {
             println!("✓ CBOR parsed successfully");
+
+            // I3 : octets résiduels après le document CBOR → erreur (les clients
+            // TS/Ruby/Go rejettent "trailing bytes" ; on s'aligne dessus).
+            let consumed = cursor.position() as usize;
+            let total = data.len() - cbor_start;
+            if consumed != total {
+                issues.push(format!(
+                    "{} trailing byte(s) after CBOR document",
+                    total - consumed
+                ));
+            }
 
             if let Value::Map(pairs) = &v {
                 if let Some((_, Value::Text(doc_type))) = pairs
@@ -1598,23 +1812,18 @@ fn run_validate(args: &ValidateArgs) {
                 {
                     println!("  Document type: {}", doc_type);
                 }
-
-                let mut prev_encoded: Option<Vec<u8>> = None;
-                for (k, _) in pairs {
-                    let enc = encode(k);
-                    if let Some(ref prev) = prev_encoded {
-                        if enc.len() < prev.len() || (enc.len() == prev.len() && &enc < prev) {
-                            issues.push("Key ordering violation (RFC 8949 §4.2.1): shorter keys must come first, then lexicographic".to_string());
-                            break;
-                        }
-                    }
-                    prev_encoded = Some(enc);
-                }
-                if issues.is_empty() || !issues.iter().any(|i| i.contains("ordering")) {
-                    println!("✓ Key ordering complies with RFC 8949 §4.2.1 (deterministic)");
-                }
             } else {
                 println!("  Document is not a map (type: {})", value_type_name(&v));
+            }
+
+            // I2 (ordre des clés) : vérification RÉCURSIVE de l'ordre canonique sur toutes
+            // les maps imbriquées (et non plus seulement au niveau racine), en descendant
+            // dans les arrays et les tags.
+            let order_issues_before = issues.iter().filter(|i| i.contains("ordering")).count();
+            check_key_order_recursive(&v, &mut issues);
+            let order_issues_after = issues.iter().filter(|i| i.contains("ordering")).count();
+            if order_issues_after == order_issues_before {
+                println!("✓ Key ordering complies with RFC 8949 §4.2.1 (deterministic, recursive)");
             }
         }
         Err(e) => {
@@ -1710,7 +1919,13 @@ async fn main() {
             println!("Output: {}", args.output.display());
             println!("Domain: {}", args.domain);
             println!();
-            let (bytes, pages) = run_generate(&args);
+            let (bytes, pages) = match run_generate(&args) {
+                Ok(result) => result,
+                Err(e) => {
+                    eprintln!("ERROR: {}", e);
+                    std::process::exit(1);
+                }
+            };
             println!(
                 "\n  index.cbor: {} bytes, {} pages",
                 bytes.len(),
@@ -1784,8 +1999,11 @@ mod tests {
 
     #[test]
     fn test_image_describe() {
+        // I6 : l'encodeur émet TOUJOURS t = "image" (cf. extract_blocks_recursive),
+        // jamais "img". Le test utilise donc "image" pour refléter la sortie réelle
+        // de l'encodeur ; la branche _describe doit l'accepter et produire un _describe.
         let block = cmap(vec![
-            (t("t"), t("img")),
+            (t("t"), t("image")),
             (t("alt"), t("A beautiful sunset")),
             (t("src"), t("/sunset.jpg")),
         ]);
@@ -1794,7 +2012,14 @@ mod tests {
             let describe = pairs
                 .iter()
                 .find(|(k, _)| matches!(k, Value::Text(s) if s == "_describe"));
-            assert!(describe.is_some());
+            assert!(describe.is_some(), "image block must receive a _describe");
+            if let Some((_, Value::Text(d))) = describe {
+                assert_eq!(d, "Image: A beautiful sunset");
+            } else {
+                panic!("_describe must be text");
+            }
+        } else {
+            panic!("Expected map");
         }
     }
 
@@ -1832,5 +2057,227 @@ mod tests {
         };
         let val = build_page_entry(&page);
         assert!(matches!(val, Value::Map(_)));
+    }
+
+    // ----- I6 : "img" | "image" acceptés pour _describe -----
+
+    #[test]
+    fn test_img_alias_describe() {
+        // L'encodeur émet "image", mais la branche _describe doit aussi accepter "img"
+        // (rétro-compat) : les deux types produisent le même _describe.
+        for ty in ["img", "image"] {
+            let block = cmap(vec![
+                (t("t"), t(ty)),
+                (t("alt"), t("Logo")),
+                (t("src"), t("/logo.png")),
+            ]);
+            let enriched = enrich_block_with_describe(&block);
+            let Value::Map(pairs) = enriched else {
+                panic!("Expected map");
+            };
+            let describe = pairs
+                .iter()
+                .find(|(k, _)| matches!(k, Value::Text(s) if s == "_describe"));
+            assert!(
+                matches!(describe, Some((_, Value::Text(d))) if d == "Image: Logo"),
+                "type {ty:?} should yield _describe 'Image: Logo', got {describe:?}"
+            );
+        }
+    }
+
+    // ----- I2 : vérification récursive de l'ordre des clés -----
+
+    #[test]
+    fn test_key_order_recursive_detects_nested_violation() {
+        // Map racine ordonnée correctement, mais map imbriquée DÉSORDONNÉE
+        // (clé "bb" longue avant "a" courte) → doit être détectée récursivement.
+        let bad_nested = Value::Map(vec![
+            (t("bb"), u(1)), // 2 octets de clé
+            (t("a"), u(2)),  // 1 octet de clé — viole longueur-d'abord
+        ]);
+        let root = Value::Map(vec![(t("k"), bad_nested)]);
+        let mut issues = Vec::new();
+        check_key_order_recursive(&root, &mut issues);
+        assert!(
+            issues.iter().any(|i| i.contains("ordering")),
+            "nested key-order violation must be detected, issues = {issues:?}"
+        );
+    }
+
+    #[test]
+    fn test_key_order_recursive_accepts_canonical() {
+        // Tout produit par cmap est canonique, y compris imbriqué → aucune issue.
+        let canonical = cmap(vec![
+            (t("path"), t("/")),
+            (
+                t("links"),
+                cmap(vec![(t("a"), t("x")), (t("bb"), t("y")), (t("ccc"), t("z"))]),
+            ),
+            (t("content"), arr(vec![cmap(vec![(t("t"), t("p")), (t("v"), t("hi"))])])),
+        ]);
+        let mut issues = Vec::new();
+        check_key_order_recursive(&canonical, &mut issues);
+        assert!(issues.is_empty(), "canonical doc must pass, issues = {issues:?}");
+    }
+
+    // ----- I2 : scan octets bruts → rejet indefinite-length majors 4/5 -----
+
+    #[test]
+    fn test_scan_rejects_indefinite_array() {
+        // 0x9F = array indefinite-length, items 1,2, 0xFF break.
+        let bytes = [0x9Fu8, 0x01, 0x02, 0xFF];
+        let res = scan_indefinite_length(&bytes);
+        assert!(res.is_err(), "indefinite-length array must be rejected");
+        assert!(res.unwrap_err().contains("array"));
+    }
+
+    #[test]
+    fn test_scan_rejects_indefinite_map() {
+        // 0xBF = map indefinite-length, paire 1:2, 0xFF break.
+        let bytes = [0xBFu8, 0x01, 0x02, 0xFF];
+        let res = scan_indefinite_length(&bytes);
+        assert!(res.is_err(), "indefinite-length map must be rejected");
+        assert!(res.unwrap_err().contains("map"));
+    }
+
+    #[test]
+    fn test_scan_accepts_definite() {
+        // Document canonique produit par l'encodeur : pas d'indefinite-length.
+        let doc = sd(cmap(vec![
+            (t("path"), t("/")),
+            (t("content"), arr(vec![cmap(vec![(t("t"), t("p")), (t("v"), t("hi"))])])),
+        ]));
+        let bytes = encode(&doc);
+        assert!(
+            scan_indefinite_length(&bytes).is_ok(),
+            "canonical encoder output must not contain indefinite-length"
+        );
+    }
+
+    #[test]
+    fn test_scan_no_false_positive_in_payload() {
+        // Un octet 0x9F (array indef) à l'INTÉRIEUR d'une chaîne de texte ne doit PAS
+        // déclencher de faux positif : le scan suit la structure et saute le payload.
+        // Texte = 4 octets dont un 0x9F → en-tête 0x64 ("text(4)") + payload.
+        let bytes = [0x64u8, 0x9F, 0xBF, 0x41, 0x42]; // text de 4 octets : 0x9F 0xBF 'A' 'B'
+        assert!(
+            scan_indefinite_length(&bytes).is_ok(),
+            "0x9F/0xBF inside a string payload must not be flagged"
+        );
+    }
+
+    #[test]
+    fn test_scan_rejects_indefinite_string_desync() {
+        // Relecture adversariale : une text-string indefinite (0x7F) placée AVANT un array
+        // indefinite (0x9F) désynchronisait l'ancien scan et masquait la violation.
+        // Doc d'attaque : map{0: [indef-text "x", indef-array [1]]}. Rejeter TOUTE info==31
+        // ferme le bypass — la string indefinite est rejetée la première.
+        let attack = [0xA1u8, 0x00, 0x82, 0x7F, 0x61, 0x78, 0xFF, 0x9F, 0x01, 0xFF];
+        assert!(
+            scan_indefinite_length(&attack).is_err(),
+            "indefinite-length string must be rejected (closes the desync bypass)"
+        );
+    }
+
+    #[test]
+    fn test_scan_rejects_indefinite_text_and_byte_strings() {
+        // RFC 8949 §4.2 interdit TOUTE longueur indefinite, pas seulement arrays/maps.
+        assert!(scan_indefinite_length(&[0x7Fu8, 0x61, 0x41, 0xFF]).is_err()); // text indef
+        assert!(scan_indefinite_length(&[0x5Fu8, 0x42, 0x01, 0x02, 0xFF]).is_err()); // bytes indef
+    }
+
+    #[test]
+    fn test_key_order_detects_duplicate_key() {
+        // Relecture : clés strictement égales adjacentes (doublon) → signalé (unicité §4.2.2).
+        let dup = Value::Map(vec![(t("a"), u(1)), (t("a"), u(2))]);
+        let mut issues = Vec::new();
+        check_key_order_recursive(&dup, &mut issues);
+        assert!(
+            issues.iter().any(|i| i.contains("Duplicate")),
+            "duplicate key must be flagged, issues = {issues:?}"
+        );
+    }
+
+    // ----- I3 : détection des octets résiduels (trailing bytes) -----
+
+    #[test]
+    fn test_trailing_bytes_detected_via_cursor() {
+        // Mécanique exacte de run_validate : décoder via Cursor puis comparer la position
+        // consommée à la longueur totale. Document canonique + queue parasite → mismatch.
+        let doc = sd(cmap(vec![(t("t"), t("p")), (t("v"), t("hi"))]));
+        let mut bytes = encode(&doc);
+        let clean_len = bytes.len();
+        bytes.extend_from_slice(&[0xFF, 0x00]); // 2 octets parasites
+
+        let mut cursor = std::io::Cursor::new(&bytes[..]);
+        let v: Result<Value, _> = ciborium::de::from_reader(&mut cursor);
+        assert!(v.is_ok());
+        let consumed = cursor.position() as usize;
+        assert_eq!(consumed, clean_len, "should consume exactly the clean document");
+        assert!(
+            consumed != bytes.len(),
+            "trailing bytes must leave the cursor short of EOF"
+        );
+    }
+
+    #[test]
+    fn test_no_trailing_bytes_on_clean_doc() {
+        // Sur un document propre, le cursor doit atteindre exactement EOF.
+        let doc = sd(cmap(vec![(t("path"), t("/")), (t("title"), t("Home"))]));
+        let bytes = encode(&doc);
+        let mut cursor = std::io::Cursor::new(&bytes[..]);
+        let _: Value = ciborium::de::from_reader(&mut cursor).unwrap();
+        assert_eq!(cursor.position() as usize, bytes.len());
+    }
+
+    #[test]
+    fn test_page_filename_root_is_index() {
+        // Régression C2 : la page racine doit donner "_index.cbor" (et non "root.cbor",
+        // qui provoquait un 404 sur la home car les clients demandent "_index.cbor").
+        assert_eq!(page_filename("/"), "_index.cbor");
+        assert_eq!(page_filename(""), "_index.cbor");
+        assert_eq!(page_filename("/about"), "about.cbor");
+        assert_eq!(page_filename("/blog/post"), "blog_post.cbor");
+        // Cohérence avec encodePagePath côté client TS ('_' échappé en %5F).
+        assert_eq!(page_filename("/a_b"), "a%5Fb.cbor");
+    }
+
+    #[test]
+    fn test_json_to_cbor_large_u64_stays_integer() {
+        // Un entier dans (i64::MAX, u64::MAX] ne doit pas être converti en float
+        // (perte de précision). Il doit rester un entier CBOR.
+        let big = u64::MAX; // 18446744073709551615
+        let json: serde_json::Value = serde_json::from_str(&big.to_string()).unwrap();
+        match json_to_cbor(&json) {
+            Value::Integer(i) => {
+                let back = u128::try_from(i).expect("integer should fit in u128");
+                assert_eq!(back, big as u128);
+            }
+            other => panic!("expected CBOR Integer, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_extract_recurses_into_unknown_container() {
+        // Régression : un conteneur non listé (<form>) ne doit pas faire perdre
+        // le contenu de ses enfants ; on doit retrouver le paragraphe imbriqué.
+        let html = Html::parse_fragment(
+            "<form><fieldset><p>champ caché</p></fieldset></form>",
+        );
+        let root = html.root_element();
+        let mut blocks = Vec::new();
+        let mut internal = Vec::new();
+        let mut external = Vec::new();
+        extract_blocks_recursive(&root, &mut blocks, &mut internal, &mut external);
+        let found = blocks.iter().any(|b| {
+            if let Value::Map(pairs) = b {
+                pairs
+                    .iter()
+                    .any(|(k, v)| matches!((k, v), (Value::Text(k), Value::Text(v)) if k == "v" && v == "champ caché"))
+            } else {
+                false
+            }
+        });
+        assert!(found, "le <p> imbriqué dans <form><fieldset> doit être extrait");
     }
 }
