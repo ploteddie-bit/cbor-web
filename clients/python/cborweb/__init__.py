@@ -51,8 +51,8 @@ class CBORWebClient:
         self.timeout = timeout
         # v2.1.4 — wallet signature (EIP-191). Preferred over static tokens:
         # sign METHOD:URL:NONCE:SHA256(raw body bytes) per request (see
-        # CBOR-WEB-SECURITY.md §5.3/§5.3.1). Requires `coincurve` (or any
-        # secp256k1 lib exposing libsecp256k1_recoverable_signature).
+        # CBOR-WEB-SECURITY.md §5.3/§5.3.1). Requires 'eth-keys' and
+        # 'pycryptodome' (pip install eth-keys pycryptodome).
         self.private_key = private_key
 
     # ── Discovery ──
@@ -186,16 +186,29 @@ class CBORWebClient:
         return eth_keys.PrivateKey(bytes.fromhex(priv_hex)).public_key.to_address()
 
     def _get_challenge(self) -> str:
-        """Fetch a server-issued single-use challenge (§5.3.1), fallback to timestamp."""
+        """Fetch a server-issued single-use challenge (§5.3.1).
+
+        Fallback to a timestamp nonce ONLY when the server does not expose the
+        challenge endpoint (HTTP 404/405). Any other failure raises — a silent
+        fallback would produce undiagnosable 401s against wallet-auth servers
+        (revue M2).
+        """
         import time
         try:
             req = Request(f"{self.base}/cbor-web/challenge",
                           headers={"X-CBOR-Web-Wallet": self._address_from_private()})
             with urlopen(req, timeout=self.timeout) as resp:
                 data = json.loads(resp.read().decode())
-                return str(data.get("challenge", "")) or str(int(time.time()))
-        except Exception:
-            return str(int(time.time()))
+                challenge = str(data.get("challenge", ""))
+                if not challenge:
+                    raise CBORWebError("empty challenge from server", 0)
+                return challenge
+        except HTTPError as e:
+            if e.code in (404, 405):
+                # Server without challenge endpoint → §5.4 timestamp mode
+                return str(int(time.time()))
+            raise CBORWebError(
+                f"challenge endpoint error: HTTP {e.code}", e.code) from e
 
     def _parse_cbor(self, data: bytes) -> dict:
         """Minimal CBOR parser for the subset used by CBOR-Web (RFC 8949)."""

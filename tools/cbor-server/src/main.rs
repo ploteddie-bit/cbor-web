@@ -200,18 +200,26 @@ async fn rate_limit_mw(
 
 // ── Auth middleware ──
 
+/// Protected scope (v2.1.4, unchanged from v2.1.3): only the CBOR-Web content
+/// tree. /health, /codes, /search, /doleance and the dashboard stay open —
+/// applying auth app-wide would break monitoring and L0 compat (revue M1).
+fn is_protected_path(path: &str) -> bool {
+    path == "/.well-known/cbor-web" || path.starts_with("/.well-known/cbor-web/")
+}
+
 async fn auth_mw(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
     request: axum::extract::Request,
     next: Next,
 ) -> Response {
+    // Layered app-wide so the full original URI is visible for signing;
+    // scope is enforced here (the challenge endpoint and everything outside
+    // the protected tree pass through).
+    if !is_protected_path(request.uri().path()) {
+        return next.run(request).await;
+    }
     if state.wallet_auth {
-        // The challenge endpoint itself must stay open (it is layered app-wide
-        // so that the full original URI is visible for signing).
-        if request.uri().path() == "/cbor-web/challenge" {
-            return next.run(request).await;
-        }
         return wallet_auth_check(state, headers, request, next).await;
     }
     // DEPRECATED (v2.1.4): static bearer token in the wallet header —
@@ -243,7 +251,7 @@ async fn challenge_handler(
         .and_then(|v| v.to_str().ok())
         .unwrap_or("")
         .to_lowercase();
-    if wallet.len() != 42 || !wallet.starts_with("0x") {
+    if wallet.len() != 42 || !wallet.starts_with("0x") || hex::decode(&wallet[2..]).is_err() {
         return (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({"error": "invalid_wallet"})),
@@ -319,7 +327,9 @@ async fn wallet_auth_check(
     let bytes = match axum::body::to_bytes(body, 4 * 1024 * 1024).await {
         Ok(b) => b,
         Err(_) => {
-            return (StatusCode::PAYMENT_REQUIRED, "body_read_error").into_response()
+            // 413: body above the 4 MiB limit (revue m5)
+            return (StatusCode::PAYLOAD_TOO_LARGE, "body_too_large")
+                .into_response()
         }
     };
     let reject = |reason: &str| -> Response {
