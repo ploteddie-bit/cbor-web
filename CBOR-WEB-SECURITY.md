@@ -366,13 +366,30 @@ The wallet address alone is not proof of ownership — anyone could copy an addr
 **What the agent signs:**
 
 ```
-message = METHOD + ":" + URL + ":" + NONCE
+message = METHOD + ":" + URL + ":" + NONCE + ":" + BODY_HASH
 ```
+
+Where `BODY_HASH` is the lowercase hexadecimal SHA-256 of the **raw request body bytes** (empty-string SHA-256 for bodiless requests, i.e. `e3b0c442…b855`, never an empty component).
 
 Example:
 ```
-message = "GET:/.well-known/cbor-web/pages/products_lions-mane.cbor:1742598400"
+message = "GET:/.well-known/cbor-web/pages/products_lions-mane.cbor:1742598400:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 ```
+
+**MUST — integrity of the request body (v2.1.4):** the fourth component `BODY_HASH` is
+REQUIRED for state-changing requests (POST/PUT/PATCH/DELETE) and RECOMMENDED for all
+requests. Without it, a network attacker could substitute the body of a signed request
+(threat T2) while the signature remains valid.
+
+**MUST — hash the raw bytes, never a transcoded string (v2.1.4):** the hash MUST be
+computed over the exact bytes sent on the wire. Implementations MUST NOT hash a
+lossy/transcoded representation (e.g. `String::from_utf8_lossy(body)` in Rust) — for a
+binary CBOR body the lossy string differs from the raw bytes and produces a signature
+verification failure that is very hard to diagnose. Test vectors MUST include a binary
+(non-UTF-8) CBOR body.
+
+**MUST — signature length (v2.1.4):** servers MUST reject `X-CBOR-Web-Sig` values that
+are not exactly 65 bytes (r‖s‖v, v = 27 or 28) before attempting ecrecover.
 
 The agent signs this message with its wallet's private key using Ethereum's `personal_sign` method (EIP-191):
 
@@ -405,6 +422,24 @@ bytes32 messageHash = keccak256(abi.encodePacked(
 address recovered = ecrecover(messageHash, v, r, s);
 require(recovered == walletAddress, "Invalid signature");
 ```
+
+### 5.3.1 Alternative RECOMMENDED for writes: server-issued challenge
+
+For state-changing endpoints, a **server-issued challenge** mode is RECOMMENDED over
+raw timestamps (v2.1.4, hardened by real adversarial testing — see cbor-web blog/notes):
+
+1. `GET /cbor-web/challenge` with header `X-CBOR-Web-Wallet: 0x…` → the server returns
+   an opaque, single-use, cryptographically random challenge **bound to that wallet**.
+2. The agent signs `METHOD:URL:CHALLENGE:BODY_HASH` as in §5.3 and sends
+   `X-CBOR-Web-Nonce: <the challenge>`.
+3. The server verifies (a) the challenge was issued to the *same* wallet
+   (`challenge_wallet_mismatch` → 401), (b) it has not been consumed yet
+   (`challenge_already_consumed` → 401), (c) the ecrecovered address matches the wallet.
+
+Compared to timestamp + bloom filter, the challenge mode is strictly stronger:
+consumed-exactly-once semantics (no replay window at all) and per-wallet binding
+prevents cross-wallet nonce smuggling. Both modes remain conformant; challenge mode
+is REQUIRED for profile S1+ write endpoints.
 
 ### 5.4 Nonce and Replay Protection
 
