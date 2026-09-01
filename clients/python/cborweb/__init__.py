@@ -163,7 +163,8 @@ class CBORWebClient:
         nonce = self._get_challenge()
         body_hash = hashlib.sha256(body).hexdigest()
         message = f"{method}:{path}:{nonce}:{body_hash}"
-        prefix = f"\x19Ethereum Signed Message:\n{len(message)}{message}"
+        # EIP-191 length in BYTES (matches the Rust server, revue m6)
+        prefix = f"\x19Ethereum Signed Message:\n{len(message.encode('utf-8'))}{message}"
         # EIP-191 uses Keccak-256 (pre-NIST padding), NOT hashlib.sha3_256.
         digest = keccak256(prefix.encode())
         priv_hex = self.private_key[2:] if self.private_key.startswith("0x") else self.private_key

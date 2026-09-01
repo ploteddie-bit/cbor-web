@@ -240,6 +240,9 @@ async fn auth_mw(
 // ── Wallet authentication (v2.1.4, CBOR-WEB-SECURITY.md §5.3/§5.3.1) ──
 
 const CHALLENGE_TTL_SECS: u64 = 120;
+/// m3 (revue PR13) : borne mémoire du store de challenges — au-delà, les
+/// nouvelles demandes sont refusées en 503 plutôt que de croître sans limite.
+const CHALLENGE_STORE_CAP: usize = 10_000;
 
 /// GET /cbor-web/challenge — issue a single-use challenge bound to the wallet.
 async fn challenge_handler(
@@ -266,6 +269,13 @@ async fn challenge_handler(
     let mut store = state.challenges.lock().await;
     // opportunistic purge of expired entries
     store.retain(|_, e| e.expires > std::time::Instant::now());
+    if store.len() >= CHALLENGE_STORE_CAP {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({"error": "challenge_store_full"})),
+        )
+            .into_response();
+    }
     store.insert(
         challenge.clone(),
         ChallengeEntry {
@@ -339,6 +349,12 @@ async fn wallet_auth_check(
         )
             .into_response()
     };
+    // m6 (revue PR13) : la longueur EIP-191 est comptée en OCTETS côté serveur
+    // (Rust) ; un path non-ASCII rendrait la reconstruction du message ambiguë
+    // avec des clients comptant en caractères. Rejet explicite.
+    if !path.is_ascii() {
+        return reject("non_ascii_uri");
+    }
     let wallet = headers
         .get("X-CBOR-Web-Wallet")
         .and_then(|v| v.to_str().ok())
@@ -1600,6 +1616,59 @@ mod tests {
                 .await
                 .unwrap();
             assert_eq!(resp2.status(), 401);
+        }
+
+        #[tokio::test]
+        async fn test_wallet_auth_binary_body_accepted() {
+            // m8 (revue PR13) : vecteur exigé par la spec §5.3 — corps binaire
+            // NON-UTF-8 : le hash porte sur les octets bruts, jamais une
+            // représentation lossy. Corps CBOR arbitraire avec octets > 0x7F.
+            let state = auth_state();
+            let router = test_router(state);
+            let key = SigningKey::from_slice(&[4u8; 32]).unwrap();
+            let addr = addr_of(&key);
+            let body: &[u8] = &[
+                0xa1, 0x63, 0x6b, 0x65, 0x79, 0x44, 0xff, 0xfe, 0x80, 0x00, 0xc3, 0x28,
+            ];
+            let ch = get_challenge(&router, &addr).await;
+            let message = format!(
+                "POST:/.well-known/cbor-web/doleance:{}:{}",
+                ch,
+                {
+                    use sha2::Digest as _;
+                    hex::encode(sha2::Sha256::digest(body))
+                }
+            );
+            let sig = sign_eip191(&key, &message);
+            let resp = router
+                .oneshot(
+                    Request::post("/.well-known/cbor-web/doleance")
+                        .header("Content-Type", "application/cbor")
+                        .header("X-CBOR-Web-Wallet", &addr)
+                        .header("X-CBOR-Web-Sig", &sig)
+                        .header("X-CBOR-Web-Nonce", &ch)
+                        .body(Body::from(body.to_vec()))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            // PAS 401 : la signature sur le corps binaire doit être validée
+            // (le handler peut ensuite répondre 400/415 sur le contenu, hors
+            // périmètre auth).
+            assert_ne!(resp.status(), 401, "corps binaire rejeté en auth");
+        }
+
+        #[tokio::test]
+        async fn test_health_open_in_wallet_auth_mode() {
+            // m8 (revue PR13) : le monitoring ne doit jamais exiger de headers.
+            let router = test_router(auth_state());
+            let resp = router
+                .oneshot(
+                    Request::get("/health").body(Body::empty()).unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_ne!(resp.status(), 401, "/health fermé en mode wallet-auth");
         }
 
         #[test]
