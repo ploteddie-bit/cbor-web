@@ -14,6 +14,7 @@ use axum::{
     body::Bytes,
     extract::{Path, Query, State},
     http::{header, HeaderMap, Method, StatusCode},
+    Json,
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::get,
@@ -42,6 +43,11 @@ struct Cli {
 
     #[arg(long)]
     token: Option<String>,
+
+    /// v2.1.4 wallet authentication (challenge + EIP-191 signature).
+    /// Replaces the deprecated static --token bearer mode.
+    #[arg(long)]
+    wallet_auth: bool,
 
     #[arg(long, default_value = "10")]
     rate_limit: u32,
@@ -146,9 +152,19 @@ impl RateLimiter {
     }
 }
 
+struct ChallengeEntry {
+    wallet: String,
+    expires: std::time::Instant,
+}
+
 struct AppState {
     data_dir: PathBuf,
     token: Option<String>,
+    /// v2.1.4 — when true, X-CBOR-Web-Wallet/Sig/Nonce (challenge + EIP-191)
+    /// is required on protected routes (CBOR-WEB-SECURITY.md §5.3/§5.3.1).
+    wallet_auth: bool,
+    /// Single-use server-issued challenges, bound to the requesting wallet.
+    challenges: Mutex<HashMap<String, ChallengeEntry>>,
     limiter: RateLimiter,
     doléances: Mutex<Vec<serde_json::Value>>,
     doléance_path: PathBuf,
@@ -190,6 +206,16 @@ async fn auth_mw(
     request: axum::extract::Request,
     next: Next,
 ) -> Response {
+    if state.wallet_auth {
+        // The challenge endpoint itself must stay open (it is layered app-wide
+        // so that the full original URI is visible for signing).
+        if request.uri().path() == "/cbor-web/challenge" {
+            return next.run(request).await;
+        }
+        return wallet_auth_check(state, headers, request, next).await;
+    }
+    // DEPRECATED (v2.1.4): static bearer token in the wallet header —
+    // replayable, no proof of key ownership. Kept for L0 compat only.
     if state.token.is_none() {
         return next.run(request).await;
     }
@@ -200,6 +226,145 @@ async fn auth_mw(
     if provided != state.token.as_deref().unwrap_or("") {
         return (StatusCode::PAYMENT_REQUIRED, "Token required").into_response();
     }
+    next.run(request).await
+}
+
+// ── Wallet authentication (v2.1.4, CBOR-WEB-SECURITY.md §5.3/§5.3.1) ──
+
+const CHALLENGE_TTL_SECS: u64 = 120;
+
+/// GET /cbor-web/challenge — issue a single-use challenge bound to the wallet.
+async fn challenge_handler(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Response {
+    let wallet = headers
+        .get("X-CBOR-Web-Wallet")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_lowercase();
+    if wallet.len() != 42 || !wallet.starts_with("0x") {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "invalid_wallet"})),
+        )
+            .into_response();
+    }
+    let mut raw = [0u8; 32];
+    if getrandom::getrandom(&mut raw).is_err() {
+        return (StatusCode::INTERNAL_SERVER_ERROR, "rng_error").into_response();
+    }
+    let challenge = hex::encode(raw);
+    let mut store = state.challenges.lock().await;
+    // opportunistic purge of expired entries
+    store.retain(|_, e| e.expires > std::time::Instant::now());
+    store.insert(
+        challenge.clone(),
+        ChallengeEntry {
+            wallet,
+            expires: std::time::Instant::now()
+                + std::time::Duration::from_secs(CHALLENGE_TTL_SECS),
+        },
+    );
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"challenge": challenge, "ttl": CHALLENGE_TTL_SECS})),
+    )
+        .into_response()
+}
+
+/// EIP-191 ecrecover — returns the 0x… address that signed `message`.
+/// Port of the battle-tested implementation from annonces-m2m (mandat.rs),
+/// which resisted adversarial campaigns (fuzzing, forged/expired mandates).
+fn ecrecover_address(message: &str, sig_hex: &str) -> Option<String> {
+    use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
+    use k256::elliptic_curve::sec1::ToSec1Point;
+    use k256::PublicKey;
+    use sha3::Digest;
+    use sha3::Keccak256;
+
+    let sig_hex = sig_hex.strip_prefix("0x").unwrap_or(sig_hex);
+    let sig_bytes = hex::decode(sig_hex).ok()?;
+    if sig_bytes.len() != 65 {
+        return None; // r||s||v exactly
+    }
+    let v = sig_bytes[64];
+    if v != 27 && v != 28 {
+        return None;
+    }
+    let signature = Signature::from_slice(&sig_bytes[..64]).ok()?;
+    let eip191 = format!(
+        "\x19Ethereum Signed Message:\n{}{}",
+        message.len(),
+        message
+    );
+    let hash = Keccak256::digest(eip191.as_bytes());
+    let recovery = RecoveryId::from_byte(v - 27)?;
+    let key = VerifyingKey::recover_from_prehash(&hash, &signature, recovery).ok()?;
+    let public = PublicKey::from(&key);
+    let bytes = public.to_sec1_point(false).as_bytes().to_vec();
+    let addr_hash = Keccak256::digest(&bytes[1..]);
+    Some(format!("0x{}", hex::encode(&addr_hash[12..])))
+}
+
+async fn wallet_auth_check(
+    state: Arc<AppState>,
+    headers: HeaderMap,
+    request: axum::extract::Request,
+    next: Next,
+) -> Response {
+    let (mut parts, body) = request.into_parts();
+    let path = parts.uri.path().to_string();
+    let method = parts.method.as_str().to_string();
+    let bytes = match axum::body::to_bytes(body, 4 * 1024 * 1024).await {
+        Ok(b) => b,
+        Err(_) => {
+            return (StatusCode::PAYMENT_REQUIRED, "body_read_error").into_response()
+        }
+    };
+    let reject = |reason: &str| -> Response {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": reason})),
+        )
+            .into_response()
+    };
+    let wallet = headers
+        .get("X-CBOR-Web-Wallet")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_lowercase();
+    let sig = headers
+        .get("X-CBOR-Web-Sig")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    let nonce = headers
+        .get("X-CBOR-Web-Nonce")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    if wallet.is_empty() || sig.is_empty() || nonce.is_empty() {
+        return reject("missing_identity");
+    }
+    // single-use challenge, bound to this wallet, not expired
+    {
+        let mut store = state.challenges.lock().await;
+        match store.get(nonce) {
+            Some(entry)
+                if entry.wallet == wallet && entry.expires > std::time::Instant::now() =>
+            {
+                store.remove(nonce); // consumed exactly once
+            }
+            Some(_) => return reject("challenge_wallet_mismatch"),
+            None => return reject("challenge_already_consumed"),
+        }
+    }
+    // signature over METHOD:PATH:CHALLENGE:sha256(raw body bytes)
+    let message = format!("{}:{}:{}:{}", method, path, nonce, sha256_hex(&bytes));
+    match ecrecover_address(&message, sig) {
+        Some(recovered) if recovered.to_lowercase() == wallet => {}
+        _ => return reject("invalid_signature"),
+    }
+    let request = axum::extract::Request::from_parts(parts, axum::body::Body::from(bytes));
     next.run(request).await
 }
 
@@ -999,6 +1164,8 @@ async fn main() {
     let state = Arc::new(AppState {
         data_dir: cli.data.clone(),
         token: cli.token.clone(),
+        wallet_auth: cli.wallet_auth,
+        challenges: Mutex::new(HashMap::new()),
         limiter: RateLimiter::new(cli.rate_limit),
         doléances: Mutex::new(doléances),
         doléance_path: doléance_path.clone(),
@@ -1013,6 +1180,7 @@ async fn main() {
         .allow_origin(Any);
 
     let app = Router::new()
+        .route("/cbor-web/challenge", get(challenge_handler))
         .route("/", get(serve_dashboard))
         .route("/health", get(health_check).head(health_check))
         .route("/codes", get(serve_codes))
@@ -1029,8 +1197,8 @@ async fn main() {
                 .route("/doleance", axum::routing::post(receive_doleance))
                 .route("/doleance/list", get(list_doleances))
                 .route("/diff", get(serve_diff).head(serve_diff))
-                .layer(middleware::from_fn_with_state(state.clone(), auth_mw)),
         )
+        .layer(middleware::from_fn_with_state(state.clone(), auth_mw))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             hit_counter_mw,
@@ -1072,6 +1240,8 @@ mod tests {
         Arc::new(AppState {
             data_dir: PathBuf::from("data"),
             token: None,
+            wallet_auth: false,
+            challenges: Mutex::new(HashMap::new()),
             limiter: RateLimiter::new(1000),
             doléances: Mutex::new(Vec::new()),
             doléance_path: PathBuf::from("data/.doleances.json"),
@@ -1088,6 +1258,7 @@ mod tests {
             .allow_origin(Any);
 
         Router::new()
+            .route("/cbor-web/challenge", get(challenge_handler))
             .route("/", get(serve_dashboard))
             .route("/codes", get(serve_codes))
             .route("/search", get(serve_search))
@@ -1102,6 +1273,7 @@ mod tests {
                     .route("/doleance/list", get(list_doleances))
                     .route("/diff", get(serve_diff).head(serve_diff)),
             )
+            .layer(middleware::from_fn_with_state(state.clone(), auth_mw))
             .layer(middleware::from_fn_with_state(
                 state.clone(),
                 hit_counter_mw,
@@ -1273,5 +1445,160 @@ mod tests {
         // Should return CBOR diff or 404 if base not found
         let status = resp.status();
         assert!(status == StatusCode::OK || status == StatusCode::NOT_FOUND);
+    }
+
+    // ── Wallet auth (v2.1.4) ──
+
+    mod wallet_auth {
+        use super::*;
+        use axum::body::Body;
+        use axum::http::Request;
+        use k256::ecdsa::signature::Signer;
+        use k256::ecdsa::{Signature, SigningKey};
+        use sha3::{Digest, Keccak256};
+        use tower::ServiceExt;
+
+        fn addr_of(key: &SigningKey) -> String {
+            use k256::elliptic_curve::sec1::ToSec1Point;
+            use k256::PublicKey;
+            let pk = PublicKey::from(key.verifying_key());
+            let bytes = pk.to_sec1_point(false).as_bytes().to_vec();
+            let h = Keccak256::digest(&bytes[1..]);
+            format!("0x{}", hex::encode(&h[12..]))
+        }
+
+        fn sign_eip191(key: &SigningKey, message: &str) -> String {
+            let full = format!(
+                "\x19Ethereum Signed Message:\n{}{}",
+                message.len(),
+                message
+            );
+            let hash = Keccak256::digest(full.as_bytes());
+            let (sig, rid): (Signature, _) = key.sign_prehash_recoverable(&hash);
+            let mut out = sig.to_bytes().to_vec();
+            out.push(rid.to_byte() + 27);
+            format!("0x{}", hex::encode(out))
+        }
+
+        fn auth_state() -> Arc<AppState> {
+            let _ = std::fs::create_dir_all("data/.well-known/cbor-web/pages");
+            Arc::new(AppState {
+                data_dir: PathBuf::from("data"),
+                token: None,
+                wallet_auth: true,
+                challenges: Mutex::new(HashMap::new()),
+                limiter: RateLimiter::new(1000),
+                doléances: Mutex::new(Vec::new()),
+                doléance_path: PathBuf::from("data/.doleances.json"),
+                page_snapshots: Mutex::new(HashMap::new()),
+                started_at: std::time::Instant::now(),
+                hit_count: std::sync::atomic::AtomicU64::new(0),
+            })
+        }
+
+        async fn get_challenge(router: &Router, wallet: &str) -> String {
+            let resp = router
+                .clone()
+                .oneshot(
+                    Request::get("/cbor-web/challenge")
+                        .header("X-CBOR-Web-Wallet", wallet)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(resp.status(), 200);
+            let bytes = axum::body::to_bytes(resp.into_body(), 65536).await.unwrap();
+            serde_json::from_slice::<serde_json::Value>(&bytes)
+                .unwrap()["challenge"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        }
+
+        #[tokio::test]
+        async fn test_wallet_auth_challenge_flow() {
+            let state = auth_state();
+            let router = test_router(state);
+            let key = SigningKey::from_slice(&[3u8; 32]).unwrap();
+            let addr = addr_of(&key);
+            let ch = get_challenge(&router, &addr).await;
+            let message = format!("GET:/.well-known/cbor-web/manifest.json:{}:{}", ch, sha256_hex(b""));
+            let sig = sign_eip191(&key, &message);
+            // manifest.json existe-t-il ? sinon utiliser /codes qui est hors
+            // périmètre auth — le nest protégé est /.well-known/cbor-web/*
+            let resp = router
+                .clone()
+                .oneshot(
+                    Request::get("/.well-known/cbor-web/manifest.json")
+                        .header("X-CBOR-Web-Wallet", &addr)
+                        .header("X-CBOR-Web-Sig", &sig)
+                        .header("X-CBOR-Web-Nonce", &ch)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            // 200 (ou 404 si le fichier manque) — mais surtout PAS 401
+            assert_ne!(resp.status(), 401, "auth valide rejetée");
+            // rejeu du même challenge → 401
+            let resp2 = router
+                .oneshot(
+                    Request::get("/.well-known/cbor-web/manifest.json")
+                        .header("X-CBOR-Web-Wallet", &addr)
+                        .header("X-CBOR-Web-Sig", &sig)
+                        .header("X-CBOR-Web-Nonce", &ch)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(resp2.status(), 401, "rejeu de challenge accepté !");
+        }
+
+        #[tokio::test]
+        async fn test_wallet_auth_wrong_wallet_and_bad_sig() {
+            let state = auth_state();
+            let router = test_router(state);
+            let key = SigningKey::from_slice(&[5u8; 32]).unwrap();
+            let other = SigningKey::from_slice(&[9u8; 32]).unwrap();
+            let addr = addr_of(&key);
+            // challenge demandé pour `addr`, signature de `other`
+            let ch = get_challenge(&router, &addr).await;
+            let message = format!("GET:/.well-known/cbor-web/manifest.json:{}:{}", ch, sha256_hex(b""));
+            let sig = sign_eip191(&other, &message);
+            let resp = router
+                .clone()
+                .oneshot(
+                    Request::get("/.well-known/cbor-web/manifest.json")
+                        .header("X-CBOR-Web-Wallet", &addr)
+                        .header("X-CBOR-Web-Sig", &sig)
+                        .header("X-CBOR-Web-Nonce", &ch)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(resp.status(), 401, "signature d'un autre wallet acceptée");
+            // sans headers du tout
+            let resp2 = router
+                .oneshot(
+                    Request::get("/.well-known/cbor-web/manifest.json")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(resp2.status(), 401);
+        }
+
+        #[test]
+        fn test_ecrecover_address_rejects_malformed() {
+            assert_eq!(ecrecover_address("msg", "0x00"), None);
+            assert_eq!(ecrecover_address("msg", &format!("0x{}", "ab".repeat(65))), None); // v=0xab
+            let garbage = format!("0x{}", "11".repeat(65));
+            // v invalide (0x11) → None
+            assert_eq!(ecrecover_address("msg", &garbage), None);
+        }
     }
 }

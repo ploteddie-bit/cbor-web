@@ -16,16 +16,44 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 
+def _load_crypto():
+    """Optional deps for wallet signing: eth-keys (secp256k1, pure Python)
+    + pycryptodome (Keccak-256).
+
+    Keccak-256 (EIP-191 / Ethereum) is NOT hashlib.sha3_256 — it needs
+    pycryptodome (Crypto.Hash.keccak).
+    """
+    try:
+        from eth_keys import keys as _eth_keys
+        from Crypto.Hash import keccak as _keccak_mod
+
+        def _keccak256(data: bytes) -> bytes:
+            return _keccak_mod.new(digest_bits=256).update(data).digest()
+
+        return _eth_keys, _keccak256
+    except ImportError as e:
+        raise CBORWebError(
+            "wallet signing requires 'eth-keys' and 'pycryptodome' "
+            "(pip install eth-keys pycryptodome)", 0
+        ) from e
+
+
 class CBORWebClient:
     """CBOR-Web consumer client for AI agents and tools."""
 
     WELL_KNOWN = "/.well-known/cbor-web"
 
-    def __init__(self, domain: str, token: str = "", timeout: int = 10):
+    def __init__(self, domain: str, token: str = "", timeout: int = 10,
+                 private_key: str = ""):
         self.domain = domain.rstrip("/")
         self.base = f"https://{self.domain}"
         self.token = token
         self.timeout = timeout
+        # v2.1.4 — wallet signature (EIP-191). Preferred over static tokens:
+        # sign METHOD:URL:NONCE:SHA256(raw body bytes) per request (see
+        # CBOR-WEB-SECURITY.md §5.3/§5.3.1). Requires `coincurve` (or any
+        # secp256k1 lib exposing libsecp256k1_recoverable_signature).
+        self.private_key = private_key
 
     # ── Discovery ──
 
@@ -105,7 +133,11 @@ class CBORWebClient:
     def _cbor_get(self, path: str) -> dict:
         url = f"{self.base}{path}"
         headers = {"Accept": "application/cbor"}
-        if self.token:
+        if self.private_key:
+            headers.update(self._wallet_headers("GET", path, b""))
+        elif self.token:
+            # DEPRECATED (v2.1.4): static bearer token in the wallet header —
+            # replayable, no proof of key ownership. Kept for L0 compat only.
             headers["X-CBOR-Web-Wallet"] = self.token
         try:
             req = Request(url, headers=headers)
@@ -116,6 +148,54 @@ class CBORWebClient:
             raise CBORWebError(f"HTTP {e.code}: {e.reason}", e.code) from e
         except URLError as e:
             raise CBORWebError(f"Connection failed: {e.reason}") from e
+
+    # ── Wallet signing (v2.1.4, CBOR-WEB-SECURITY.md §5.3) ──
+
+    def _wallet_headers(self, method: str, path: str, body: bytes) -> dict:
+        """Sign METHOD:URL:NONCE:SHA256(body) with EIP-191.
+
+        NONCE is the server-issued challenge (§5.3.1) when the server exposes
+        /cbor-web/challenge, otherwise the current unix timestamp (§5.4).
+        The body hash is computed on the RAW bytes — never on a transcoded
+        string (§5.3 MUST).
+        """
+        eth_keys, keccak256 = _load_crypto()
+        nonce = self._get_challenge()
+        body_hash = hashlib.sha256(body).hexdigest()
+        message = f"{method}:{path}:{nonce}:{body_hash}"
+        prefix = f"\x19Ethereum Signed Message:\n{len(message)}{message}"
+        # EIP-191 uses Keccak-256 (pre-NIST padding), NOT hashlib.sha3_256.
+        digest = keccak256(prefix.encode())
+        priv_hex = self.private_key[2:] if self.private_key.startswith("0x") else self.private_key
+        private_key = eth_keys.PrivateKey(bytes.fromhex(priv_hex))
+        # sign_msg_hash signs the pre-hashed digest (no re-prefixing)
+        sig = private_key.sign_msg_hash(digest)
+        raw = bytes(sig)  # eth_keys may emit v as recovery id (0/1)
+        v = raw[64] if raw[64] >= 27 else raw[64] + 27  # normalize EIP-191 v=27/28
+        sig65 = raw[:64] + bytes([v])
+        address = private_key.public_key.to_address()
+        return {
+            "X-CBOR-Web-Wallet": address,
+            "X-CBOR-Web-Sig": "0x" + sig65.hex(),
+            "X-CBOR-Web-Nonce": nonce,
+        }
+
+    def _address_from_private(self) -> str:
+        eth_keys, _keccak256 = _load_crypto()
+        priv_hex = self.private_key[2:] if self.private_key.startswith("0x") else self.private_key
+        return eth_keys.PrivateKey(bytes.fromhex(priv_hex)).public_key.to_address()
+
+    def _get_challenge(self) -> str:
+        """Fetch a server-issued single-use challenge (§5.3.1), fallback to timestamp."""
+        import time
+        try:
+            req = Request(f"{self.base}/cbor-web/challenge",
+                          headers={"X-CBOR-Web-Wallet": self._address_from_private()})
+            with urlopen(req, timeout=self.timeout) as resp:
+                data = json.loads(resp.read().decode())
+                return str(data.get("challenge", "")) or str(int(time.time()))
+        except Exception:
+            return str(int(time.time()))
 
     def _parse_cbor(self, data: bytes) -> dict:
         """Minimal CBOR parser for the subset used by CBOR-Web (RFC 8949)."""
