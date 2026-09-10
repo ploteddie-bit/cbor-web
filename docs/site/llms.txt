@@ -4,51 +4,51 @@
 
 ## Docs
 
-- [README](../../README.md) — Project overview, architecture, comparison table, quick start
-- [CBOR-WEB-CORE.md](../../CBOR-WEB-CORE.md) — Full specification: manifest, pages, content blocks, access control
-- [CBOR-WEB-SECURITY.md](../../CBOR-WEB-SECURITY.md) — DoS protection, CORS, rate limiting, production checklist
-- [CBOR-WEB-REFERENCE.md](../../CBOR-WEB-REFERENCE.md) — Reference data, constants, enumerations
-- [CBOR-WEB-MULTIMEDIA.md](../../CBOR-WEB-MULTIMEDIA.md) — Images, audio, video handling in CBOR blocks
-- [CBOR-WEB-GENERATIVE.md](../../CBOR-WEB-GENERATIVE.md) — AI-specific fields, prompts, model hints
-- [CBOR-WEB-ECONOMICS.md](../../CBOR-WEB-ECONOMICS.md) — Token economics, billing model, pricing
-- [CONTRIBUTING.md](../../CONTRIBUTING.md) — How to contribute: PR guidelines, issue templates
-- [SECURITY.md](../../SECURITY.md) — Vulnerability reporting, security policy
+- [README](https://github.com/ploteddie-bit/cbor-web/blob/main/README.md) — Project overview, architecture, comparison table, quick start
+- [CBOR-WEB-CORE.md](https://github.com/ploteddie-bit/cbor-web/blob/main/CBOR-WEB-CORE.md) — Full specification: manifest, pages, content blocks, access control
+- [CBOR-WEB-SECURITY.md](https://github.com/ploteddie-bit/cbor-web/blob/main/CBOR-WEB-SECURITY.md) — DoS protection, CORS, rate limiting, production checklist
+- [CBOR-WEB-REFERENCE.md](https://github.com/ploteddie-bit/cbor-web/blob/main/CBOR-WEB-REFERENCE.md) — Reference data, constants, enumerations
+- [CBOR-WEB-MULTIMEDIA.md](https://github.com/ploteddie-bit/cbor-web/blob/main/CBOR-WEB-MULTIMEDIA.md) — Images, audio, video handling in CBOR blocks
+- [CBOR-WEB-GENERATIVE.md](https://github.com/ploteddie-bit/cbor-web/blob/main/CBOR-WEB-GENERATIVE.md) — AI-specific fields, prompts, model hints
+- [CBOR-WEB-ECONOMICS.md](https://github.com/ploteddie-bit/cbor-web/blob/main/CBOR-WEB-ECONOMICS.md) — Token economics, billing model, pricing
+- [CONTRIBUTING.md](https://github.com/ploteddie-bit/cbor-web/blob/main/CONTRIBUTING.md) — How to contribute: PR guidelines, issue templates
+- [SECURITY.md](https://github.com/ploteddie-bit/cbor-web/blob/main/SECURITY.md) — Vulnerability reporting, security policy
 
 ## Deploy
 
-- [Deploy (site)](#deploy) — 2-command deployment: text2cbor + cbor-server
-- [text2cbor README](../../tools/README.md) — HTML-to-CBOR converter (Rust CLI)
-- [cbor-server README](../../tools/README.md) — Static CBOR file server with well-known endpoint
-- [IETF Internet-Draft](../../spec/draft-plot-cbor-web-00.md) — draft-plot-cbor-web-00.md specification
+- [Deploy (site)](https://www.cborweb.com/#deploy) — 2-command deployment: text2cbor + cbor-server
+- [text2cbor README](https://github.com/ploteddie-bit/cbor-web/blob/main/tools/README.md) — HTML-to-CBOR converter (Rust CLI)
+- [cbor-server README](https://github.com/ploteddie-bit/cbor-web/blob/main/tools/README.md) — Static CBOR file server with well-known endpoint
+- [IETF Internet-Draft](https://github.com/ploteddie-bit/cbor-web/blob/main/spec/draft-plot-cbor-web-00.md) — draft-plot-cbor-web-00.md specification
 
 ## API
 
-- [API page (site)](#api) — Account creation, API key, upload endpoint, CBORW token
+- [API page (site)](https://www.cborweb.com/#api) — Account creation, API key, upload endpoint, CBORW token
 - [npm package](https://www.npmjs.com/package/@deltopide_edy/cborweb) — @deltopide_edy/cborweb (TypeScript/JavaScript SDK)
-- [TypeScript SDK](../../npm-package/README.md) — npm install, manifest(), page(), bundle()
-- [Python SDK](../../clients/python/README.md) — pip install cborweb, CBORWebClient
-- [Go SDK](../../clients/go/cborweb.go) — go get, CBORWebClient struct
-- [PHP SDK](../../clients/php/CborWeb.php) — Composer require, CborWebClient class
-- [Ruby SDK](../../clients/ruby/cborweb.rb) — gem install, CBORWebClient module
-- [Java SDK](../../clients/java/CborWebClient.java) — Maven/Gradle, CborWebClient class
-- [C++ SDK](../../clients/cpp/cborweb.hpp) — Header-only, cborweb::Client
-- [React SDK](../../clients/react/) — useCBORWeb hook, CBORWebProvider
+- [TypeScript SDK](https://github.com/ploteddie-bit/cbor-web/blob/main/npm-package/README.md) — npm install, manifest(), page(), bundle()
+- [Python SDK](https://github.com/ploteddie-bit/cbor-web/blob/main/clients/python/README.md) — pip install cborweb, CBORWebClient
+- [Go SDK](https://github.com/ploteddie-bit/cbor-web/blob/main/clients/go/cborweb.go) — go get, CBORWebClient struct
+- [PHP SDK](https://github.com/ploteddie-bit/cbor-web/blob/main/clients/php/CborWeb.php) — Composer require, CborWebClient class
+- [Ruby SDK](https://github.com/ploteddie-bit/cbor-web/blob/main/clients/ruby/cborweb.rb) — gem install, CBORWebClient module
+- [Java SDK](https://github.com/ploteddie-bit/cbor-web/blob/main/clients/java/CborWebClient.java) — Maven/Gradle, CborWebClient class
+- [C++ SDK](https://github.com/ploteddie-bit/cbor-web/blob/main/clients/cpp/cborweb.hpp) — Header-only, cborweb::Client
+- [React SDK](https://github.com/ploteddie-bit/cbor-web/blob/main/clients/react/) — useCBORWeb hook, CBORWebProvider
 
 ## Blog
 
-- [Blog page (site)](#blog) — v2.2 release, 8 SDKs, 93% token waste benchmark, digital identity law
-- [GitHub Releases](https://github.com/ploteddie-bit/cbor-web/releases) — Version history, changelogs [à confirmer URL publique]
-- [CBOR-WEB-GENERATIVE.md](../../CBOR-WEB-GENERATIVE.md) — Deep dive on AI-native fields
+- [Blog page (site)](https://www.cborweb.com/#blog) — v2.2 release, 8 SDKs, 93% token waste benchmark, digital identity law
+- [GitHub Releases](https://github.com/ploteddie-bit/cbor-web/releases) — Version history, changelogs
+- [CBOR-WEB-GENERATIVE.md](https://github.com/ploteddie-bit/cbor-web/blob/main/CBOR-WEB-GENERATIVE.md) — Deep dive on AI-native fields
 
 ## FAQ
 
-- [FAQ (site)](#faq) — What is CBOR-Web, cost, supported languages, legal compliance
-- [Comparison table (README)](../../README.md#comparison) — robots.txt / sitemap / llms.txt / Schema.org vs CBOR-Web
+- [FAQ (site)](https://www.cborweb.com/#faq) — What is CBOR-Web, cost, supported languages, legal compliance
+- [Comparison table (README)](https://github.com/ploteddie-bit/cbor-web/blob/main/README.md#comparison) — robots.txt / sitemap / llms.txt / Schema.org vs CBOR-Web
 
 ## Additional Resources
 
-- [Schemas README](../../schemas/README.md) — JSON Schema definitions for manifest validation
-- [Test vectors README](../../test-vectors/README.md) — Reference test data for interop testing
-- [Shopify README](../../clients/shopify/README.md) — Shopify Liquid snippet integration
-- [Chrome Extension](../../clients/chrome-extension/) — SEO/AI audit browser extension (Manifest V3, Rust/WASM)
-- [Dashboard](https://cbor-web.explodev.workers.dev) — Live metrics, 38 sites monitored [à confirmer URL publique]
+- [Schemas README](https://github.com/ploteddie-bit/cbor-web/blob/main/schemas/README.md) — JSON Schema definitions for manifest validation
+- [Test vectors README](https://github.com/ploteddie-bit/cbor-web/blob/main/test-vectors/README.md) — Reference test data for interop testing
+- [Shopify README](https://github.com/ploteddie-bit/cbor-web/blob/main/clients/shopify/README.md) — Shopify Liquid snippet integration
+- [Chrome Extension](https://github.com/ploteddie-bit/cbor-web/blob/main/clients/chrome-extension/) — SEO/AI audit browser extension (Manifest V3, Rust/WASM)
+- [Dashboard](https://cbor-web.explodev.workers.dev) — Live metrics, 38 sites monitored
