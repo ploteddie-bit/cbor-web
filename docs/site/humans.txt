@@ -1,0 +1,14 @@
+/* humanstxt.org */
+
+/* TEAM */
+Name: Eddie
+Role: Founder
+Site: https://github.com/ploteddie-bit/cbor-web
+Contact: eddie at cborweb.com
+
+/* SITE */
+Last update: 2026/09/01
+Language: English
+Doctype: HTML5
+IDE: VS Code
+Software: CBOR-Web — open protocol for AI-readable websites (IETF RFC 8949)

@@ -1,0 +1,6 @@
+Contact: mailto:eddie@cborweb.com
+Expires: 2027-09-10T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://cbor-web.explodev.workers.dev/.well-known/security.txt
+Policy: https://github.com/ploteddie-bit/cbor-web/blob/main/SECURITY.md
+Acknowledgments: https://github.com/ploteddie-bit/cbor-web/blob/main/ACKNOWLEDGMENTS.md
