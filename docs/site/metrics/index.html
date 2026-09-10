@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Indice d'Intérêt CBOR — Metrics</title>
+<meta name="description" content="Indice d'Intérêt CBOR (IIC) — score quotidien 0-1000 mesurant l'adoption, le buzz social, la conformité IETF et le trafic web du protocole CBOR-Web.">
+<meta name="robots" content="index,follow">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>📊</text></svg>">
+<style>
+:root{--bg:#05080f;--card:#0d1117;--border:#21262d;--text:#e6edf3;--muted:#8b949e;--accent:#00e5ff;--accent2:#f97316}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;line-height:1.6;min-height:100vh}
+.container{max-width:900px;margin:0 auto;padding:24px 16px 60px}
+.hero{text-align:center;padding:40px 0 32px}
+.hero h1{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:700;letter-spacing:-.02em;margin-bottom:8px}
+.hero h1 span{color:var(--accent)}
+.hero .sub{color:var(--muted);font-size:.95rem;font-style:italic;max-width:500px;margin:0 auto 24px}
+.score-display{display:inline-flex;align-items:baseline;gap:12px;margin-bottom:16px}
+.score-display .val{font-size:clamp(3rem,8vw,5rem);font-weight:800;color:var(--accent);line-height:1}
+.score-display .max{font-size:1.2rem;color:var(--muted)}
+.delta{font-size:1rem;font-weight:700;padding:4px 12px;border-radius:20px;display:inline-block}
+.delta.positive{background:rgba(16,185,129,.12);color:#10b981}
+.delta.negative{background:rgba(244,63,94,.12);color:#f43f5e}
+.delta.zero{background:rgba(139,148,158,.12);color:#8b949e}
+.section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px}
+.section h2{font-size:1.1rem;font-weight:700;margin-bottom:16px;color:var(--text)}
+.section h2 span{color:var(--accent)}
+.chart-container{text-align:center;margin-bottom:8px}
+.legend{text-align:center;margin-bottom:20px;display:flex;flex-wrap:wrap;justify-content:center;gap:4px}
+table{width:100%;border-collapse:collapse}
+th{padding:10px 12px;text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border-bottom:2px solid var(--border);font-weight:600}
+.footer{text-align:center;padding:24px;color:var(--muted);font-size:.72rem;border-top:1px solid var(--border);margin-top:40px}
+.footer a{color:var(--accent);text-decoration:none}
+.methodology{font-size:.8rem;color:var(--muted);line-height:1.7}
+.methodology code{background:rgba(0,229,255,.06);color:var(--accent);padding:1px 6px;border-radius:3px;font-size:.78rem}
+@media(max-width:600px){
+  .section{padding:16px}
+  th,td{padding:6px 8px;font-size:.75rem}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="hero">
+  <h1>Indice d'Intérêt <span>CBOR</span></h1>
+  <p class="sub">Score quotidien 0-1000 — adoption, buzz, standards, trafic, presse</p>
+  <div class="score-display">
+    <span class="val">337</span>
+    <span class="max">/ 1000</span>
+  </div>
+  <br>
+  <span class="delta positive">Δ +337 vs hier</span>
+</div>
+
+<div class="section">
+  <h2>📈 <span>Évolution</span> historique</h2>
+  <div class="chart-container">
+    <svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:800px;height:auto">
+  <rect width="800" height="300" fill="#0d1117" rx="8"/>
+  <line x1="50" y1="260" x2="780" y2="260" stroke="#21262d" stroke-width="1"/>
+<text x="42" y="264" fill="#8b949e" font-size="11" text-anchor="end" font-family="monospace">0</text>
+<line x1="50" y1="200" x2="780" y2="200" stroke="#21262d" stroke-width="1"/>
+<text x="42" y="204" fill="#8b949e" font-size="11" text-anchor="end" font-family="monospace">250</text>
+<line x1="50" y1="140" x2="780" y2="140" stroke="#21262d" stroke-width="1"/>
+<text x="42" y="144" fill="#8b949e" font-size="11" text-anchor="end" font-family="monospace">500</text>
+<line x1="50" y1="80" x2="780" y2="80" stroke="#21262d" stroke-width="1"/>
+<text x="42" y="84" fill="#8b949e" font-size="11" text-anchor="end" font-family="monospace">750</text>
+<line x1="50" y1="20" x2="780" y2="20" stroke="#21262d" stroke-width="1"/>
+<text x="42" y="24" fill="#8b949e" font-size="11" text-anchor="end" font-family="monospace">1000</text>
+
+  <path d="M 415,260 L 415,260 L 415,260 Z" fill="#f43f5e" opacity="0.15"/>
+<path d="M 415,260 L 415,260 L 415,260 Z" fill="#3b82f6" opacity="0.15"/>
+<path d="M 415,260 L 415,246 L 415,260 Z" fill="#8b5cf6" opacity="0.15"/>
+<path d="M 415,260 L 415,259 L 415,260 Z" fill="#10b981" opacity="0.15"/>
+<path d="M 415,260 L 415,188 L 415,260 Z" fill="#f97316" opacity="0.15"/>
+
+  <path d="M 415,179.12" fill="none" stroke="#00e5ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="415" cy="179.12" r="4" fill="#00e5ff" stroke="#0d1117" stroke-width="2">
+  <title>2026-09-10: 337</title>
+</circle>
+
+  <text x="415" y="295" fill="#8b949e" font-size="10" text-anchor="middle" font-family="monospace">09-10</text>
+
+</svg>
+  </div>
+  <div class="legend"><span style="display:inline-flex;align-items:center;gap:4px;margin-right:16px"><span style="display:inline-block;width:12px;height:12px;background:#f97316;border-radius:2px;opacity:0.7"></span><span style="font-size:.75rem;color:#8b949e">Social (réseaux)</span></span><span style="display:inline-flex;align-items:center;gap:4px;margin-right:16px"><span style="display:inline-block;width:12px;height:12px;background:#10b981;border-radius:2px;opacity:0.7"></span><span style="font-size:.75rem;color:#8b949e">Adoption (code)</span></span><span style="display:inline-flex;align-items:center;gap:4px;margin-right:16px"><span style="display:inline-block;width:12px;height:12px;background:#8b5cf6;border-radius:2px;opacity:0.7"></span><span style="font-size:.75rem;color:#8b949e">IETF / Standards</span></span><span style="display:inline-flex;align-items:center;gap:4px;margin-right:16px"><span style="display:inline-block;width:12px;height:12px;background:#3b82f6;border-radius:2px;opacity:0.7"></span><span style="font-size:.75rem;color:#8b949e">Trafic web</span></span><span style="display:inline-flex;align-items:center;gap:4px;margin-right:16px"><span style="display:inline-block;width:12px;height:12px;background:#f43f5e;border-radius:2px;opacity:0.7"></span><span style="font-size:.75rem;color:#8b949e">Presse / Articles</span></span></div>
+</div>
+
+<div class="section">
+  <h2>🔍 <span>Breakdown</span> du jour — 2026-09-10</h2>
+  
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+  <span style="width:140px;font-size:.8rem;color:#8b949e;text-align:right">Social (réseaux) (30%)</span>
+  <div style="flex:1;height:22px;background:#161b22;border-radius:4px;overflow:hidden;position:relative">
+    <div style="height:100%;width:100%;background:#f97316;border-radius:4px;transition:width .5s"></div>
+  </div>
+  <span style="width:36px;font-size:.85rem;color:#e6edf3;font-weight:700;text-align:right">100</span>
+</div>
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+  <span style="width:140px;font-size:.8rem;color:#8b949e;text-align:right">Adoption (code) (30%)</span>
+  <div style="flex:1;height:22px;background:#161b22;border-radius:4px;overflow:hidden;position:relative">
+    <div style="height:100%;width:2%;background:#10b981;border-radius:4px;transition:width .5s"></div>
+  </div>
+  <span style="width:36px;font-size:.85rem;color:#e6edf3;font-weight:700;text-align:right">2</span>
+</div>
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+  <span style="width:140px;font-size:.8rem;color:#8b949e;text-align:right">IETF / Standards (15%)</span>
+  <div style="flex:1;height:22px;background:#161b22;border-radius:4px;overflow:hidden;position:relative">
+    <div style="height:100%;width:20%;background:#8b5cf6;border-radius:4px;transition:width .5s"></div>
+  </div>
+  <span style="width:36px;font-size:.85rem;color:#e6edf3;font-weight:700;text-align:right">20</span>
+</div>
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+  <span style="width:140px;font-size:.8rem;color:#8b949e;text-align:right">Trafic web (15%)</span>
+  <div style="flex:1;height:22px;background:#161b22;border-radius:4px;overflow:hidden;position:relative">
+    <div style="height:100%;width:1%;background:#3b82f6;border-radius:4px;transition:width .5s"></div>
+  </div>
+  <span style="width:36px;font-size:.85rem;color:#e6edf3;font-weight:700;text-align:right">0</span>
+</div>
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+  <span style="width:140px;font-size:.8rem;color:#8b949e;text-align:right">Presse / Articles (10%)</span>
+  <div style="flex:1;height:22px;background:#161b22;border-radius:4px;overflow:hidden;position:relative">
+    <div style="height:100%;width:1%;background:#f43f5e;border-radius:4px;transition:width .5s"></div>
+  </div>
+  <span style="width:36px;font-size:.85rem;color:#e6edf3;font-weight:700;text-align:right">0</span>
+</div>
+</div>
+
+<div class="section">
+  <h2>📋 <span>Historique</span> quotidien</h2>
+  <div style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th><th>Score</th><th>Δ</th>
+        <th>Social</th><th>Adoption</th><th>IETF</th><th>Web</th><th>Presse</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+  <td style="padding:8px 12px;border-bottom:1px solid #21262d;font-family:monospace;font-size:.8rem">2026-09-10</td>
+  <td style="padding:8px 12px;border-bottom:1px solid #21262d;font-weight:700;color:#00e5ff;font-size:1rem">337</td>
+  <td style="padding:8px 12px;border-bottom:1px solid #21262d;color:#10b981;font-family:monospace;font-size:.8rem">+337</td>
+  <td style="padding:8px 12px;border-bottom:1px solid #21262d;font-size:.8rem">100</td>
+  <td style="padding:8px 12px;border-bottom:1px solid #21262d;font-size:.8rem">2</td>
+  <td style="padding:8px 12px;border-bottom:1px solid #21262d;font-size:.8rem">20</td>
+  <td style="padding:8px 12px;border-bottom:1px solid #21262d;font-size:.8rem">0</td>
+  <td style="padding:8px 12px;border-bottom:1px solid #21262d;font-size:.8rem">0</td>
+</tr>
+
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<div class="section">
+  <h2>📐 <span>Méthodologie</span></h2>
+  <div class="methodology">
+    <p>L'Indice d'Intérêt CBOR (IIC) est un score composite 0-1000 calculé quotidiennement à partir de données sources vérifiables :</p>
+    <ul style="margin:12px 0 12px 20px">
+      <li><strong>Social (30%)</strong> — Mentions uniques sur Hacker News, GitHub et réseaux publics (7 jours glissants). Cap : 50 mentions.</li>
+      <li><strong>Adoption (30%)</strong> — Sessions uniques d'agents/visiteurs sur cborweb.com (7 jours). Cap : 100 sessions.</li>
+      <li><strong>IETF / Standards (15%)</strong> — Mentions liées aux RFC, drafts et standards (7 jours). Cap : 20 mentions.</li>
+      <li><strong>Trafic web (15%)</strong> — Pageviews sur cborweb.com (7 jours). Cap : 200 pages.</li>
+      <li><strong>Presse (10%)</strong> — Articles publiés référençant CBOR-Web (30 jours). Cap : 10 articles.</li>
+    </ul>
+    <p>Chaque composante est normalisée 0-100 (plafonnée à son cap), pondérée, puis multipliée par 10 pour obtenir un score 0-1000.</p>
+    <p style="margin-top:8px">Sources : <code>mentions</code> (HN Algolia, GitHub), <code>events_raw</code> (collecteur first-party), <code>articles</code> (pipeline éditorial). Delta = score du jour − score de la veille.</p>
+  </div>
+</div>
+
+</div>
+
+<footer class="footer">
+  <p>Indice d'Intérêt CBOR — <a href="/">cborweb.com</a> — Données calculées automatiquement par <code>indice-iic.py</code></p>
+  <p>Dernière mise à jour : 2026-09-10 — ExploDev / Deltopide SL · 2026</p>
+</footer>
+
+</body>
+</html>
