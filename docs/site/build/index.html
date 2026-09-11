@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>The Build — CBOR-Web Agent-Webmaster, in the open</title>
+<meta name="description" content="The complete, honest build log of an AI agent-webmaster: 14 agents, 4 data witnesses, real metrics, documented failures. Built in the open, in French and English.">
+<style>
+:root{--fond:#0d1117;--carte:#161b22;--bord:#21262d;--texte:#e6edf3;--muted:#8b949e;--orange:#f97316;--cyan:#58a6ff;--vert:#3fb950;--rouge:#f85149}
+*{box-sizing:border-box}body{margin:0;background:var(--fond);color:var(--texte);font:16px/1.7 -apple-system,'Segoe UI',Roboto,sans-serif}
+.wrap{max-width:1020px;margin:0 auto;padding:24px}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:19px;color:var(--orange);margin-top:34px}
+a{color:var(--cyan)}
+.lang-toggle{position:fixed;top:14px;right:14px;z-index:50;display:flex;gap:6px}
+.lang-toggle button{padding:6px 14px;border-radius:8px;border:1px solid var(--bord);background:var(--carte);color:var(--muted);cursor:pointer;font-size:13px}
+.lang-toggle button.actif{background:var(--orange);color:#fff;font-weight:700}
+[data-lang]{display:none}[data-lang].vue-lang{display:block}
+.hero{border:1px solid var(--bord);border-radius:14px;padding:20px 22px;background:linear-gradient(160deg,#161b22,#0d1117)}
+.badge{display:inline-block;font-size:12px;padding:3px 10px;border-radius:10px;margin:2px 4px 2px 0;background:#1c2a3a;color:var(--cyan)}
+.grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin:14px 0}
+.carte{background:var(--carte);border:1px solid var(--bord);border-radius:12px;padding:14px}
+.carte .num{font-size:24px;font-weight:800;color:var(--orange2,#f97316);font-family:ui-monospace,monospace}
+.carte .lbl{font-size:12px;color:var(--muted)}
+chrono{display:block}
+.evt{display:flex;gap:12px;margin:10px 0}
+.evt .h{min-width:70px;font-family:ui-monospace,monospace;color:var(--muted);font-size:13px;padding-top:2px}
+.evt .c{flex:1;background:var(--carte);border:1px solid var(--bord);border-radius:10px;padding:10px 14px}
+.evt .c b{color:var(--orange2)}
+.fail .c{border-color:var(--rouge)}
+.fail .c b{color:var(--rouge)}
+.ok .c{border-color:var(--vert)}
+blockquote{border-left:3px solid var(--bord);margin:10px 0;padding:6px 14px;color:var(--muted);font-style:italic}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="lang-toggle">
+  <button id="btn-fr" onclick="setLang('fr')">Français</button>
+  <button id="btn-en" onclick="setLang('en')">English</button>
+</div>
+
+<div class="hero" data-lang="fr" class-vue-lang>
+<h1>L'agent-webmaster, construit au grand jour</h1>
+<p class="muted small">Le journal de construction complet d'un site web géré 24h/24 par 14 agents IA — y compris les échecs. Rien n'est caché : la méthode, les pannes, les faux positifs, les métriques réelles.</p>
+<span class="badge">14 agents</span><span class="badge">4 sources de données</span><span class="badge">60+ patrouilles</span><span class="badge">Construction : 24 h</span>
+</div>
+<div class="hero" data-lang="en">
+<h1>The agent-webmaster, built in the open</h1>
+<p class="muted small">The complete build log of a website run 24/7 by 14 AI agents — failures included. Nothing hidden: the method, the outages, the false positives, the real metrics.</p>
+<span class="badge">14 agents</span><span class="badge">4 data witnesses</span><span class="badge">60+ patrols</span><span class="badge">Built in 24 h</span>
+</div>
+
+<h2 data-lang="fr">La méthode</h2>
+<h2 data-lang="en">The method</h2>
+<div class="carte" data-lang="fr">
+<b>Un site web géré par 14 agents IA autonomes</b>, sur un utilisateur Linux isolé (sans sudo, sans accès aux secrets de l'hôte). Chaque agent a un rôle : uptime, contenu, SEO, sécurité, presse, statistiques. Les décisions sensibles remontent à l'humain ; le reste s'exécute 24h/24.
+<br><br>Quatre sources de données indépendantes (le site lui-même, Google Search Console, PageSpeed, Cloudflare) sont croisées pour se rapprocher de la réalité — chaque métrique contredite par une autre est investiguée.
+</div>
+<div class="carte" data-lang="en">
+<b>A website run by 14 autonomous AI agents</b>, on an isolated Linux user (no sudo, no access to host secrets). Each agent has a role: uptime, content, SEO, security, press, statistics. Sensitive decisions escalate to a human; the rest runs 24/7.
+<br><br>Four independent data sources (the site itself, Google Search Console, PageSpeed, Cloudflare) are cross-checked against each other — any metric contradicted by another gets investigated.
+</div>
+
+<h2 data-lang="fr">La chronologie réelle (24 heures)</h2>
+<h2 data-lang="en">The real timeline (24 hours)</h2>
+
+<div data-lang="fr">
+<div class="evt"><div class="h">H+0</div><div class="c"><b>État des lieux sans complaisance</b> : le site n'a pas de llms.txt, pas de humans.txt ni security.txt, pas de headers HSTS/CSP/X-Frame-Options, aucune télémétrie, aucun agent. Le système d'agents est bloqué : l'inférence est routée vers un backend sans crédits.</div></div>
+<div class="evt ok"><div class="h">H+2</div><div class="c"><b>Inférence débloquée</b> : routage corrigé vers le modèle MiMo (clé du plan AMS). Premier test réel réussi.</div></div>
+<div class="evt ok"><div class="h">H+4</div><div class="c"><b>Le jail utilisateur</b> : un utilisateur Linux dédié, sans sudo, avec linger 24/7. Toute l'infrastructure migrée et chownée. Test de sécurité : les secrets de l'hôte sont <i>refusés</i> au jail (Permission denied vérifié ×2).</div></div>
+<div class="evt"><div class="h">H+5</div><div class="c fail"><b>Échec documenté — crash-loop du gateway</b> : le venv copié gardait un finder Python pointant les chemins de l'ancien utilisateur. Crash en boucle (Permission denied ×N). <b>Réparation</b> : réinstallation non-editable + correction des shebangs des entry points (hérités de l'ancien venv).</div></div>
+<div class="evt ok"><div class="h">H+6</div><div class="c"><b>La base de données</b> : 8 tables (documents CBOR, événements, mentions, indice, presse). 4 pages du site converties en CBOR : −66 % de poids.</div></div>
+<div class="evt ok"><div class="h">H+10</div><div class="c"><b>Les yeux</b> : script de télémétrie first-party déployé (anonyme, sans cookie), tunnel Cloudflare, endpoint d'ingestion. <b>Test réel : un clic simulé → base de données en 0,22 s</b> (critère &lt; 1 s atteint).</div></div>
+<div class="evt"><div class="h">H+16</div><div class="c fail"><b>Échec documenté — faux positif sentinelle ×3</b> : le check d'exposition /.env compte les codes HTTP, mais ce site est une SPA qui renvoie 200 HTML pour tous les chemins. Trois alertes P0 documentées avec preuves curl, clôturées comme faux positifs. <b>Correction préventive livrée par le gardien lui-même</b> (le check filtre désormais le content-type HTML).</div></div>
+<div class="evt ok"><div class="h">H+16</div><div class="c"><b>Les P0 en production</b> : llms.txt, humans.txt, security.txt déployés et vérifiés (200). HSTS + CSP + X-Frame-Options déployés via _headers — vérifiés par curl.</div></div>
+<div class="evt ok"><div class="h">H+18</div><div class="c"><b>M1 — la veille</b> : l'éclaireur livre ses scrapers HN Algolia + GitHub. <b>55 mentions CBOR collectées</b> en un run (objectif ≥ 10 dépassé ×5).</div></div>
+<div class="evt ok"><div class="h">H+20</div><div class="c"><b>M2 — l'Indice d'Intérêt CBOR</b> : premier score calculé (337/1000), page /metrics publique déployée et vérifiée (200). Cron quotidien 06:00 armé.</div></div>
+<div class="evt ok"><div class="h">H+22</div><div class="c"><b>Les métiers</b> : l'annonce blog v2.3 rédigée par le scribe (revue + merge), le workflow CI cassé réparé par le menuisier (au lieu d'être supprimé — conforme à la consigne), les deux mergés et poussés.</div></div>
+</div>
+
+<div data-lang="en">
+<div class="evt"><div class="h">H+0</div><div class="c"><b>Brutal baseline</b>: no llms.txt, no humans.txt or security.txt, no HSTS/CSP/X-Frame-Options headers, no telemetry, no agents. The agent system itself is blocked: inference routed to a backend with no credits.</div></div>
+<div class="evt ok"><div class="h">H+2</div><div class="c"><b>Inference unblocked</b>: routing fixed to the MiMo model (AMS plan key). First real test passed.</div></div>
+<div class="evt ok"><div class="h">H+4</div><div class="c"><b>The user jail</b>: a dedicated Linux user, no sudo, systemd linger 24/7. Full infrastructure migrated and chowned. Security test: host secrets are <i>denied</i> to the jail (Permission denied verified ×2).</div></div>
+<div class="evt fail"><div class="h">H+5</div><div class="c"><b>Documented failure — gateway crash-loop</b>: the copied venv kept a Python finder pointing at the previous user's paths. Crash loop (Permission denied ×N). <b>Fix</b>: non-editable reinstall + entry-point shebangs rewritten (inherited from the old venv).</div></div>
+<div class="evt ok"><div class="h">H+6</div><div class="c"><b>The database</b>: 8 tables (CBOR documents, events, mentions, index, press). 4 site pages converted to CBOR: −66% weight.</div></div>
+<div class="evt ok"><div class="h">H+10</div><div class="c"><b>The eyes</b>: first-party telemetry script deployed (anonymous, cookieless), Cloudflare tunnel, ingestion endpoint. <b>Real test: a simulated click → database in 0.22s</b> (&lt; 1s criterion met).</div></div>
+<div class="evt fail"><div class="h">H+16</div><div class="c"><b>Documented failure — sentry false positive ×3</b>: the /.env exposure check counts HTTP codes, but this site is a SPA returning 200 HTML for every path. Three P0 alerts documented with curl proofs, closed as false positives. <b>Preventive fix delivered by the guard itself</b> (the check now filters HTML content-type).</div></div>
+<div class="evt ok"><div class="h">H+16</div><div class="c"><b>P0s in production</b>: llms.txt, humans.txt, security.txt deployed and verified (200). HSTS + CSP + X-Frame-Options deployed via _headers — curl-verified.</div></div>
+<div class="evt ok"><div class="h">H+18</div><div class="c"><b>M1 — the watch</b>: the scout delivers its HN Algolia + GitHub scrapers. <b>55 CBOR mentions collected</b> in one run (≥ 10 target exceeded ×5).</div></div>
+<div class="evt ok"><div class="h">H+20</div><div class="c"><b>M2 — the CBOR Interest Index</b>: first score computed (337/1000), public /metrics page deployed and verified (200). Daily 06:00 cron armed.</div></div>
+<div class="evt ok"><div class="h">H+22</div><div class="c"><b>The trades</b>: the v2.3 blog announcement written by the scribe (reviewed + merged), the broken CI workflow repaired by the carpenter (rather than deleted — per instructions), both merged and pushed.</div></div>
+</div>
+
+<h2 data-lang="fr">Les métriques réelles</h2>
+<h2 data-lang="en">Real metrics</h2>
+<div class="grille" data-lang="fr">
+<div class="carte"><div class="num">60+</div><div class="lbl">patrouilles sentinelle (30 min)</div></div>
+<div class="carte"><div class="num">55</div><div class="lbl">mentions CBOR collectées</div></div>
+<div class="carte"><div class="num">337</div><div class="lbl">Indice d'Intérêt CBOR v1</div></div>
+<div class="carte"><div class="num">0,22 s</div><div class="lbl">clic → base de données</div></div>
+<div class="carte"><div class="num">−66 %</div><div class="lbl">poids des pages en CBOR</div></div>
+<div class="carte"><div class="num">6</div><div class="lbl">headers de sécurité en prod</div></div>
+</div>
+<div class="grille" data-lang="en">
+<div class="carte"><div class="num">60+</div><div class="lbl">sentry patrols (30 min)</div></div>
+<div class="carte"><div class="num">55</div><div class="lbl">CBOR mentions collected</div></div>
+<div class="carte"><div class="num">337</div><div class="lbl">CBOR Interest Index v1</div></div>
+<div class="carte"><div class="num">0.22s</div><div class="lbl">click → database</div></div>
+<div class="carte"><div class="num">−66%</div><div class="lbl">page weight in CBOR</div></div>
+<div class="carte"><div class="num">6</div><div class="lbl">security headers in prod</div></div>
+</div>
+
+<h2 data-lang="fr">Pourquoi nous ne vendons pas encore</h2>
+<h2 data-lang="en">Why we don't sell yet</h2>
+<div class="carte" data-lang="fr">
+Ce projet a 24 heures. Il n'a pas le recul, il aura des ajustements, et les premières semaines de fonctionnement réel doivent prouver la fiabilité avant que quiconque paie. <b>Le plan</b> : le rapport hebdomadaire de l'archiviste (chaque lundi 09:00) sera publié ici, dans cette page, en continu. Quand les résultats seront au rendez-vous — et seulement à ce moment — la solution sera proposée. En attendant : tout est documenté, y compris les échecs.
+</div>
+<div class="carte" data-lang="en">
+This project is 24 hours old. It lacks track record, it will need adjustments, and the first weeks of real operation must prove reliability before anyone pays. <b>The plan</b>: the archivist's weekly report (every Monday 09:00) will be published here, on this page, continuously. When the results are there — and only then — the solution will be offered. Until then: everything is documented, failures included.
+</div>
+
+<div class="carte" data-lang="fr">
+<b>Les liens</b> : le protocole sur <a href="/">cborweb.com</a> · la spécification <a href="https://github.com/ploteddie-bit/cbor-web" target="_blank">CBOR-WEB-CORE.md sur GitHub</a> · le premier cas d'usage réel : <a href="https://annonces.explodev.fr" target="_blank">annonces.explodev.fr</a>, un marché d'occasions où des agents IA négocient entre eux, signé CBOR.
+</div>
+<div class="carte" data-lang="en">
+<b>Links</b>: the protocol on <a href="/">cborweb.com</a> · the spec at <a href="https://github.com/ploteddie-bit/cbor-web" target="_blank">CBOR-WEB-CORE.md on GitHub</a> · the first real use case: <a href="https://annonces.explodev.fr" target="_blank">annonces.explodev.fr</a>, a marketplace where AI agents negotiate with each other, signed with CBOR.
+</div>
+
+</div>
+<script>
+function setLang(l){document.querySelectorAll('[data-lang]').forEach(e=>{e.style.display=(e.dataset.lang===l)?'block':'none'});document.getElementById('btn-fr').classList.toggle('actif',l==='fr');document.getElementById('btn-en').classList.toggle('actif',l==='en');try{localStorage.setItem('build-lang',l)}catch(e){}}
+(function(){var l='fr';try{l=localStorage.getItem('build-lang')||(navigator.language||'fr').startsWith('fr')?'fr':'en'}catch(e){}setLang(l)})();
+</script>
+</body>
+</html>
