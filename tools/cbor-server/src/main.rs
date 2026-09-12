@@ -331,7 +331,7 @@ async fn wallet_auth_check(
     request: axum::extract::Request,
     next: Next,
 ) -> Response {
-    let (mut parts, body) = request.into_parts();
+    let (parts, body) = request.into_parts();
     let path = parts.uri.path().to_string();
     let method = parts.method.as_str().to_string();
     let bytes = match axum::body::to_bytes(body, 4 * 1024 * 1024).await {
