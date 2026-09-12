@@ -1263,6 +1263,11 @@ mod tests {
 
     fn test_state() -> Arc<AppState> {
         let _ = std::fs::create_dir_all("data/.well-known/cbor-web/pages");
+        // Tests must be self-contained: write minimal CBOR fixtures (self-described
+        // tag D9D9F7 + empty map) so manifest/bundle endpoints have files to serve.
+        // Fixes CI: these tests depended on a production data/ dir that CI never had.
+        std::fs::write("data/.well-known/cbor-web/manifest.cbor", b"\xd9\xd9\xf7\xa0").unwrap();
+        std::fs::write("data/.well-known/cbor-web/bundle.cbor", b"\xd9\xd9\xf7\xa0").unwrap();
         Arc::new(AppState {
             data_dir: PathBuf::from("data"),
             token: None,
