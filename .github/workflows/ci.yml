@@ -143,12 +143,7 @@ jobs:
           python3 scripts/tokenomics-dashboard.py 2>/dev/null
           if [ -f /tmp/tokenomics_metrics.json ]; then
             echo "=== Tokenomics Summary ==="
-            python3 -c "
-            import json
-            d = json.load(open('/tmp/tokenomics_metrics.json'))
-            for s, v in d['scenarios'].items():
-                print(f\"  {s}: {v['sites']} sites, {v['agents']} agents, \${v['token_price']:.4f}/token, \${v['monthly_revenue']:.0f}/mo\")
-            "
+            python3 scripts/tokenomics-summary.py
           fi
 
       - name: Generate test vectors with metrics
