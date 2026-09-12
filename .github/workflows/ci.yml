@@ -132,7 +132,11 @@ jobs:
           bash scripts/benchmark.sh --json > /tmp/benchmark_results.json
           echo "=== Compression Benchmark ==="
           bash scripts/benchmark.sh
-          echo "results=$(cat /tmp/benchmark_results.json)" >> "$GITHUB_OUTPUT"
+          {
+            echo "results<<RESULTS_JSON"
+            cat /tmp/benchmark_results.json
+            echo "RESULTS_JSON"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Run tokenomics dashboard
         run: |
