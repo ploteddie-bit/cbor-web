@@ -1484,7 +1484,6 @@ mod tests {
         use super::*;
         use axum::body::Body;
         use axum::http::Request;
-        use k256::ecdsa::signature::Signer;
         use k256::ecdsa::{Signature, SigningKey};
         use sha3::{Digest, Keccak256};
         use tower::ServiceExt;
