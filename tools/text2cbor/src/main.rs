@@ -558,31 +558,45 @@ fn extract_blocks_recursive(
                         ]));
                     }
                 }
-            "img" | "image" => {
+                "img" | "image" => {
                     let alt = el.value().attr("alt").unwrap_or("Image").to_string();
                     let src = el.value().attr("src").unwrap_or("").to_string();
                     if !src.is_empty() {
                         let width = el.value().attr("width").and_then(|w| w.parse::<u64>().ok());
-                        let height = el.value().attr("height").and_then(|h| h.parse::<u64>().ok());
-                        let ext = std::path::Path::new(&src).extension()
-                            .and_then(|e| e.to_str()).unwrap_or("");
+                        let height = el
+                            .value()
+                            .attr("height")
+                            .and_then(|h| h.parse::<u64>().ok());
+                        let ext = std::path::Path::new(&src)
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .unwrap_or("");
                         let format = match ext {
-                            "jpg"|"jpeg" => "image/jpeg",
+                            "jpg" | "jpeg" => "image/jpeg",
                             "png" => "image/png",
-                            "gif" => "image/gif", 
+                            "gif" => "image/gif",
                             "webp" => "image/webp",
                             "svg" => "image/svg+xml",
                             _ => "",
                         };
                         let class = el.value().attr("class").unwrap_or("");
-                        let semantic_role = if class.contains("logo") || alt.contains("logo") { "logo" }
-                            else if class.contains("hero") { "hero" }
-                            else if class.contains("product") { "product_photo" }
-                            else if class.contains("screenshot") { "screenshot" }
-                            else if class.contains("avatar") { "avatar" }
-                            else if class.contains("illustration") || class.contains("illustr") { "illustration" }
-                            else if class.contains("icon") || class.contains("deco") { "decorative" }
-                            else { "illustration" };
+                        let semantic_role = if class.contains("logo") || alt.contains("logo") {
+                            "logo"
+                        } else if class.contains("hero") {
+                            "hero"
+                        } else if class.contains("product") {
+                            "product_photo"
+                        } else if class.contains("screenshot") {
+                            "screenshot"
+                        } else if class.contains("avatar") {
+                            "avatar"
+                        } else if class.contains("illustration") || class.contains("illustr") {
+                            "illustration"
+                        } else if class.contains("icon") || class.contains("deco") {
+                            "decorative"
+                        } else {
+                            "illustration"
+                        };
                         let mut entries = vec![
                             (t("alt"), t(&alt)),
                             (t("src"), t(&src)),
@@ -590,9 +604,14 @@ fn extract_blocks_recursive(
                             (t("trust"), u(0)),
                             (t("semantic_role"), t(semantic_role)),
                         ];
-                        if !format.is_empty() { entries.push((t("format"), t(format))); }
+                        if !format.is_empty() {
+                            entries.push((t("format"), t(format)));
+                        }
                         if let (Some(w), Some(h)) = (width, height) {
-                            entries.push((t("dimensions"), cmap(vec![(t("h"), u(h)), (t("w"), u(w))])));
+                            entries.push((
+                                t("dimensions"),
+                                cmap(vec![(t("h"), u(h)), (t("w"), u(w))]),
+                            ));
                         }
                         blocks.push(cmap(entries));
                     }
@@ -608,7 +627,9 @@ fn extract_blocks_recursive(
                             (t("title"), t(title)),
                             (t("trust"), u(0)),
                         ];
-                        if !poster.is_empty() { entries.push((t("thumbnail_url"), t(poster))); }
+                        if !poster.is_empty() {
+                            entries.push((t("thumbnail_url"), t(poster)));
+                        }
                         blocks.push(cmap(entries));
                     }
                 }
@@ -1082,7 +1103,8 @@ fn enrich_block_with_describe(block: &Value) -> Value {
             "p" | "ul" | "ol" => 2,       // Detail
             "h" => 2,                     // h3+ = detail
             "q" | "code" | "dl" => 3,     // Complete
-            "img" | "image" | "sep" | "embed" | "video" | "audio" | "document" | "diagram" | "live_stream" => 4,
+            "img" | "image" | "sep" | "embed" | "video" | "audio" | "document" | "diagram"
+            | "live_stream" => 4,
             _ => 2,
         };
 

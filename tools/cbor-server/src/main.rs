@@ -14,11 +14,10 @@ use axum::{
     body::Bytes,
     extract::{Path, Query, State},
     http::{header, HeaderMap, Method, StatusCode},
-    Json,
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::get,
-    Router,
+    Json, Router,
 };
 use clap::Parser;
 use sha2::{Digest, Sha256};
@@ -245,10 +244,7 @@ const CHALLENGE_TTL_SECS: u64 = 120;
 const CHALLENGE_STORE_CAP: usize = 10_000;
 
 /// GET /cbor-web/challenge — issue a single-use challenge bound to the wallet.
-async fn challenge_handler(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-) -> Response {
+async fn challenge_handler(State(state): State<Arc<AppState>>, headers: HeaderMap) -> Response {
     let wallet = headers
         .get("X-CBOR-Web-Wallet")
         .and_then(|v| v.to_str().ok())
@@ -280,8 +276,7 @@ async fn challenge_handler(
         challenge.clone(),
         ChallengeEntry {
             wallet,
-            expires: std::time::Instant::now()
-                + std::time::Duration::from_secs(CHALLENGE_TTL_SECS),
+            expires: std::time::Instant::now() + std::time::Duration::from_secs(CHALLENGE_TTL_SECS),
         },
     );
     (
@@ -311,11 +306,7 @@ fn ecrecover_address(message: &str, sig_hex: &str) -> Option<String> {
         return None;
     }
     let signature = Signature::from_slice(&sig_bytes[..64]).ok()?;
-    let eip191 = format!(
-        "\x19Ethereum Signed Message:\n{}{}",
-        message.len(),
-        message
-    );
+    let eip191 = format!("\x19Ethereum Signed Message:\n{}{}", message.len(), message);
     let hash = Keccak256::digest(eip191.as_bytes());
     let recovery = RecoveryId::from_byte(v - 27)?;
     let key = VerifyingKey::recover_from_prehash(&hash, &signature, recovery).ok()?;
@@ -338,8 +329,7 @@ async fn wallet_auth_check(
         Ok(b) => b,
         Err(_) => {
             // 413: body above the 4 MiB limit (revue m5)
-            return (StatusCode::PAYLOAD_TOO_LARGE, "body_too_large")
-                .into_response()
+            return (StatusCode::PAYLOAD_TOO_LARGE, "body_too_large").into_response();
         }
     };
     let reject = |reason: &str| -> Response {
@@ -375,9 +365,7 @@ async fn wallet_auth_check(
     {
         let mut store = state.challenges.lock().await;
         match store.get(nonce) {
-            Some(entry)
-                if entry.wallet == wallet && entry.expires > std::time::Instant::now() =>
-            {
+            Some(entry) if entry.wallet == wallet && entry.expires > std::time::Instant::now() => {
                 store.remove(nonce); // consumed exactly once
             }
             Some(_) => return reject("challenge_wallet_mismatch"),
@@ -428,10 +416,7 @@ async fn serve_manifest(
     (StatusCode::NOT_FOUND, "Not Found").into_response()
 }
 
-async fn serve_manifest_json(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-) -> Response {
+async fn serve_manifest_json(State(state): State<Arc<AppState>>, headers: HeaderMap) -> Response {
     let dir = host_dir(&state, &headers);
     let paths = [
         dir.join(".well-known/cbor-web/manifest.cbor"),
@@ -1222,7 +1207,7 @@ async fn main() {
                 .route("/bundle", get(serve_bundle).head(serve_bundle))
                 .route("/doleance", axum::routing::post(receive_doleance))
                 .route("/doleance/list", get(list_doleances))
-                .route("/diff", get(serve_diff).head(serve_diff))
+                .route("/diff", get(serve_diff).head(serve_diff)),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth_mw))
         .layer(middleware::from_fn_with_state(
@@ -1266,7 +1251,11 @@ mod tests {
         // Tests must be self-contained: write minimal CBOR fixtures (self-described
         // tag D9D9F7 + empty map) so manifest/bundle endpoints have files to serve.
         // Fixes CI: these tests depended on a production data/ dir that CI never had.
-        std::fs::write("data/.well-known/cbor-web/manifest.cbor", b"\xd9\xd9\xf7\xa0").unwrap();
+        std::fs::write(
+            "data/.well-known/cbor-web/manifest.cbor",
+            b"\xd9\xd9\xf7\xa0",
+        )
+        .unwrap();
         std::fs::write("data/.well-known/cbor-web/bundle.cbor", b"\xd9\xd9\xf7\xa0").unwrap();
         Arc::new(AppState {
             data_dir: PathBuf::from("data"),
@@ -1297,7 +1286,7 @@ mod tests {
                 "/.well-known/cbor-web",
                 Router::new()
                     .route("/", get(serve_manifest).head(serve_manifest))
-                .route("/manifest.json", get(serve_manifest_json))
+                    .route("/manifest.json", get(serve_manifest_json))
                     .route("/pages/:filename", get(serve_page).head(serve_page))
                     .route("/bundle", get(serve_bundle).head(serve_bundle))
                     .route("/doleance", axum::routing::post(receive_doleance))
@@ -1498,11 +1487,7 @@ mod tests {
         }
 
         fn sign_eip191(key: &SigningKey, message: &str) -> String {
-            let full = format!(
-                "\x19Ethereum Signed Message:\n{}{}",
-                message.len(),
-                message
-            );
+            let full = format!("\x19Ethereum Signed Message:\n{}{}", message.len(), message);
             let hash = Keccak256::digest(full.as_bytes());
             let (sig, rid): (Signature, _) = key.sign_prehash_recoverable(&hash);
             let mut out = sig.to_bytes().to_vec();
@@ -1539,8 +1524,7 @@ mod tests {
                 .unwrap();
             assert_eq!(resp.status(), 200);
             let bytes = axum::body::to_bytes(resp.into_body(), 65536).await.unwrap();
-            serde_json::from_slice::<serde_json::Value>(&bytes)
-                .unwrap()["challenge"]
+            serde_json::from_slice::<serde_json::Value>(&bytes).unwrap()["challenge"]
                 .as_str()
                 .unwrap()
                 .to_string()
@@ -1553,7 +1537,11 @@ mod tests {
             let key = SigningKey::from_slice(&[3u8; 32]).unwrap();
             let addr = addr_of(&key);
             let ch = get_challenge(&router, &addr).await;
-            let message = format!("GET:/.well-known/cbor-web/manifest.json:{}:{}", ch, sha256_hex(b""));
+            let message = format!(
+                "GET:/.well-known/cbor-web/manifest.json:{}:{}",
+                ch,
+                sha256_hex(b"")
+            );
             let sig = sign_eip191(&key, &message);
             // manifest.json existe-t-il ? sinon utiliser /codes qui est hors
             // périmètre auth — le nest protégé est /.well-known/cbor-web/*
@@ -1595,7 +1583,11 @@ mod tests {
             let addr = addr_of(&key);
             // challenge demandé pour `addr`, signature de `other`
             let ch = get_challenge(&router, &addr).await;
-            let message = format!("GET:/.well-known/cbor-web/manifest.json:{}:{}", ch, sha256_hex(b""));
+            let message = format!(
+                "GET:/.well-known/cbor-web/manifest.json:{}:{}",
+                ch,
+                sha256_hex(b"")
+            );
             let sig = sign_eip191(&other, &message);
             let resp = router
                 .clone()
@@ -1635,14 +1627,10 @@ mod tests {
                 0xa1, 0x63, 0x6b, 0x65, 0x79, 0x44, 0xff, 0xfe, 0x80, 0x00, 0xc3, 0x28,
             ];
             let ch = get_challenge(&router, &addr).await;
-            let message = format!(
-                "POST:/.well-known/cbor-web/doleance:{}:{}",
-                ch,
-                {
-                    use sha2::Digest as _;
-                    hex::encode(sha2::Sha256::digest(body))
-                }
-            );
+            let message = format!("POST:/.well-known/cbor-web/doleance:{}:{}", ch, {
+                use sha2::Digest as _;
+                hex::encode(sha2::Sha256::digest(body))
+            });
             let sig = sign_eip191(&key, &message);
             let resp = router
                 .oneshot(
@@ -1667,9 +1655,7 @@ mod tests {
             // m8 (revue PR13) : le monitoring ne doit jamais exiger de headers.
             let router = test_router(auth_state());
             let resp = router
-                .oneshot(
-                    Request::get("/health").body(Body::empty()).unwrap(),
-                )
+                .oneshot(Request::get("/health").body(Body::empty()).unwrap())
                 .await
                 .unwrap();
             assert_ne!(resp.status(), 401, "/health fermé en mode wallet-auth");
@@ -1678,7 +1664,10 @@ mod tests {
         #[test]
         fn test_ecrecover_address_rejects_malformed() {
             assert_eq!(ecrecover_address("msg", "0x00"), None);
-            assert_eq!(ecrecover_address("msg", &format!("0x{}", "ab".repeat(65))), None); // v=0xab
+            assert_eq!(
+                ecrecover_address("msg", &format!("0x{}", "ab".repeat(65))),
+                None
+            ); // v=0xab
             let garbage = format!("0x{}", "11".repeat(65));
             // v invalide (0x11) → None
             assert_eq!(ecrecover_address("msg", &garbage), None);
