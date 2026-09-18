@@ -11,6 +11,7 @@
   } catch (e) { sid = "nose-" + Date.now().toString(36); }
 
   var q = [];
+  var failed = 0;
   function ev(type, page, element) {
     var p = new URLSearchParams(location.search);
     q.push({
@@ -25,7 +26,9 @@
     if (!q.length) return;
     var body = JSON.stringify({ sid: sid, events: q.splice(0) });
     if (navigator.sendBeacon && navigator.sendBeacon(ENDPOINT, new Blob([body], { type: "application/json" }))) return;
-    fetch(ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: body, keepalive: true }).catch(function () {});
+    fetch(ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: body, keepalive: true })
+      .then(function (r) { if (!r.ok) { failed++; console.warn("[t.js] HTTP " + r.status); } })
+      .catch(function (e) { failed++; console.warn("[t.js] fetch error:", e.message); });
   }
 
   ev("pageview");
@@ -33,8 +36,9 @@
   document.addEventListener("click", function (e) {
     var el = e.target.closest("a,button,[role=button]");
     if (!el) return;
-    var label = (el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 60);
-    ev("click", null, (el.tagName.toLowerCase()) + ":" + (el.getAttribute("href") || label || "?"));
+    // Utiliser aria-label ou href, PAS textContent (peut contenir des données personnelles)
+    var label = el.getAttribute("aria-label") || el.getAttribute("href") || el.id || el.className || "?";
+    ev("click", null, (el.tagName.toLowerCase()) + ":" + String(label).slice(0, 60));
   }, { passive: true });
   setInterval(flush, 5000);
   window.addEventListener("beforeunload", flush);
