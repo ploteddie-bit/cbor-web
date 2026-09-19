@@ -25,7 +25,9 @@
   function flush() {
     if (!q.length) return;
     var body = JSON.stringify({ sid: sid, events: q.splice(0) });
-    if (navigator.sendBeacon && navigator.sendBeacon(ENDPOINT, new Blob([body], { type: "application/json" }))) return;
+    // text/plain = requête « simple » au sens CORS : aucun preflight. En application/json,
+    // Firefox déclenche un preflight puis abandonne le beacon (sendBeacon renvoie true quand même).
+    if (navigator.sendBeacon && navigator.sendBeacon(ENDPOINT, new Blob([body], { type: "text/plain" }))) return;
     fetch(ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: body, keepalive: true })
       .then(function (r) { if (!r.ok) { failed++; console.warn("[t.js] HTTP " + r.status); } })
       .catch(function (e) { failed++; console.warn("[t.js] fetch error:", e.message); });
