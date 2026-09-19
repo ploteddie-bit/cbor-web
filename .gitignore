@@ -10,3 +10,7 @@ memory/
 business/
 tools/cbor-server/data/**/*.cbor
 __pycache__/
+
+# Artefacts locaux : sauvegardes horodatées et dossier de versionnage local
+*.bak.*
+versions/
